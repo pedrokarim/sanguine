@@ -162,10 +162,10 @@ export class Particles {
   }
 
   /** Poussière au sol – priorité minimale, première sacrifiée quand ça sature. */
-  dust(x: number, y: number, n = 3): void {
+  dust(x: number, y: number, n = 3, color: string = P.stoneHi): void {
     for (let i = 0; i < n; i++) {
       const a = fxRng.angle();
-      this.spawn(PKind.Dust, x, y, Math.cos(a) * fxRng.range(4, 16), Math.sin(a) * fxRng.range(2, 8), fxRng.range(0.25, 0.5), P.stoneHi, fxRng.range(1, 2), 0);
+      this.spawn(PKind.Dust, x, y, Math.cos(a) * fxRng.range(4, 16), Math.sin(a) * fxRng.range(2, 8), fxRng.range(0.25, 0.5), color, fxRng.range(1, 2), 0);
     }
   }
 

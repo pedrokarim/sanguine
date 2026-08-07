@@ -6,10 +6,32 @@ export interface Options {
   master: number;
   sfx: number;
   music: number;
-  reduceFlash: boolean;
+
+  /**
+   * Échelle de toute l'interface. Par défaut **1.15** et non 1 : la taille d'origine était
+   * lisible sur un grand écran de développement, beaucoup moins sur un portable — et un
+   * réglage de confort doit partir d'une valeur confortable, pas d'un minimum.
+   */
   hudScale: number;
+
   /** Intensité de la secousse de caméra, 0 = aucune. Volontairement basse par défaut. */
   shake: number;
+  /** Supprime flashs plein écran et vignettes pulsées. */
+  reduceFlash: boolean;
+  /** Supprime les animations décoratives : coulures du logo, sprites du codex, transitions. */
+  reduceMotion: boolean;
+  /** Anneau permanent sous le joueur, pour ne jamais le perdre dans la horde. */
+  highlightPlayer: boolean;
+  /** Chiffres de dégâts flottants. Les couper réduit beaucoup le bruit visuel. */
+  showDamage: boolean;
+  /** Renforce le contraste des textes d'interface. */
+  highContrast: boolean;
+  /**
+   * Vitesse de simulation, 0.6 à 1. Ce n'est pas un réglage de difficulté déguisé : le jeu
+   * reste identique, il se déroule simplement moins vite, ce qui rend le kiting accessible
+   * à des joueurs que la cadence d'origine exclut.
+   */
+  gameSpeed: number;
 }
 
 export interface Stats {
@@ -59,6 +81,13 @@ export interface RunSave {
   reaper: boolean;
 }
 
+/** Cosmétiques possédés et équipés. Aucun n'influence le jeu. */
+export interface CosmeticsSave {
+  owned: string[];
+  /** `kind` → identifiant équipé. */
+  equipped: Record<string, string>;
+}
+
 export interface SaveData {
   version: 1;
   /** Partie en cours, `null` si aucune n'est interrompue. */
@@ -73,6 +102,7 @@ export interface SaveData {
   seenEnemies: string[];
   stats: Stats;
   options: Options;
+  cosmetics: CosmeticsSave;
 }
 
 function fresh(): SaveData {
@@ -86,7 +116,16 @@ function fresh(): SaveData {
     seenRelics: [],
     seenEnemies: [],
     stats: { runs: 0, wins: 0, kills: 0, gems: 0, goldEarned: 0, bestTime: 0, bestLevel: 0 },
-    options: { master: 0.8, sfx: 0.7, music: 0.45, reduceFlash: false, hudScale: 1, shake: 0.4 },
+    options: {
+      master: 0.8, sfx: 0.7, music: 0.45,
+      hudScale: 1.15, shake: 0.4,
+      reduceFlash: false, reduceMotion: false, highlightPlayer: false,
+      showDamage: true, highContrast: false, gameSpeed: 1,
+    },
+    cosmetics: {
+      owned: [],
+      equipped: { trail: 'trail-none', theme: 'theme-stone', cursor: 'cursor-linen' },
+    },
   };
 }
 
@@ -112,6 +151,10 @@ function merge(loaded: unknown): SaveData {
     seenEnemies: Array.isArray(l.seenEnemies) ? l.seenEnemies : [],
     stats: { ...base.stats, ...(l.stats ?? {}) },
     options: { ...base.options, ...(l.options ?? {}) },
+    cosmetics: {
+      owned: Array.isArray(l.cosmetics?.owned) ? l.cosmetics.owned : [],
+      equipped: { ...base.cosmetics.equipped, ...(l.cosmetics?.equipped ?? {}) },
+    },
   };
 }
 

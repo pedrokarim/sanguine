@@ -77,7 +77,7 @@ body.cursor-hidden #game { cursor: none; }
 #ui {
   position: absolute;
   pointer-events: none;
-  font-size: calc(13px * var(--hud-scale));
+  font-size: calc(14px * var(--hud-scale));
   line-height: 1.35;
   overflow: hidden;
 }
@@ -249,7 +249,7 @@ body.cursor-hidden #game { cursor: none; }
   text-shadow: 0 1px 3px rgba(0, 0, 0, .9), 0 0 10px rgba(0, 0, 0, .7);
 }
 .screen .hint {
-  color: #7b85a8; font-size: .85em; letter-spacing: .1em;
+  color: #8e98bb; font-size: .92em; letter-spacing: .1em;
   text-shadow: 0 1px 3px rgba(0, 0, 0, .9);
 }
 
@@ -531,8 +531,8 @@ body.cursor-hidden #game { cursor: none; }
 .copyright {
   position: absolute; left: 0; right: 0; bottom: .9em;
   text-align: center;
-  font-size: .72em; letter-spacing: .22em; text-transform: uppercase;
-  color: var(--stone-hi);
+  font-size: .82em; letter-spacing: .2em; text-transform: uppercase;
+  color: #66739a;
   text-shadow: 0 1px 2px rgba(0, 0, 0, .9);
   pointer-events: none;
 }
@@ -641,13 +641,13 @@ body.cursor-hidden #game { cursor: none; }
 .codex-cell.locked .codex-name { color: var(--mist) }
 
 .codex-tag {
-  font-size: .64em; letter-spacing: .14em; text-transform: uppercase;
+  font-size: .7em; letter-spacing: .14em; text-transform: uppercase;
 }
 .codex-name {
   font-size: .84em; font-weight: 700; letter-spacing: .04em; color: var(--gold);
   text-shadow: 0 1px 0 rgba(0, 0, 0, .8);
 }
-.codex-desc { font-size: .68em; color: var(--steel); line-height: 1.4 }
+.codex-desc { font-size: .74em; color: var(--steel); line-height: 1.4 }
 
 @media (prefers-reduced-motion: reduce) {
   .codex-sprite { animation: none }
@@ -688,7 +688,7 @@ body.cursor-hidden #game { cursor: none; }
   text-shadow: 0 1px 0 rgba(0, 0, 0, .9);
 }
 .chip-label {
-  font-size: .62em; letter-spacing: .14em; text-transform: uppercase; color: var(--mist);
+  font-size: .7em; letter-spacing: .14em; text-transform: uppercase; color: var(--mist);
 }
 
 @media (max-width: 720px) {
@@ -735,7 +735,7 @@ body.cursor-hidden #game { cursor: none; }
   line-height: 1.1;
 }
 .stat-label {
-  font-size: .64em; letter-spacing: .16em; text-transform: uppercase; color: var(--mist);
+  font-size: .72em; letter-spacing: .16em; text-transform: uppercase; color: var(--mist);
 }
 
 /* Icône du Sanctuaire, alignée à gauche de chaque ligne. */
@@ -747,6 +747,47 @@ body.cursor-hidden #game { cursor: none; }
   .stat-tile { min-width: 4.6em; padding: .45em .5em .4em }
   .stat-icon { height: 2em }
 }
+
+/* ---------------------------------------------------------------- boutique */
+
+.shop-cell { position: relative; padding-bottom: 3.2em }
+.shop-cell .shop-btn {
+  position: absolute; left: .6em; right: .6em; bottom: .5em;
+  font-size: .74em; padding: .4em .3em; letter-spacing: .08em;
+}
+.shop-cell.equipped { border-image: var(--frame-gold) 8 / 8px / 0 round }
+.shop-cell.locked .codex-name { color: var(--steel) }
+
+/* Pastille pour les articles sans sprite : deux teintes, comme l'objet qu'elles décrivent. */
+.shop-swatch {
+  width: 42px; height: 42px; border-radius: 50%;
+  background: radial-gradient(circle at 34% 30%, var(--a), var(--c) 62%, rgba(0, 0, 0, .6));
+  box-shadow: 0 0 12px color-mix(in srgb, var(--c) 55%, transparent), inset 0 0 0 1px rgba(0, 0, 0, .5);
+}
+.shop-swatch.none {
+  background: none;
+  box-shadow: inset 0 0 0 2px var(--stone-hi);
+  position: relative;
+}
+.shop-swatch.none::after {
+  content: ''; position: absolute; inset: 30%;
+  border-top: 2px solid var(--stone-hi); transform: rotate(45deg);
+}
+
+/* ------------------------------------------------------------ options */
+
+.opt-scroll {
+  width: 100%; max-width: 34em; max-height: 60vh; overflow-y: auto; padding-right: .5em;
+  -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 18px, #000 calc(100% - 22px), transparent 100%);
+  mask-image: linear-gradient(180deg, transparent 0, #000 18px, #000 calc(100% - 22px), transparent 100%);
+}
+.opt-scroll::-webkit-scrollbar { width: 8px }
+.opt-scroll::-webkit-scrollbar-thumb { background: var(--stone-hi); border-radius: 4px }
+.opt-val {
+  min-width: 3.4em; text-align: right; color: var(--gold);
+  font-variant-numeric: tabular-nums; font-size: .9em;
+}
+.opt-hint { font-size: .76em; color: var(--mist); line-height: 1.35; max-width: 24em }
 
 /* ------------------------------------------------------------- fin de run */
 
@@ -761,7 +802,7 @@ body.cursor-hidden #game { cursor: none; }
 
 /* --------------------------------------------------------------- options */
 
-.opt-row { display: flex; align-items: center; gap: .8em; width: 22em; justify-content: space-between }
+.opt-row { display: flex; align-items: center; gap: .9em; width: 100%; justify-content: space-between; padding: .3em 0 }
 .opt-row label { color: var(--steel); font-size: .92em }
 .opt-row input[type=range] { width: 10em; accent-color: var(--gold) }
 .opt-row input[type=checkbox] { width: 1.1em; height: 1.1em; accent-color: var(--gold) }
