@@ -83,7 +83,7 @@ export class Player {
 
   /**
    * Bonus temporaires accordés par les structures du monde (obélisque, bûcher…).
-   * Ils vivent hors du recalcul de statistiques : ce sont des effets à durée, pas du build.
+   * Ils vivent hors du recalcul de statistiques : ce sont des effets à durée, pas du build.
    */
   buffMight = 0;
   buffMightTimer = 0;
@@ -128,7 +128,7 @@ export class Player {
     const inst: WeaponInstance = {
       def,
       level: 1,
-      cd: 0.25, // léger délai : évite que toutes les armes tirent à la même frame
+      cd: 0.25, // léger délai : évite que toutes les armes tirent à la même frame
       angle: 0,
       srcId: this.srcCounter++,
       counter: 0,
@@ -186,7 +186,7 @@ export class Player {
 
   /**
    * Recalcule toutes les statistiques dérivées. Appelé uniquement lors d'un changement de
-   * build — jamais dans la boucle de jeu.
+   * build – jamais dans la boucle de jeu.
    */
   recompute(): void {
     const m: Mods = {};
@@ -228,7 +228,7 @@ export class Player {
     s.moveSpeed = BASE.moveSpeed * (1 + (m.moveSpeed ?? 0));
     s.might = BASE.might + (m.might ?? 0);
     s.area = BASE.area + (m.area ?? 0);
-    // Plancher à 0.4 : une arme sur-optimisée ne doit pas saturer la boucle de mise à jour.
+    // Plancher à 0.4 : une arme sur-optimisée ne doit pas saturer la boucle de mise à jour.
     s.cooldown = clamp(BASE.cooldown - (m.cooldown ?? 0), 0.4, 2);
     s.projSpeed = Math.max(0.2, BASE.projSpeed + (m.projSpeed ?? 0));
     s.duration = Math.max(0.2, BASE.duration + (m.duration ?? 0));
@@ -243,7 +243,7 @@ export class Player {
     s.revives = BASE.revives + Math.floor(m.revives ?? 0) + (this.flag('lastBreath') > 0 ? 1 : 0);
     s.rerolls = BASE.rerolls + Math.floor(m.rerolls ?? 0);
 
-    // Gagner des PV max soigne du même montant — sinon monter Cœur d'Argent en urgence
+    // Gagner des PV max soigne du même montant – sinon monter Cœur d'Argent en urgence
     // ne servirait à rien dans le feu de l'action.
     if (s.maxHp > prevMax) this.hp += s.maxHp - prevMax;
     this.hp = clamp(this.hp, 0, s.maxHp);
@@ -297,7 +297,7 @@ export class Player {
   tryRevive(): boolean {
     if (this.revivesLeft <= 0) return false;
     this.revivesLeft--;
-    // « Dernier Souffle » ressuscite à 1 PV sans invulnérabilité — c'est la malédiction.
+    // « Dernier Souffle » ressuscite à 1 PV sans invulnérabilité – c'est la malédiction.
     const cursed = this.flag('lastBreath') > 0 && this.revivesLeft < this.stats.revives - 0;
     this.hp = cursed ? 1 : Math.round(this.stats.maxHp * 0.5);
     this.iframes = cursed ? 0 : 2.5;
@@ -351,7 +351,7 @@ export class Player {
     if (this.stats.regen > 0 && this.hp < this.stats.maxHp) {
       this.hp = Math.min(this.stats.maxHp, this.hp + this.stats.regen * dt);
     }
-    // Cœur Battant : régénération accélérée quand la situation est critique.
+    // Cœur Battant : régénération accélérée quand la situation est critique.
     const lowRegen = this.flag('lowHpRegen');
     if (lowRegen > 0 && this.hpRatio < 0.3) {
       this.hp = Math.min(this.stats.maxHp, this.hp + this.stats.maxHp * lowRegen * dt);

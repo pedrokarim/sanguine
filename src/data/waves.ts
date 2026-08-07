@@ -1,7 +1,7 @@
 /**
  * Courbes d'apparition et événements scriptés.
  *
- * Le taux monte linéairement et le plafond simultané aussi : c'est la **densité** qui crée la
+ * Le taux monte linéairement et le plafond simultané aussi : c'est la **densité** qui crée la
  * difficulté, jamais la vitesse des ennemis (voir `enemies.ts`).
  */
 
@@ -10,8 +10,8 @@ export const RUN_DURATION = 30 * 60; // 30 minutes
 /**
  * Ennemis par seconde à la minute `m`.
  *
- * Valeurs calibrées au bot de test : un joueur qui kite correctement tue ~2 ennemis/s dès
- * la 3ᵉ minute. En dessous de ce débit, la population s'effondre et l'écran se vide — ce
+ * Valeurs calibrées au bot de test : un joueur qui kite correctement tue ~2 ennemis/s dès
+ * la 3ᵉ minute. En dessous de ce débit, la population s'effondre et l'écran se vide – ce
  * qui casse à la fois la tension et la courbe d'XP, puisque l'XP vient des morts.
  */
 export function spawnRate(m: number): number {
@@ -21,9 +21,9 @@ export function spawnRate(m: number): number {
 /**
  * Nombre maximal d'ennemis vivants simultanément.
  *
- * Ce plafond est un garde-fou, pas un objectif : en pratique la population s'équilibre au
+ * Ce plafond est un garde-fou, pas un objectif : en pratique la population s'équilibre au
  * débit de mise à mort du joueur. Le monter trop haut a été testé et produit l'effet inverse
- * de celui recherché — le joueur ne tue plus assez vite, ne ramasse plus de gemmes, et reste
+ * de celui recherché – le joueur ne tue plus assez vite, ne ramasse plus de gemmes, et reste
  * bloqué au niveau 5 pendant que l'écran se remplit.
  */
 export function spawnCap(m: number): number {
@@ -62,7 +62,7 @@ export interface WaveEvent {
   enemy: string;
   count: number;
   label: string;
-  /** Pour `surge` : multiplicateur et durée. */
+  /** Pour `surge` : multiplicateur et durée. */
   mult?: number;
   duration?: number;
 }
@@ -83,15 +83,15 @@ export const WAVE_EVENTS: WaveEvent[] = [
 ];
 
 /**
- * Courbe d'XP. Le palier initial doit être bas : les premières cartes sont ce qui donne
+ * Courbe d'XP. Le palier initial doit être bas : les premières cartes sont ce qui donne
  * au joueur le sentiment d'exister, et les faire attendre une minute tue l'ouverture.
- * Mesuré au bot : ~6 niveaux la première minute, ~20 à la cinquième, ~65 sur un run complet.
+ * Mesuré au bot : ~6 niveaux la première minute, ~20 à la cinquième, ~65 sur un run complet.
  */
 export function xpForLevel(level: number): number {
   return Math.round(4 + level * 5.5 + Math.pow(level, 1.5));
 }
 
-/** Table de butin : probabilité de chaque objet à la mort d'un ennemi ordinaire. */
+/** Table de butin : probabilité de chaque objet à la mort d'un ennemi ordinaire. */
 export const DROP_TABLE = {
   goldCoin: 0.12,
   goldBag: 0.01,

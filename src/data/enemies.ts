@@ -5,7 +5,7 @@ import type { BodyArt } from '../gfx/sprites';
  * Table des ennemis. `hp`, `damage` et `speed` sont les valeurs **de base**, avant la mise à
  * l'échelle temporelle appliquée par le director.
  *
- * Règle d'équilibrage centrale : **la vitesse ne monte jamais avec le temps.** Seuls les PV
+ * Règle d'équilibrage centrale : **la vitesse ne monte jamais avec le temps.** Seuls les PV
  * et les dégâts augmentent. C'est ce qui garde le kiting possible à la 28ᵉ minute.
  */
 
@@ -132,7 +132,7 @@ export const ENEMY_BY_ID = new Map(ENEMIES.map((e) => [e.id, e]));
 
 export function enemyById(id: string): EnemyDef {
   const e = ENEMY_BY_ID.get(id) ?? BOSS_BY_ID.get(id);
-  if (!e) throw new Error(`Ennemi inconnu : ${id}`);
+  if (!e) throw new Error(`Ennemi inconnu : ${id}`);
   return e;
 }
 
@@ -148,7 +148,7 @@ export interface BossDef extends EnemyDef {
   /** Minute d'apparition. */
   minute: number;
   title: string;
-  /** Invulnérable et impossible à tuer — réservé à la Faucheuse. */
+  /** Invulnérable et impossible à tuer – réservé à la Faucheuse. */
   invincible?: boolean;
 }
 

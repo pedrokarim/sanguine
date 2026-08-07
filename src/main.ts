@@ -19,7 +19,7 @@ import { installDecor } from './ui/decor';
 /**
  * Point d'entrée et machine à états d'écrans.
  *
- * `PLAYING` est le seul état qui fait avancer la simulation ; tous les autres continuent de
+ * `PLAYING` est le seul état qui fait avancer la simulation ; tous les autres continuent de
  * **rendre** la scène figée, ce qui garde le contexte visuel derrière les menus.
  */
 
@@ -53,7 +53,7 @@ let currentOffers: Offer[] = [];
 let currentChest: ChestResult | null = null;
 
 // ---------------------------------------------------------------------------
-// Mise à l'échelle : facteur entier, jamais d'interpolation
+// Mise à l'échelle : facteur entier, jamais d'interpolation
 // ---------------------------------------------------------------------------
 
 function resize(): void {
@@ -77,11 +77,11 @@ window.addEventListener('resize', resize);
 resize();
 
 // ---------------------------------------------------------------------------
-// Curseur : effacement automatique pendant le jeu
+// Curseur : effacement automatique pendant le jeu
 // ---------------------------------------------------------------------------
 
 /**
- * Le jeu vise tout seul : en partie, la souris ne sert strictement à rien. Le curseur
+ * Le jeu vise tout seul : en partie, la souris ne sert strictement à rien. Le curseur
  * s'efface donc après un temps d'immobilité et revient au moindre mouvement. Il n'est
  * **jamais** masqué dans les menus, où il reste le principal moyen d'interaction.
  */
@@ -419,7 +419,7 @@ function handleGlobalKeys(): void {
 
   if (state === 'title' && input.wasPressed('Enter', 'Space')) goCharSelect();
 
-  // Triches de développement — pratiques pour tester l'équilibrage tardif.
+  // Triches de développement – pratiques pour tester l'équilibrage tardif.
   if (!world || state !== 'playing') return;
   const w = world;
   if (input.wasPressed('F1')) {

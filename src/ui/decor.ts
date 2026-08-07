@@ -4,10 +4,10 @@ import { P, shade, rgba } from '../gfx/palette';
  * Ornements d'interface générés par le code, exposés à la CSS sous forme de variables
  * contenant des `data:` URI.
  *
- * Même logique que pour les sprites : rien n'est téléchargé, la palette du jeu est la seule
+ * Même logique que pour les sprites : rien n'est téléchargé, la palette du jeu est la seule
  * source de vérité, et changer la teinte de toute l'interface tient en un argument.
  *
- * Les cadres sont des images **9-slice** : quatre coins fixes, quatre bords répétés, centre
+ * Les cadres sont des images **9-slice** : quatre coins fixes, quatre bords répétés, centre
  * transparent. La CSS les étire via `border-image`, ce qui décore n'importe quelle boîte
  * quelle que soit sa taille, sans un seul élément supplémentaire dans le DOM.
  */
@@ -46,7 +46,7 @@ function frame(color: string, accent: string): HTMLCanvasElement {
   cx.fillRect(0, 4, 1, 1);
 
   // --- bord haut ---
-  // Deux filets continus et un seul cran discret : un motif plus marqué se répète tous les
+  // Deux filets continus et un seul cran discret : un motif plus marqué se répète tous les
   // 8 px et transforme le cadre en pointillés, ce qui parasite la lecture du contenu.
   const [edge, ex] = canvas(S, S);
   ex.fillStyle = color;
@@ -72,7 +72,7 @@ function frame(color: string, accent: string): HTMLCanvasElement {
   put(edge, S, 0, 1, 1);
   put(edge, S, S * 2, 1, -1);
 
-  // Bords verticaux : le bord haut pivoté d'un quart de tour.
+  // Bords verticaux : le bord haut pivoté d'un quart de tour.
   const [vedge, vx] = canvas(S, S);
   vx.translate(S, 0);
   vx.rotate(Math.PI / 2);
@@ -83,7 +83,7 @@ function frame(color: string, accent: string): HTMLCanvasElement {
   return c;
 }
 
-/** Fleuron horizontal : deux traits effilés convergeant vers un losange central. */
+/** Fleuron horizontal : deux traits effilés convergeant vers un losange central. */
 function flourish(color: string, accent: string): HTMLCanvasElement {
   const W = 96;
   const H = 11;
@@ -134,7 +134,7 @@ function corner(color: string, accent: string): HTMLCanvasElement {
   return c;
 }
 
-/** Bandeau de titre : dégradé sanglant en fondu, posé derrière les h1/h2. */
+/** Bandeau de titre : dégradé sanglant en fondu, posé derrière les h1/h2. */
 function titleBand(): HTMLCanvasElement {
   const W = 256;
   const H = 48;
@@ -159,7 +159,7 @@ function titleBand(): HTMLCanvasElement {
   return c;
 }
 
-/** Texture de parchemin discrète pour les panneaux — évite les aplats trop plats. */
+/** Texture de parchemin discrète pour les panneaux – évite les aplats trop plats. */
 function grain(): HTMLCanvasElement {
   const S = 64;
   const [c, ctx] = canvas(S, S);
@@ -170,7 +170,7 @@ function grain(): HTMLCanvasElement {
     img.data[o] = 255;
     img.data[o + 1] = 255;
     img.data[o + 2] = 255;
-    // Grain très faible : perceptible sans jamais devenir du bruit.
+    // Grain très faible : perceptible sans jamais devenir du bruit.
     img.data[o + 3] = v < 0.5 ? 0 : Math.floor(v * 9);
   }
   ctx.putImageData(img, 0, 0);
@@ -184,7 +184,7 @@ function grain(): HTMLCanvasElement {
 /**
  * Curseur en pixel art, dessiné à partir d'un masque 16×16 puis agrandi ×2.
  *
- * `#` = corps, `X` = contour. Le contour est indispensable : un curseur sans liseré sombre
+ * `#` = corps, `X` = contour. Le contour est indispensable : un curseur sans liseré sombre
  * disparaît dès qu'il passe sur une zone claire de l'interface, et un curseur qu'on perd est
  * pire que pas de curseur personnalisé du tout.
  */
@@ -213,7 +213,7 @@ const SCALE = 2;
  * Construit la valeur CSS complète de `cursor`, repli inclus.
  *
  * Le point chaud est calé sur la pointe de la flèche. Le repli `auto` en fin de déclaration
- * n'est pas décoratif : si le navigateur refuse l'image (taille, contexte, politique), sans
+ * n'est pas décoratif : si le navigateur refuse l'image (taille, contexte, politique), sans
  * lui la propriété entière est invalide et le curseur disparaît.
  */
 function cursor(body: string, outline: string, gem: string | null): string {
@@ -230,7 +230,7 @@ function cursor(body: string, outline: string, gem: string | null): string {
     }
   }
 
-  // Petite gemme dans le corps de la flèche : le détail qui rend le curseur « du jeu »
+  // Petite gemme dans le corps de la flèche : le détail qui rend le curseur « du jeu »
   // plutôt qu'une flèche générique repeinte.
   if (gem) {
     ctx.fillStyle = gem;
@@ -239,7 +239,7 @@ function cursor(body: string, outline: string, gem: string | null): string {
     ctx.fillRect(3 * SCALE, 5 * SCALE, SCALE, SCALE);
   }
 
-  // Point chaud sur la pointe elle-même, au centre du bloc agrandi : avec `SCALE`, le clic
+  // Point chaud sur la pointe elle-même, au centre du bloc agrandi : avec `SCALE`, le clic
   // atterrirait un pixel logique sous et à droite de la pointe, ce qui se sent à l'usage.
   const hot = Math.floor(SCALE / 2);
   return `url("${c.toDataURL()}") ${hot} ${hot}, auto`;
@@ -257,7 +257,7 @@ export function installDecor(): void {
   root.setProperty('--title-band', url(titleBand()));
   root.setProperty('--grain', url(grain()));
 
-  // Curseurs : lin au repos, or sur un élément cliquable, rouge sur une action destructrice.
+  // Curseurs : lin au repos, or sur un élément cliquable, rouge sur une action destructrice.
   root.setProperty('--cursor', cursor(P.linen, '#05060a', P.steel));
   root.setProperty('--cursor-hover', cursor(P.gold, '#05060a', shade(P.gold, 0.6)));
   root.setProperty('--cursor-danger', cursor(P.bloodHi, '#05060a', '#ffffff'));

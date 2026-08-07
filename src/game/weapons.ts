@@ -11,7 +11,7 @@ import type { WeaponInstance, Projectile } from './types';
 /**
  * Runtime des armes. Chaque `behavior` de la table `data/weapons.ts` correspond à une
  * fonction de tir ici. Ajouter une arme qui réutilise un comportement existant ne demande
- * aucune ligne de code — seulement une entrée dans la table.
+ * aucune ligne de code – seulement une entrée dans la table.
  */
 
 const spriteCache = new Map<string, SpriteSet>();
@@ -46,7 +46,7 @@ export function cooldownOf(inst: WeaponInstance, pl: Player): number {
   return Math.max(0.05, d.cooldown * Math.pow(d.cdPerLevel, inst.level - 1) * pl.stats.cooldown);
 }
 
-/** `globalAmount` : les armes de zone (aura, mêlée, traînée) ignorent le bonus de projectiles. */
+/** `globalAmount` : les armes de zone (aura, mêlée, traînée) ignorent le bonus de projectiles. */
 export function countOf(inst: WeaponInstance, pl: Player, globalAmount = true): number {
   const d = inst.def;
   const n = d.count + upTo(d.countAt, inst.level) + (globalAmount ? pl.stats.amount : 0);
@@ -96,7 +96,7 @@ export function updateWeapons(w: World, dt: number): void {
     fire(w, inst);
   }
 
-  // Orbe Fracturé : nova gratuite périodique, indépendante des armes équipées.
+  // Orbe Fracturé : nova gratuite périodique, indépendante des armes équipées.
   const novaEvery = pl.flag('freeNova');
   if (novaEvery > 0) {
     pl.novaTimer -= dt;
@@ -178,7 +178,7 @@ function fireProjectile(w: World, inst: WeaponInstance): void {
   const spread = d.tags?.includes('spread') ? 0.16 : 0.1;
 
   for (let i = 0; i < n; i++) {
-    // Éventail centré : (i - (n-1)/2) donne un décalage symétrique autour de la visée.
+    // Éventail centré : (i - (n-1)/2) donne un décalage symétrique autour de la visée.
     const a = base + (i - (n - 1) / 2) * spread;
     const p = w.spawnProjectile(
       'linear', pl.x, pl.y, Math.cos(a) * speed, Math.sin(a) * speed,
@@ -356,7 +356,7 @@ function fireGround(w: World, inst: WeaponInstance): void {
 function fireTrail(w: World, inst: WeaponInstance): void {
   const pl = w.player;
   const d = inst.def;
-  // Ne dépose que si le joueur bouge — sinon on empile des zones au même endroit.
+  // Ne dépose que si le joueur bouge – sinon on empile des zones au même endroit.
   if (!pl.moving) return;
   w.spawnZone(
     pl.x, pl.y, areaOf(inst, pl), damageOf(inst, pl), durationOf(inst, pl),
@@ -385,7 +385,7 @@ function maintainOrbit(w: World, inst: WeaponInstance, far: boolean): void {
     );
     if (!p) break;
     p.a = radius * (dual && ring < 0 ? 0.62 : 1);
-    p.b = d.speed * ring; // vitesse angulaire signée : anneaux contrarotatifs
+    p.b = d.speed * ring; // vitesse angulaire signée : anneaux contrarotatifs
     p.c = (i / want) * TAU;
     p.spin = 6;
     p.tick = 0.5;
@@ -468,7 +468,7 @@ function fireMelee(w: World, inst: WeaponInstance): void {
   audio.play(d.sfx);
   w.particles.ring(pl.x, pl.y, radius * 0.8, d.color, 0.2, 1);
 
-  // Moisson : soigne tous les 15 ennemis abattus.
+  // Moisson : soigne tous les 15 ennemis abattus.
   if (d.tags?.includes('lifeOnKill') && pl.killStreak >= 15) {
     pl.killStreak -= 15;
     const healed = pl.heal(1);
@@ -512,7 +512,7 @@ function fireShockwave(w: World, inst: WeaponInstance): void {
   w.particles.ring(pl.x, pl.y, radius, d.color, 0.4, 2);
   audio.play(d.sfx);
 
-  // Appel de la Meute : trois loups spectraux qui chassent pour vous.
+  // Appel de la Meute : trois loups spectraux qui chassent pour vous.
   if (d.tags?.includes('summonWolves')) {
     for (let i = 0; i < 3; i++) {
       const a = fxRng.angle();
@@ -578,7 +578,7 @@ function fireStrike(w: World, inst: WeaponInstance): void {
   if (struck > 0) audio.play(d.sfx);
 }
 
-/** Utilisé par le rendu : un projectile de mêlée doit s'orienter selon son angle. */
+/** Utilisé par le rendu : un projectile de mêlée doit s'orienter selon son angle. */
 export function isOriented(p: Projectile): boolean {
   return p.behavior === 'linear' || p.behavior === 'pet' || p.behavior === 'bounce' || p.behavior === 'melee';
 }

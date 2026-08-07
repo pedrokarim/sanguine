@@ -1,10 +1,10 @@
 /**
- * Palette fermée. Règle de saturation : plus un élément compte pour la survie du joueur,
- * plus il est saturé. Décor ~15 %, ennemis ~35 %, joueur ~75 %, dégâts 100 %.
+ * Palette fermée. Règle de saturation : plus un élément compte pour la survie du joueur,
+ * plus il est saturé. Décor ~15 %, ennemis ~35 %, joueur ~75 %, dégâts 100 %.
  */
 
 export const P = {
-  // Décor — froid, désaturé, doit disparaître
+  // Décor – froid, désaturé, doit disparaître
   night: '#0b0d14',
   soil: '#131725',
   soilHi: '#1b2133',
@@ -12,21 +12,21 @@ export const P = {
   stoneHi: '#2d3654',
   mist: '#38425f',
 
-  // Ennemis — sombres, violacés
+  // Ennemis – sombres, violacés
   fleshDead: '#3a2b46',
   flesh: '#4d3557',
   fleshHi: '#654166',
   bone: '#7c5175',
   boneHi: '#9a6b86',
 
-  // Joueur & alliés — chaud, saturé
+  // Joueur & alliés – chaud, saturé
   gold: '#f2c46b',
   copper: '#e89a3c',
   leather: '#c96f2a',
   linen: '#f7ede0',
   steel: '#a8c5d6',
 
-  // Sang & danger — rouge pur, exclusivement réservé aux dégâts
+  // Sang & danger – rouge pur, exclusivement réservé aux dégâts
   bloodDark: '#8b1a2b',
   blood: '#c42639',
   bloodHi: '#f0405a',

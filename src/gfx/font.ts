@@ -2,7 +2,7 @@
  * Police bitmap 3×5 générée par le code, pré-rendue en atlas par couleur.
  *
  * Les chiffres de dégâts sont l'élément le plus dessiné du jeu (plusieurs centaines par
- * seconde). `fillText` y serait catastrophique : chaque appel force un rasterisation de police.
+ * seconde). `fillText` y serait catastrophique : chaque appel force un rasterisation de police.
  * Un atlas de glyphes réduit chaque chiffre à un `drawImage` d'une sous-région.
  */
 
@@ -48,7 +48,7 @@ export function atlas(color: string): HTMLCanvasElement {
   c.height = h;
   const ctx = c.getContext('2d')!;
 
-  // Passe 1 : contour noir (le glyphe dilaté), pour rester lisible sur n'importe quel fond.
+  // Passe 1 : contour noir (le glyphe dilaté), pour rester lisible sur n'importe quel fond.
   ctx.fillStyle = '#000000';
   for (let g = 0; g < ORDER.length; g++) {
     const bits = GLYPHS[ORDER[g]!]!;
@@ -61,7 +61,7 @@ export function atlas(color: string): HTMLCanvasElement {
       }
     }
   }
-  // Passe 2 : le glyphe lui-même, par-dessus.
+  // Passe 2 : le glyphe lui-même, par-dessus.
   ctx.fillStyle = color;
   for (let g = 0; g < ORDER.length; g++) {
     const bits = GLYPHS[ORDER[g]!]!;

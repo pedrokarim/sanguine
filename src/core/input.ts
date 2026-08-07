@@ -1,10 +1,10 @@
 import { clamp } from './math';
 
 /**
- * Entrées unifiées : clavier, manette et tactile produisent le même vecteur de direction.
+ * Entrées unifiées : clavier, manette et tactile produisent le même vecteur de direction.
  *
  * Le clavier est lu par **code physique** (`KeyW`, `KeyZ`…), donc AZERTY et QWERTY
- * fonctionnent tous les deux sans configuration : `KeyZ` sur un AZERTY est la touche
+ * fonctionnent tous les deux sans configuration : `KeyZ` sur un AZERTY est la touche
  * située là où un QWERTY a `KeyW`, et on écoute simplement les deux.
  */
 
@@ -126,7 +126,7 @@ export class Input {
     if (this.anyHeld(MOVE_CODES.up)) y -= 1;
     if (this.anyHeld(MOVE_CODES.down)) y += 1;
 
-    // Manette — premier pad connecté, stick gauche + croix directionnelle.
+    // Manette – premier pad connecté, stick gauche + croix directionnelle.
     const pads = navigator.getGamepads?.() ?? [];
     for (const pad of pads) {
       if (!pad) continue;
@@ -143,7 +143,7 @@ export class Input {
       break;
     }
 
-    // Tactile — joystick virtuel avec rayon mort de 12 px et saturation à 54 px.
+    // Tactile – joystick virtuel avec rayon mort de 12 px et saturation à 54 px.
     if (this.touchId !== null) {
       const dx = this.touchCur.x - this.touchOrigin.x;
       const dy = this.touchCur.y - this.touchOrigin.y;
@@ -163,7 +163,7 @@ export class Input {
       }
     }
 
-    // Normalisation : la diagonale ne doit pas être plus rapide.
+    // Normalisation : la diagonale ne doit pas être plus rapide.
     const len = Math.hypot(x, y);
     if (len > 1) {
       x /= len;
@@ -173,7 +173,7 @@ export class Input {
     this.move.y = clamp(y, -1, 1);
   }
 
-  /** À appeler en toute fin de frame : vide le tampon des appuis ponctuels. */
+  /** À appeler en toute fin de frame : vide le tampon des appuis ponctuels. */
   endFrame(): void {
     this.pressed.clear();
   }

@@ -5,7 +5,7 @@
  * est plus rapide qu'une mise à jour incrémentale, et surtout impossible à désynchroniser.
  *
  * L'implémentation utilise des `Int32Array` en listes chaînées plutôt que des tableaux de
- * tableaux : zéro allocation par frame, donc zéro pression sur le GC.
+ * tableaux : zéro allocation par frame, donc zéro pression sur le GC.
  */
 export class SpatialGrid {
   private readonly cellSize: number;
@@ -19,7 +19,7 @@ export class SpatialGrid {
   /** `next[i]` = entité suivante dans la même cellule, ou -1. */
   private next: Int32Array;
 
-  /** Tampon réutilisé par `query` — ne jamais conserver la référence retournée. */
+  /** Tampon réutilisé par `query` – ne jamais conserver la référence retournée. */
   readonly result: Int32Array;
   resultCount = 0;
 
@@ -60,7 +60,7 @@ export class SpatialGrid {
 
   /**
    * Remplit `result` avec les entités des cellules chevauchant le cercle (x, y, r).
-   * Le filtrage exact reste à la charge de l'appelant — c'est un test large.
+   * Le filtrage exact reste à la charge de l'appelant – c'est un test large.
    */
   query(x: number, y: number, r: number): number {
     this.resultCount = 0;
@@ -90,7 +90,7 @@ export class SpatialGrid {
     return n;
   }
 
-  /** Première entité de la cellule contenant (x, y) — utilisé pour la séparation approximative. */
+  /** Première entité de la cellule contenant (x, y) – utilisé pour la séparation approximative. */
   cellHead(x: number, y: number): number {
     const c = this.cellIndex(x, y);
     return c < 0 ? -1 : this.heads[c]!;

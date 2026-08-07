@@ -5,15 +5,15 @@ import * as font from './font';
 import type { Camera } from './camera';
 
 /**
- * Système de particules poolé. Aucune allocation après l'initialisation : le pool est rempli
+ * Système de particules poolé. Aucune allocation après l'initialisation : le pool est rempli
  * une fois, et les particules sont recyclées par un pointeur circulaire.
  *
- * Le plafond est volontaire — au-delà, les nouvelles demandes de faible priorité sont
+ * Le plafond est volontaire – au-delà, les nouvelles demandes de faible priorité sont
  * ignorées. Il vaut mieux perdre de la poussière décorative que le sang du joueur.
  */
 
 /**
- * Objet constant plutôt qu'un `const enum` : `isolatedModules` interdit d'inliner un const enum
+ * Objet constant plutôt qu'un `const enum` : `isolatedModules` interdit d'inliner un const enum
  * à travers les modules, et un enum classique génère du code à l'exécution pour rien.
  */
 export const PKind = {
@@ -89,7 +89,7 @@ export class Particles {
 
   /**
    * Récupère un slot libre. Si le pool est saturé, vole le slot courant seulement si la
-   * nouvelle particule est au moins aussi prioritaire — sinon la demande est abandonnée.
+   * nouvelle particule est au moins aussi prioritaire – sinon la demande est abandonnée.
    */
   private alloc(priority: number): Particle | null {
     for (let attempts = 0; attempts < 32; attempts++) {
@@ -138,7 +138,7 @@ export class Particles {
 
   // ------------------------------------------------------------------ presets
 
-  /** Gerbe d'étincelles orientée — impact d'arme. */
+  /** Gerbe d'étincelles orientée – impact d'arme. */
   sparks(x: number, y: number, angle: number, n = 4, color: string = P.spark, spread = 1.1): void {
     for (let i = 0; i < n; i++) {
       const a = angle + fxRng.spread(spread);
@@ -148,7 +148,7 @@ export class Particles {
     }
   }
 
-  /** Éclaboussure de sang — retombe et s'immobilise. */
+  /** Éclaboussure de sang – retombe et s'immobilise. */
   blood(x: number, y: number, n = 5, color: string = P.blood): void {
     for (let i = 0; i < n; i++) {
       const a = fxRng.angle();
@@ -161,7 +161,7 @@ export class Particles {
     }
   }
 
-  /** Poussière au sol — priorité minimale, première sacrifiée quand ça sature. */
+  /** Poussière au sol – priorité minimale, première sacrifiée quand ça sature. */
   dust(x: number, y: number, n = 3): void {
     for (let i = 0; i < n; i++) {
       const a = fxRng.angle();
@@ -169,7 +169,7 @@ export class Particles {
     }
   }
 
-  /** Anneau qui s'étend — nova, montée de niveau, onde de choc. */
+  /** Anneau qui s'étend – nova, montée de niveau, onde de choc. */
   ring(x: number, y: number, radius: number, color: string, life = 0.4, thickness = 1.5): void {
     const p = this.spawn(PKind.Ring, x, y, 0, 0, life, color, thickness, 3);
     if (p) p.scale = radius;
@@ -194,7 +194,7 @@ export class Particles {
     p.gravity = 46;
   }
 
-  /** Texte libre flottant (soins, or, « ÉVOLUTION »). */
+  /** Texte libre flottant (soins, or, « ÉVOLUTION »). */
   label(x: number, y: number, text: string, color: string, scale = 1): void {
     const p = this.spawn(PKind.Number, x, y, 0, -22, 0.95, color, 1, 3);
     if (!p) return;
@@ -203,7 +203,7 @@ export class Particles {
     p.gravity = 18;
   }
 
-  /** Braise qui monte — feu, magie, aura. */
+  /** Braise qui monte – feu, magie, aura. */
   ember(x: number, y: number, color: string = P.fire, n = 2): void {
     for (let i = 0; i < n; i++) {
       const p = this.spawn(PKind.Ember, x + fxRng.spread(3), y + fxRng.spread(3), fxRng.spread(9), fxRng.range(-30, -12), fxRng.range(0.3, 0.7), color, fxRng.range(1, 2), 1);
@@ -211,7 +211,7 @@ export class Particles {
     }
   }
 
-  /** Éclat pixel qui tourne — mort d'ennemi, bris. */
+  /** Éclat pixel qui tourne – mort d'ennemi, bris. */
   shards(x: number, y: number, n: number, color: string): void {
     for (let i = 0; i < n; i++) {
       const a = fxRng.angle();
@@ -225,7 +225,7 @@ export class Particles {
     }
   }
 
-  /** Colonne de lumière verticale — relique, montée de niveau. */
+  /** Colonne de lumière verticale – relique, montée de niveau. */
   beam(x: number, y: number, color: string, life = 0.9): void {
     const p = this.spawn(PKind.Beam, x, y, 0, 0, life, color, 5, 3);
     if (p) p.scale = 1;
@@ -310,7 +310,7 @@ export class Particles {
           break;
         }
         default: {
-          // Spark / Blood / Dust / Ember : un simple carré, la particule rétrécit en mourant.
+          // Spark / Blood / Dust / Ember : un simple carré, la particule rétrécit en mourant.
           const s = Math.max(1, p.size * (p.kind === PKind.Blood ? 1 : t));
           ctx.globalAlpha = p.kind === PKind.Dust ? t * 0.6 : t;
           ctx.fillStyle = p.color;

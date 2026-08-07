@@ -11,7 +11,7 @@ import type { World } from './world';
 /**
  * Tirage des cartes d'amélioration.
  *
- * Le tirage est **pondéré en faveur de ce que le joueur possède déjà** : sans cela, un build
+ * Le tirage est **pondéré en faveur de ce que le joueur possède déjà** : sans cela, un build
  * ne pourrait jamais aboutir et chaque partie se terminerait avec six armes de niveau 2.
  * La chance déplace le curseur vers les nouveautés et débloque une quatrième carte.
  */
@@ -137,7 +137,7 @@ function offerPassiveNew(id: string): Offer {
   };
 }
 
-/** Lot de secours : proposé uniquement quand plus rien n'est améliorable. */
+/** Lot de secours : proposé uniquement quand plus rien n'est améliorable. */
 function offerConsolation(variant: number): Offer {
   const opts = [
     {
@@ -149,7 +149,7 @@ function offerConsolation(variant: number): Offer {
     },
     {
       name: 'Repas chaud',
-      desc: 'Restaure 40 % des points de vie.',
+      desc: 'Restaure 40 % des points de vie.',
       apply: (world: World) => {
         world.player.heal(world.player.stats.maxHp * 0.4);
       },
@@ -169,7 +169,7 @@ function offerConsolation(variant: number): Offer {
     name: o.name,
     kindLabel: 'Provision',
     desc: o.desc,
-    levelLabel: '—',
+    levelLabel: '–',
     icon: passiveIcon('reliquary'),
     isNew: false,
     apply: o.apply,
@@ -189,9 +189,9 @@ interface Category {
  * Les candidats sont groupés **par catégorie**, et le tirage choisit d'abord une catégorie
  * puis un élément à l'intérieur.
  *
- * C'est essentiel : une pondération à plat fait gagner la catégorie la plus **nombreuse**,
- * pas la plus lourde. Avec une seule arme possédée, dix-sept « nouvelle arme » à 70 écrasaient
- * l'unique « améliorer » à 100 — le joueur remplissait ses six emplacements avant la deuxième
+ * C'est essentiel : une pondération à plat fait gagner la catégorie la plus **nombreuse**,
+ * pas la plus lourde. Avec une seule arme possédée, dix-sept « nouvelle arme » à 70 écrasaient
+ * l'unique « améliorer » à 100 – le joueur remplissait ses six emplacements avant la deuxième
  * minute, après quoi plus aucun choix intéressant ne se présentait.
  */
 function buildCategories(w: World): Category[] {
@@ -274,7 +274,7 @@ export interface Evolution {
 
 /**
  * Une évolution est éligible quand l'arme est au niveau maximum **et** que le passif requis
- * est au niveau 3 ou plus. Elle ne sort jamais du menu de niveau : uniquement d'un coffre.
+ * est au niveau 3 ou plus. Elle ne sort jamais du menu de niveau : uniquement d'un coffre.
  * C'est ce qui rend les coffres réellement excitants.
  */
 export function availableEvolutions(pl: Player): Evolution[] {
@@ -301,7 +301,7 @@ export interface ChestResult {
 }
 
 /**
- * Ouvre un coffre : 1, 3 ou 5 améliorations selon un tirage, plus de l'or.
+ * Ouvre un coffre : 1, 3 ou 5 améliorations selon un tirage, plus de l'or.
  * Si une évolution est disponible, elle **remplace toujours** la première amélioration.
  */
 export function openChest(w: World): ChestResult {

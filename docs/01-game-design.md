@@ -1,4 +1,4 @@
-# Sanguine — Game Design
+# Sanguine – Game Design
 
 ## 1. Boucle de jeu
 
@@ -7,7 +7,7 @@
 Se déplacer  →  les armes tirent seules  →  les ennemis meurent  →
 ils lâchent des gemmes  →  on se déplace pour les ramasser  →  on s'expose  →  …
 ```
-La tension centrale : **ramasser de l'XP oblige à aller vers le danger.** Le joueur qui fuit
+La tension centrale : **ramasser de l'XP oblige à aller vers le danger.** Le joueur qui fuit
 en permanence ne monte pas de niveau et se fait rattraper par la courbe de difficulté.
 
 ### Boucle minute (run)
@@ -36,7 +36,7 @@ Une partie dure **30 minutes**. Le temps est le seul véritable adversaire.
 | 24–29 | **Survie pure** | L'écran est plein. Seuls les builds aboutis tiennent. |
 | 29–30 | **Le Sanguinaire** | Boss final. Le tuer = victoire. |
 
-Si le joueur atteint 30:00 sans tuer le boss, la **Faucheuse** apparaît : invulnérable, rapide,
+Si le joueur atteint 30:00 sans tuer le boss, la **Faucheuse** apparaît : invulnérable, rapide,
 un seul contact tue. C'est le rideau.
 
 ## 3. Contrôles
@@ -47,8 +47,8 @@ un seul contact tue. C'est le rideau.
 | Pause | `Échap` / `P` | Start | Bouton HUD |
 | Valider | `Entrée` / `Espace` / clic | A | Tap |
 | Naviguer menus | Flèches / `ZQSD` | D-pad | Tap |
-| Minimap | `M` | — | — |
-| Plein écran | `F` | — | Bouton HUD |
+| Minimap | `M` | – | – |
+| Plein écran | `F` | – | Bouton HUD |
 
 **Aucune touche d'attaque.** C'est intentionnel et central au genre.
 
@@ -61,21 +61,21 @@ Les stats sont calculées à chaque changement de build, jamais dans la boucle d
 
 | Stat | Base | Effet | Cap |
 |---|---|---|---|
-| `maxHp` | 100 | Points de vie | — |
-| `regen` | 0 | PV rendus par seconde | — |
-| `armor` | 0 | Dégâts plats retirés (min. 1 dégât passe) | — |
-| `moveSpeed` | 100 | Pixels/seconde | — |
-| `might` | 1.0 | Multiplicateur de dégâts | — |
-| `area` | 1.0 | Multiplicateur de taille des effets | — |
+| `maxHp` | 100 | Points de vie | – |
+| `regen` | 0 | PV rendus par seconde | – |
+| `armor` | 0 | Dégâts plats retirés (min. 1 dégât passe) | – |
+| `moveSpeed` | 100 | Pixels/seconde | – |
+| `might` | 1.0 | Multiplicateur de dégâts | – |
+| `area` | 1.0 | Multiplicateur de taille des effets | – |
 | `cooldown` | 1.0 | Multiplicateur de temps de recharge (plus bas = mieux) | 0.4 |
-| `speedMul` | 1.0 | Vitesse des projectiles | — |
-| `duration` | 1.0 | Durée des effets persistants | — |
-| `amount` | 0 | Projectiles supplémentaires (additif) | — |
-| `pickupRadius` | 60 | Rayon d'aimantation des gemmes | — |
-| `luck` | 1.0 | Influence coffres, crit, drops rares | — |
-| `growth` | 1.0 | Multiplicateur d'XP gagnée | — |
-| `greed` | 1.0 | Multiplicateur d'or gagné | — |
-| `revives` | 0 | Résurrections automatiques | — |
+| `speedMul` | 1.0 | Vitesse des projectiles | – |
+| `duration` | 1.0 | Durée des effets persistants | – |
+| `amount` | 0 | Projectiles supplémentaires (additif) | – |
+| `pickupRadius` | 60 | Rayon d'aimantation des gemmes | – |
+| `luck` | 1.0 | Influence coffres, crit, drops rares | – |
+| `growth` | 1.0 | Multiplicateur d'XP gagnée | – |
+| `greed` | 1.0 | Multiplicateur d'or gagné | – |
+| `revives` | 0 | Résurrections automatiques | – |
 | `crit` | 0.05 | Probabilité de coup critique (×2 dégâts) | 1.0 |
 
 ### Formule de dégâts
@@ -96,23 +96,23 @@ Le plancher à 0,05 s évite qu'une arme sur-optimisée sature la boucle de mise
 ```
 xpRequis(niveau) = arrondi(4 + niveau × 5.5 + niveau^1.5)
 ```
-Le premier palier doit être bas : les premières cartes sont ce qui donne au joueur le
+Le premier palier doit être bas : les premières cartes sont ce qui donne au joueur le
 sentiment d'exister, et les faire attendre une minute tue l'ouverture.
 
-Mesuré au bot de test : ~6 niveaux la première minute, **14 à la cinquième**, de l'ordre de
+Mesuré au bot de test : ~6 niveaux la première minute, **14 à la cinquième**, de l'ordre de
 65 sur un run complet.
 
 ## 6. Système d'améliorations
 
-À chaque niveau, **3 cartes** (4 avec beaucoup de chance) sont tirées parmi :
+À chaque niveau, **3 cartes** (4 avec beaucoup de chance) sont tirées parmi :
 
-- une **nouvelle arme** (si moins de 6 armes équipées) ;
-- une **montée de niveau** d'arme existante (max niveau 8) ;
-- un **nouveau passif** (si moins de 6 passifs) ;
-- une **montée de niveau** de passif (max niveau 5) ;
+- une **nouvelle arme** (si moins de 6 armes équipées) ;
+- une **montée de niveau** d'arme existante (max niveau 8) ;
+- un **nouveau passif** (si moins de 6 passifs) ;
+- une **montée de niveau** de passif (max niveau 5) ;
 - un **lot de secours** (soin, or, ou petit bonus) si plus rien n'est disponible.
 
-Le tirage est **pondéré** : les objets déjà possédés apparaissent plus souvent (pour permettre
+Le tirage est **pondéré** : les objets déjà possédés apparaissent plus souvent (pour permettre
 d'aboutir un build), les objets rares moins. La `luck` du joueur augmente la chance de voir une
 quatrième carte et de tirer un objet rare.
 
@@ -121,7 +121,7 @@ Un bouton **Passer** échange le choix contre de l'or.
 
 ### Évolutions
 Une arme au **niveau max (8)** combinée à un **passif requis au niveau 3+** devient éligible.
-L'évolution n'apparaît **jamais** dans le menu de niveau : elle ne peut sortir que d'un **coffre**.
+L'évolution n'apparaît **jamais** dans le menu de niveau : elle ne peut sortir que d'un **coffre**.
 C'est ce qui rend les coffres excitants plutôt qu'anecdotiques.
 
 Une arme évoluée occupe le même emplacement, part au niveau 1 avec des statistiques largement
@@ -135,7 +135,7 @@ supérieures, et ne peut plus monter de niveau (elle est déjà l'aboutissement)
 
 ## 8. Ennemis et danger
 
-Les ennemis **n'ont pas d'attaque à distance** sauf le Nécrophage. Le danger vient du **contact** :
+Les ennemis **n'ont pas d'attaque à distance** sauf le Nécrophage. Le danger vient du **contact** :
 un ennemi qui touche le joueur inflige ses dégâts puis subit un court délai avant de pouvoir
 retoucher (`0.5 s`), ce qui rend la traversée d'un groupe survivable mais coûteuse.
 
@@ -157,8 +157,8 @@ La vitesse **ne monte jamais**. C'est la règle qui garde le jeu jouable à 28 m
 | Gemme bleue | 1 XP | Ennemi commun |
 | Gemme verte | 5 XP | Ennemi moyen |
 | Gemme rouge | 25 XP | Ennemi lourd / élite |
-| Pièce d'or | 1–10 or (méta) | 12 % des ennemis |
-| Cœur | Soigne 25 % des PV max | 1,5 % des ennemis |
+| Pièce d'or | 1–10 or (méta) | 12 % des ennemis |
+| Cœur | Soigne 25 % des PV max | 1,5 % des ennemis |
 | Encensoir | Tue tous les ennemis à l'écran | Rare, coffres |
 | Aimant | Attire toutes les gemmes de la carte | Rare |
 | Coffre | 1 à 5 améliorations + or | Élites et boss |
@@ -166,12 +166,12 @@ La vitesse **ne monte jamais**. C'est la règle qui garde le jeu jouable à 28 m
 Les gemmes ont une **durée de vie infinie** mais fusionnent au-delà de 400 gemmes au sol
 (les plus anciennes se combinent en gemmes de valeur supérieure) pour protéger les performances.
 
-## 10. Méta-progression — le Sanctuaire
+## 10. Méta-progression – le Sanctuaire
 
 L'or gagné est conservé **même en cas de mort**. Il achète des améliorations permanentes qui
 s'appliquent à tous les futurs runs. Le coût suit `coût(n) = base × 1.8^n`.
 
-Le Sanctuaire est volontairement **modeste** : au maximum, il donne environ +35 % de puissance
+Le Sanctuaire est volontairement **modeste** : au maximum, il donne environ +35 % de puissance
 globale. Il doit adoucir la courbe d'apprentissage, pas remplacer l'habileté.
 
 Liste complète dans `02-content-bible.md`.
@@ -179,19 +179,19 @@ Liste complète dans `02-content-bible.md`.
 ## 11. Sauvegarde
 
 `localStorage`, une seule clé (`sanguine.save.v1`), écriture à chaque fin de run et à chaque achat.
-Contenu : or, niveaux du Sanctuaire, personnages débloqués, armes découvertes, records, options.
+Contenu : or, niveaux du Sanctuaire, personnages débloqués, armes découvertes, records, options.
 Un bouton d'effacement existe dans les options, avec double confirmation.
 
 ## 12. Accessibilité
 
-- **Secousse de caméra réglable de 0 à 100 %**, par défaut à **40 %**. Ce n'est pas un réglage
-  cosmétique : un survivor-like enchaîne des dizaines d'impacts par seconde, et une secousse
-  mal dosée devient physiquement pénible à regarder. Trois décisions en découlent — aucune
+- **Secousse de caméra réglable de 0 à 100 %**, par défaut à **40 %**. Ce n'est pas un réglage
+  cosmétique : un survivor-like enchaîne des dizaines d'impacts par seconde, et une secousse
+  mal dosée devient physiquement pénible à regarder. Trois décisions en découlent – aucune
   secousse sur coup critique, plafond d'accumulation hors événements majeurs, et oscillation
   sinusoïdale plutôt que bruit blanc (un mouvement continu se lit, un scintillement non).
-- **Réduction des flashs** : option qui supprime les flashs plein écran et les tremblements.
-- **Taille du HUD** : trois crans.
-- **Daltonisme** : les gemmes se distinguent par la **forme** autant que par la couleur.
+- **Réduction des flashs** : option qui supprime les flashs plein écran et les tremblements.
+- **Taille du HUD** : trois crans.
+- **Daltonisme** : les gemmes se distinguent par la **forme** autant que par la couleur.
 - **Pause à tout moment**, y compris pendant un boss.
 - Aucun contenu ne dépend du son.
 - Le jeu se met automatiquement en pause quand l'onglet perd le focus.

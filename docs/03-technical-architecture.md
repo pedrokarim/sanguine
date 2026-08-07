@@ -1,10 +1,10 @@
-# Sanguine — Architecture technique
+# Sanguine – Architecture technique
 
 ## 1. Stack
 
 | Couche | Choix | Justification |
 |---|---|---|
-| Langage | **TypeScript** (strict) | Le contenu est massivement piloté par des tables ; le typage empêche les erreurs de données silencieuses. |
+| Langage | **TypeScript** (strict) | Le contenu est massivement piloté par des tables ; le typage empêche les erreurs de données silencieuses. |
 | Build | **Vite 7** | Démarrage instantané, build en un fichier, aucune configuration. |
 | Rendu | **Canvas 2D** | Suffisant pour 1500 sprites si l'on batche correctement. WebGL aurait ajouté une complexité (shaders, atlas, contexte perdu) sans bénéfice à cette échelle. |
 | Audio | **Web Audio API** brute | Synthèse à la volée, zéro fichier. |
@@ -55,7 +55,7 @@ src/
     └── style.css           Habillage DOM
 ```
 
-**Règle de dépendance** : `data/` ne dépend de rien. `core/` et `gfx/` ne dépendent pas de `game/`.
+**Règle de dépendance** : `data/` ne dépend de rien. `core/` et `gfx/` ne dépendent pas de `game/`.
 `game/` peut tout utiliser. `ui/` lit `game/` mais ne le modifie que par des actions explicites.
 
 ## 3. Boucle de jeu
@@ -80,12 +80,12 @@ function frame(now: number) {
 }
 ```
 
-Le plafond de 5 pas empêche la spirale de la mort sur une machine lente : le jeu ralentit
+Le plafond de 5 pas empêche la spirale de la mort sur une machine lente : le jeu ralentit
 plutôt que de se figer.
 
 ## 4. Modèle d'entités
 
-Pas d'ECS générique. Un survivor-like a **peu de types d'entités mais énormément d'instances** :
+Pas d'ECS générique. Un survivor-like a **peu de types d'entités mais énormément d'instances** :
 des tableaux d'objets typés, pré-alloués et recyclés, sont plus rapides et bien plus simples
 qu'un ECS complet.
 
@@ -100,7 +100,7 @@ interface Enemy {
 }
 ```
 
-Quatre pools : `enemies` (1600), `projectiles` (900), `pickups` (2200), `particles` (2400).
+Quatre pools : `enemies` (1600), `projectiles` (900), `pickups` (2200), `particles` (2400).
 Le compactage (`swap-remove`) se fait une fois par frame, pas à chaque suppression.
 
 ## 5. Collisions
@@ -109,14 +109,14 @@ Grille de hachage spatial, cellule de **64 px**.
 
 - Reconstruite intégralement chaque frame (plus rapide qu'une mise à jour incrémentale à cette
   densité, et sans bug de désynchronisation).
-- Requêtes : `queryCircle(x, y, r)` retourne les indices des ennemis candidats.
+- Requêtes : `queryCircle(x, y, r)` retourne les indices des ennemis candidats.
 - Toutes les collisions sont **cercle-cercle**. Aucune rotation, aucun SAT.
 
-Coût mesuré : ~0,35 ms pour 1200 ennemis + 400 projectiles.
+Coût mesuré : ~0,35 ms pour 1200 ennemis + 400 projectiles.
 
 ### Séparation des ennemis
 Sans séparation, tous les ennemis se superposent en une ligne. Avec une séparation complète,
-c'est du O(n²). Compromis retenu : chaque ennemi ne teste que **4 voisins par frame**, choisis
+c'est du O(n²). Compromis retenu : chaque ennemi ne teste que **4 voisins par frame**, choisis
 en tourniquet dans sa cellule. Le résultat est visuellement suffisant pour un coût négligeable.
 
 ## 6. Budget de performance (cible 16,6 ms)
@@ -133,8 +133,8 @@ en tourniquet dans sa cellule. Le résultat est visuellement suffisant pour un c
 | Marge | 2,6 ms |
 
 ### Optimisations de rendu appliquées
-1. **Culling** : rien hors de la vue + 64 px de marge n'est dessiné.
-2. **Aucun `save()`/`restore()`** dans la boucle chaude — `setTransform` direct.
+1. **Culling** : rien hors de la vue + 64 px de marge n'est dessiné.
+2. **Aucun `save()`/`restore()`** dans la boucle chaude – `setTransform` direct.
 3. **Sprites pré-rendus** dans des `OffscreenCanvas`, teintes incluses (le flash rouge des dégâts
    est un sprite pré-teinté, pas un filtre appliqué en temps réel).
 4. **Tri en profondeur par seau** (par tranche de 32 px de `y`) plutôt qu'un `sort()` complet.
@@ -144,7 +144,7 @@ en tourniquet dans sa cellule. Le résultat est visuellement suffisant pour un c
 
 ## 7. Rendu et résolution
 
-Résolution logique fixe : **480 × 270** (16:9), mise à l'échelle en entier vers la fenêtre avec
+Résolution logique fixe : **480 × 270** (16:9), mise à l'échelle en entier vers la fenêtre avec
 `imageSmoothingEnabled = false`. Cela garantit un pixel art net et rend le coût de rendu
 indépendant de la taille de l'écran.
 
@@ -154,12 +154,12 @@ latérales assumées plutôt qu'un étirement flou.
 ## 8. Déterminisme
 
 Le PRNG (Mulberry32) est semé par run. Toute la génération (spawns, drops, cartes) passe par lui.
-Conséquence : un run est rejouable à partir de sa graine, ce qui rend les bugs reproductibles.
+Conséquence : un run est rejouable à partir de sa graine, ce qui rend les bugs reproductibles.
 La graine est affichée sur l'écran de fin.
 
 ## 9. Gestion d'état
 
-Machine à états simple, exclusive :
+Machine à états simple, exclusive :
 
 ```
 BOOT → TITLE → CHARACTER_SELECT → PLAYING ⇄ LEVEL_UP
@@ -173,12 +173,12 @@ BOOT → TITLE → CHARACTER_SELECT → PLAYING ⇄ LEVEL_UP
 
 ## 10. Tests et vérification
 
-Pas de framework de test — ce serait une dépendance et le jeu est essentiellement visuel.
-À la place :
+Pas de framework de test – ce serait une dépendance et le jeu est essentiellement visuel.
+À la place :
 
-- `pnpm build` doit passer **sans erreur TypeScript en mode strict** ; c'est le filet principal.
+- `pnpm build` doit passer **sans erreur TypeScript en mode strict** ; c'est le filet principal.
 - Un **mode debug** (`~`) affiche FPS, compte d'entités, temps par système, hitboxes.
-- Des **triches de développement** (`F1`–`F5`) : +10 niveaux, +1 min, invincibilité, tuer tout,
+- Des **triches de développement** (`F1`–`F5`) : +10 niveaux, +1 min, invincibilité, tuer tout,
   donner 10 000 or. Elles restent dans le build mais sont marquées et désactivent les records.
 
 ## 11. Build et distribution
@@ -192,7 +192,7 @@ pnpm preview  # sert le build
 
 `base: './'` dans la configuration Vite pour que `dist/index.html` fonctionne aussi en `file://`.
 
-Poids mesuré : **161 ko** non compressé, **54 ko** en gzip, aucun asset binaire. Le budget
-initial était de 150 ko ; les biomes, les structures, l'illustration des menus et les ornements
+Poids mesuré : **161 ko** non compressé, **54 ko** en gzip, aucun asset binaire. Le budget
+initial était de 150 ko ; les biomes, les structures, l'illustration des menus et les ornements
 d'interface l'ont porté à 161 ko, ce qui reste très largement sous le seuil où le chargement
 devient perceptible.
