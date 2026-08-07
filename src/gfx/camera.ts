@@ -29,9 +29,15 @@ export class Camera {
   intensity = 0.55;
 
   constructor(
-    readonly viewW: number,
-    readonly viewH: number,
+    public viewW: number,
+    public viewH: number,
   ) {}
+
+  /** Adapte la caméra à une nouvelle résolution logique. */
+  resize(w: number, h: number): void {
+    this.viewW = w;
+    this.viewH = h;
+  }
 
   snapTo(x: number, y: number): void {
     this.x = x;

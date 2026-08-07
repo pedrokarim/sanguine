@@ -14,7 +14,7 @@ import { WEAPONS } from './data/weapons';
 import { ENEMIES, BOSSES } from './data/enemies';
 import { PASSIVES } from './data/passives';
 import { POI_DEFS, poiSprite } from './game/terrain';
-import { World, VIEW_W, VIEW_H } from './game/world';
+import { World, VIEW, BASE_W, BASE_H } from './game/world';
 import { Director } from './game/director';
 import { updateWeapons } from './game/weapons';
 import { rollOffers, openChest, applyChest, type Offer, type ChestResult } from './game/upgrades';
@@ -39,8 +39,7 @@ const canvas = document.getElementById('game') as HTMLCanvasElement;
 const uiLayer = document.getElementById('ui') as HTMLDivElement;
 const ctx = canvas.getContext('2d', { alpha: false, desynchronized: true })!;
 
-canvas.width = VIEW_W;
-canvas.height = VIEW_H;
+
 
 const input = new Input(canvas, document.body);
 const screens = new Screens(uiLayer);
@@ -64,24 +63,66 @@ let currentChest: ChestResult | null = null;
 // Mise à l'échelle : facteur entier, jamais d'interpolation
 // ---------------------------------------------------------------------------
 
+/**
+ * Ajuste le canvas à la fenêtre.
+ *
+ * Deux exigences, longtemps mal conciliées ici :
+ *
+ * 1. **Un pixel de jeu doit valoir un nombre entier de pixels physiques.** L'ancienne version
+ *    calculait le facteur en pixels CSS et ignorait `devicePixelRatio` : sous Windows à 125 %
+ *    ou 150 % d'échelle, la taille physique devenait un multiple non entier de 480, le
+ *    navigateur rééchantillonnait, et tout le jeu apparaissait flou. Le facteur est donc
+ *    désormais calculé en **pixels physiques**, et la taille CSS en est déduite.
+ *
+ * 2. **Le jeu doit remplir l'écran.** Avec une résolution logique figée à 480 × 270, tout
+ *    écran dont les dimensions n'en sont pas un multiple exact affichait des bandes noires.
+ *    La résolution logique s'étend donc jusqu'à couvrir la fenêtre, en conservant le facteur
+ *    entier. Le joueur voit simplement un peu plus de terrain.
+ */
 function resize(): void {
-  const scale = Math.max(
-    1,
-    Math.floor(Math.min(window.innerWidth / VIEW_W, window.innerHeight / VIEW_H)),
-  );
-  const w = VIEW_W * scale;
-  const h = VIEW_H * scale;
-  canvas.style.width = `${w}px`;
-  canvas.style.height = `${h}px`;
+  const dpr = window.devicePixelRatio || 1;
+  const physW = window.innerWidth * dpr;
+  const physH = window.innerHeight * dpr;
+
+  // Facteur entier, choisi sur la dimension la plus contraignante.
+  const scale = Math.max(1, Math.floor(Math.min(physW / BASE_W, physH / BASE_H)));
+
+  // Surface visible bornée : un écran très large ne doit pas offrir un avantage de jeu.
+  const maxW = Math.round(BASE_W * 1.5);
+  const maxH = Math.round(BASE_H * 1.5);
+  const logicalW = Math.min(maxW, Math.max(BASE_W, Math.ceil(physW / scale)));
+  const logicalH = Math.min(maxH, Math.max(BASE_H, Math.ceil(physH / scale)));
+
+  VIEW.w = logicalW;
+  VIEW.h = logicalH;
+  canvas.width = logicalW;
+  canvas.height = logicalH;
+  if (world) world.cam.resize(logicalW, logicalH);
+
+  // Taille CSS déduite du physique : `logical * scale` pixels physiques exactement.
+  const cssW = (logicalW * scale) / dpr;
+  const cssH = (logicalH * scale) / dpr;
+  canvas.style.width = `${cssW}px`;
+  canvas.style.height = `${cssH}px`;
 
   // La couche UI recouvre exactement le canvas.
-  uiLayer.style.width = `${w}px`;
-  uiLayer.style.height = `${h}px`;
-  uiLayer.style.left = `${Math.round((window.innerWidth - w) / 2)}px`;
-  uiLayer.style.top = `${Math.round((window.innerHeight - h) / 2)}px`;
+  uiLayer.style.width = `${cssW}px`;
+  uiLayer.style.height = `${cssH}px`;
+  uiLayer.style.left = `${(window.innerWidth - cssW) / 2}px`;
+  uiLayer.style.top = `${(window.innerHeight - cssH) / 2}px`;
 }
 
 window.addEventListener('resize', resize);
+// Le zoom du navigateur change `devicePixelRatio` sans toujours émettre `resize` : on
+// s'abonne à la media query correspondante, ré-armée à chaque changement de ratio.
+function watchDpr(): void {
+  matchMedia(`(resolution: ${window.devicePixelRatio}dppx)`).addEventListener(
+    'change',
+    () => { resize(); watchDpr(); },
+    { once: true },
+  );
+}
+watchDpr();
 resize();
 
 // ---------------------------------------------------------------------------
@@ -388,7 +429,7 @@ const loop = new Loop({
       if (hud && state !== 'title') hud.update(world, rdt);
     } else {
       // Hors partie, le canvas affiche la scène illustrée des menus.
-      backdrop.render(ctx, rdt);
+      backdrop.render(ctx, rdt, canvas.width, canvas.height);
     }
     if (debug) updateDebug();
   },

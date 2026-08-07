@@ -55,8 +55,12 @@ html, body {
 
 #game {
   display: block;
-  image-rendering: pixelated;
+  /* Ordre significatif : chaque navigateur retient la dernière valeur qu'il comprend.
+     `pixelated` doit donc venir en dernier, sinon `crisp-edges` le neutralise là où il est
+     reconnu — et le pixel art se retrouve rééchantillonné. */
+  image-rendering: -moz-crisp-edges;
   image-rendering: crisp-edges;
+  image-rendering: pixelated;
   background: var(--night);
 }
 
