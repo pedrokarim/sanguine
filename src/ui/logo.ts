@@ -1,5 +1,5 @@
 import { Rng } from '../core/rng';
-import { P, mix, rgba } from '../gfx/palette';
+import { P, mix } from '../gfx/palette';
 
 /**
  * Logo animé : « SANGUINE » en pixel art, dont le sang coule.
@@ -21,6 +21,46 @@ const GLYPHS: Record<string, string[]> = {
   U: ['XX...XX', 'XX...XX', 'XX...XX', 'XX...XX', 'XX...XX', 'XX...XX', 'XX...XX', 'XX...XX', '.XXXXX.'],
   I: ['XXXXXXX', '..XXX..', '..XXX..', '..XXX..', '..XXX..', '..XXX..', '..XXX..', '..XXX..', 'XXXXXXX'],
   E: ['XXXXXXX', 'XX.....', 'XX.....', 'XX.....', 'XXXXX..', 'XX.....', 'XX.....', 'XX.....', 'XXXXXXX'],
+  M: ['XX...XX', 'XXX.XXX', 'XXXXXXX', 'XX.X.XX', 'XX...XX', 'XX...XX', 'XX...XX', 'XX...XX', 'XX...XX'],
+  O: ['.XXXXX.', 'XX...XX', 'XX...XX', 'XX...XX', 'XX...XX', 'XX...XX', 'XX...XX', 'XX...XX', '.XXXXX.'],
+  R: ['XXXXXX.', 'XX...XX', 'XX...XX', 'XX...XX', 'XXXXXX.', 'XX.XX..', 'XX..XX.', 'XX...XX', 'XX...XX'],
+  T: ['XXXXXXX', '..XXX..', '..XXX..', '..XXX..', '..XXX..', '..XXX..', '..XXX..', '..XXX..', '..XXX..'],
+  B: ['XXXXXX.', 'XX...XX', 'XX...XX', 'XX...XX', 'XXXXXX.', 'XX...XX', 'XX...XX', 'XX...XX', 'XXXXXX.'],
+};
+
+/**
+ * Teintes d'une coulure. Le même mécanisme sert au sang du titre et à la lumière de l'aube
+ * de l'écran de victoire : ce qui coule change de nature, pas de comportement.
+ */
+export interface LogoPalette {
+  /** Liseré supérieur des lettres. */
+  crown: string;
+  /** Corps des lettres, du haut vers le bas. */
+  top: string;
+  bottom: string;
+  /** Coulures, de leur naissance à leur pointe. */
+  dripTop: string;
+  dripEnd: string;
+  shadow: string;
+}
+
+export const BLOOD: LogoPalette = {
+  crown: mix(P.bloodHi, '#ffffff', 0.35),
+  top: P.bloodHi,
+  bottom: P.blood,
+  dripTop: P.blood,
+  dripEnd: P.bloodDark,
+  shadow: 'rgba(42,3,8,0.55)',
+};
+
+/** Aube : ce n'est plus du sang qui coule, c'est la lumière qui revient. */
+export const DAWN: LogoPalette = {
+  crown: '#fffaf0',
+  top: '#fff3c4',
+  bottom: P.gold,
+  dripTop: P.gold,
+  dripEnd: P.leather,
+  shadow: 'rgba(60,34,4,0.5)',
 };
 
 const GW = 7;
@@ -62,7 +102,7 @@ export class BloodLogo {
   private raf = 0;
   private last = 0;
 
-  constructor(text = 'SANGUINE', seed = 0x51a9) {
+  constructor(text = 'SANGUINE', seed = 0x51a9, private pal: LogoPalette = BLOOD) {
     const letters = [...text];
     this.w = letters.length * (GW + GAP) - GAP;
     this.h = GH + DRIP_SPACE;
@@ -187,17 +227,17 @@ export class BloodLogo {
         const y = d.y0 + i;
         if (y >= h) break;
         // La coulure s'assombrit en descendant, comme du sang qui sèche.
-        ctx.fillStyle = mix(P.blood, P.bloodDark, Math.min(1, i / (DRIP_SPACE * 0.8)));
+        ctx.fillStyle = mix(this.pal.dripTop, this.pal.dripEnd, Math.min(1, i / (DRIP_SPACE * 0.8)));
         ctx.fillRect(d.x, y, d.w, 1);
       }
       // Bourrelet au bout : une coulure à bout carré ne ressemble à rien.
       const tip = d.y0 + d.len;
       if (tip < h - 1) {
-        ctx.fillStyle = P.bloodDark;
-        ctx.fillRect(d.x - (d.w === 1 ? 0 : 0), tip, d.w + 1, 2);
+        ctx.fillStyle = this.pal.dripEnd;
+        ctx.fillRect(d.x, tip, d.w + 1, 2);
       }
       if (d.dropY >= 0) {
-        ctx.fillStyle = P.blood;
+        ctx.fillStyle = this.pal.dripTop;
         ctx.fillRect(d.x, Math.round(d.dropY), d.w, 2);
       }
     }
@@ -205,7 +245,7 @@ export class BloodLogo {
     // Lettres : dégradé vertical du sang vif au sang sombre, plus un liseré clair en haut.
     for (let y = 0; y < GH; y++) {
       const k = y / (GH - 1);
-      const col = y === 0 ? mix(P.bloodHi, '#ffffff', 0.35) : mix(P.bloodHi, P.blood, k * 0.9);
+      const col = y === 0 ? this.pal.crown : mix(this.pal.top, this.pal.bottom, k * 0.9);
       ctx.fillStyle = col;
       for (let x = 0; x < w; x++) {
         if (this.mask[y * w + x]) ctx.fillRect(x, y, 1, 1);
@@ -213,7 +253,7 @@ export class BloodLogo {
     }
 
     // Ombre portée d'un pixel sous chaque lettre : détache le logo du ciel.
-    ctx.fillStyle = rgba('#2a0308', 0.55);
+    ctx.fillStyle = this.pal.shadow;
     for (let x = 0; x < w; x++) {
       for (let y = GH - 1; y >= 0; y--) {
         if (this.mask[y * w + x]) {

@@ -1,28 +1,23 @@
 <div align="center">
 
-# SANGUINE
+<img src="docs/banner.png" alt="Sanguine" width="100%">
 
-*« Tenez jusqu'à l'aube. Elle ne viendra pas. »*
-
-**[▶ JOUER MAINTENANT](https://sanguine.ascencia.re)** · [Documentation](https://pedrokarim.github.io/sanguine/)
+**[▶ JOUER MAINTENANT](https://sanguine.ascencia.re)** · **[Manuel](https://pedrokarim.github.io/sanguine/)**
 
 [![Jouer](https://img.shields.io/badge/jouer-sanguine.ascencia.re-c42639?style=for-the-badge)](https://sanguine.ascencia.re)
-[![Licence MIT](https://img.shields.io/badge/licence-MIT-f2c46b?style=for-the-badge)](LICENSE)
+[![Manuel](https://img.shields.io/badge/manuel-en%20ligne-f2c46b?style=for-the-badge)](https://pedrokarim.github.io/sanguine/)
+[![Licence MIT](https://img.shields.io/badge/licence-MIT-a8c5d6?style=for-the-badge)](LICENSE)
 
 ![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6?logo=typescript&logoColor=white)
 ![Vite](https://img.shields.io/badge/Vite-6-646cff?logo=vite&logoColor=white)
 ![Dépendances runtime](https://img.shields.io/badge/dépendances%20runtime-0-4ee88a)
 ![Assets binaires](https://img.shields.io/badge/assets%20binaires-0-4ee88a)
-![Bundle](https://img.shields.io/badge/bundle-57%20ko%20gzip-4ea9e8)
+![Bundle](https://img.shields.io/badge/bundle-60%20ko%20gzip-4ea9e8)
 ![Docker](https://img.shields.io/badge/Docker-prêt-2496ed?logo=docker&logoColor=white)
-
-![Sanguine en action](docs/screenshots/03-jeu.png)
 
 </div>
 
 ---
-
-## Le jeu
 
 Un **survivor-like** (*bullet heaven*) jouable directement dans le navigateur. Vous ne tirez
 jamais : vos armes se déclenchent seules. Toute la profondeur vient du choix des améliorations
@@ -32,9 +27,11 @@ machine à effacer l'écran.
 Une partie dure **30 minutes**. Le temps est le seul véritable adversaire.
 
 > **Aucune dépendance runtime. Aucun fichier binaire.**
-> Sprites, animations, décor, biomes, illustration des menus, ornements d'interface, curseur
-> et sons sont **générés par le code** au démarrage. Le jeu entier tient en 57 ko compressés
-> et fonctionne hors ligne.
+> Sprites, animations, décor, biomes, illustration des menus, ornements d'interface, logo,
+> curseur et sons sont **générés par le code** au démarrage. Le jeu entier tient en 60 ko
+> compressés et fonctionne hors ligne.
+
+![Une partie à la quinzième minute](docs/screenshots/03-jeu.png)
 
 ---
 
@@ -43,13 +40,13 @@ Une partie dure **30 minutes**. Le temps est le seul véritable adversaire.
 |  |  |
 |---|---|
 | ![Écran titre](docs/screenshots/01-titre.png) | ![Sélection de personnage](docs/screenshots/02-personnages.png) |
-| **Écran titre** – scène nocturne en six couches animées par parallaxe, entièrement dessinée par le code | **Six personnages**, chacun avec son arme de départ, son bonus et son défaut |
+| **Écran titre** – scène nocturne en six couches animées par parallaxe, logo pixel dont le sang coule, compteurs répartis dans les coins | **Six personnages**, chacun avec son arme de départ, son bonus et son défaut. La progression vers chaque déblocage est chiffrée |
 | ![Montée de niveau](docs/screenshots/04-amelioration.png) | ![Relique](docs/screenshots/05-relique.png) |
-| **Un choix à chaque niveau** – trois cartes tirées par catégorie | **24 reliques**, dont quatre maudites : puissantes, mais elles se paient |
+| **Un choix à chaque niveau** – trois cartes tirées par catégorie, la horde figée derrière | **24 reliques**, dont quatre maudites : puissantes, mais elles se paient |
 | ![Codex](docs/screenshots/07-codex.png) | ![Bestiaire](docs/screenshots/08-bestiaire.png) |
-| **Codex de 75 entrées** à sprites animés, silhouettées tant qu'elles ne sont pas découvertes | **Bestiaire** – dix-huit créatures, leurs statistiques et leur comportement |
+| **Codex de 77 entrées** à sprites animés, silhouettées tant qu'elles ne sont pas découvertes | **Bestiaire** – dix-huit créatures, leurs statistiques et leur comportement |
 | ![Sanctuaire](docs/screenshots/09-sanctuaire.png) | ![Fin de partie](docs/screenshots/06-fin.png) |
-| **Sanctuaire** – l'or survit à la mort et achète des améliorations permanentes | **Bilan de fin de partie**, graine comprise pour rejouer le même run |
+| **Sanctuaire** – l'or survit à la mort et achète des améliorations permanentes | **Bilan de fin**, graine comprise pour rejouer exactement le même run |
 
 ---
 
@@ -66,6 +63,8 @@ Une partie dure **30 minutes**. Le temps est le seul véritable adversaire.
 | **5 biomes** | Composition d'ennemis et effets passifs propres |
 | **7 structures** | Autel, bûcher, obélisque, puits, ossuaire, chapelle, cairn |
 | **11 améliorations** | Méta-progression permanente au Sanctuaire |
+| **Codex** | 77 entrées à sprites animés – armes, évolutions, bestiaire, reliques |
+| **Reprise de partie** | Un onglet fermé ne coûte plus la partie en cours |
 
 ---
 
@@ -88,12 +87,12 @@ AZERTY et QWERTY fonctionnent simultanément : les touches sont lues par **code 
 
 | Touche | Effet |
 |---|---|
-| `~` | Compteurs de debug (FPS, entités, temps par système, stats du build) |
+| `~` | Compteurs de debug : FPS, entités, temps par système, et le rapport d'échelle physique (`net` / `rééchantillonné`) |
 | `F1` | +10 niveaux · `F2` +1 minute · `F3` soins complets |
 | `F4` | Tue tout à l'écran · `F5` +10 000 or |
 | `F6` | Fait tomber une relique · `F7` fait tomber un coffre |
 
-La console expose `window.sanguine` : `.snapshot()`, `.world`, `.startRun(id)`.
+La console expose `window.sanguine` : `.snapshot()`, `.world`, `.startRun(id)`, `.exportSprites()`.
 
 </details>
 
@@ -117,7 +116,8 @@ réseau.
 docker compose up -d --build     # → http://127.0.0.1:4020
 ```
 
-Procédure de mise en production complète dans **[DEPLOY.md](DEPLOY.md)**.
+Mise en production complète dans **[DEPLOY.md](DEPLOY.md)**.
+Publication du manuel : `./tools/publish-docs.sh`.
 
 ---
 
@@ -130,7 +130,7 @@ src/
 ├── audio/    synthétiseur Web Audio + musique adaptative en couches
 ├── data/     tables de contenu pures (aucune dépendance)
 ├── game/     joueur, ennemis, armes, terrain, butin, director, améliorations
-└── ui/       HUD, écrans, minimap, illustration des menus, ornements
+└── ui/       HUD, écrans, minimap, logo animé, illustration des menus, ornements
 ```
 
 | Choix | Raison |
@@ -140,9 +140,10 @@ src/
 | **Grille de hachage** reconstruite chaque frame | Plus rapide qu'une mise à jour incrémentale, impossible à désynchroniser |
 | **HUD en DOM** | Texte net à toute résolution, accessible, gratuit dans la boucle de rendu |
 | **Monde déterministe par position** | Monde infini à coût mémoire nul, runs rejouables à la graine |
+| **Facteur d'échelle entier en pixels physiques** | Un pixel de jeu vaut toujours un nombre entier de pixels écran, à n'importe quel `devicePixelRatio` |
 
-Résolution logique fixe **480 × 270**, mise à l'échelle par facteur entier : pixel art net et
-coût de rendu indépendant de la taille de l'écran.
+La résolution logique s'adapte à la fenêtre en conservant le facteur entier : pas de bandes
+noires, et un pixel art net y compris sous une mise à l'échelle Windows à 125 % ou 150 %.
 
 Mesuré sous charge : **60 fps constants** avec 344 ennemis (`update` 0,9 ms, `render` 2,4 ms).
 
@@ -156,7 +157,7 @@ La documentation de conception est en français et sert de **source de vérité*
 | Document | Contenu |
 |---|---|
 | [`docs/00-vision.md`](docs/00-vision.md) | Pitch, piliers, contraintes, critères de réussite |
-| [`docs/01-game-design.md`](docs/01-game-design.md) | Boucles, statistiques, formules, accessibilité |
+| [`docs/01-game-design.md`](docs/01-game-design.md) | Boucles, statistiques, formules, sauvegarde, accessibilité |
 | [`docs/02-content-bible.md`](docs/02-content-bible.md) | Armes, passifs, reliques, ennemis, biomes, structures |
 | [`docs/03-technical-architecture.md`](docs/03-technical-architecture.md) | Stack, modules, budget de performance |
 | [`docs/04-art-direction.md`](docs/04-art-direction.md) | Palette, pipeline procédural, game feel, erreurs corrigées |
@@ -170,8 +171,7 @@ La documentation de conception est en français et sert de **source de vérité*
 Les courbes ne sont pas réglées à l'intuition mais **mesurées par un bot** qui joue réellement :
 il fuit la pression locale des ennemis, dérive vers les gemmes et choisit ses cartes.
 
-Deux réglages de densité ont été mesurés puis rejetés avant celui retenu. Le second est le plus
-instructif :
+Deux réglages de densité ont été mesurés puis rejetés. Le second est le plus instructif :
 
 | Réglage | Résultat mesuré |
 |---|---|
@@ -190,5 +190,7 @@ remplit.
 [MIT](LICENSE) – faites-en ce que vous voulez.
 
 <div align="center">
+<img src="docs/logo.png" alt="" width="200">
+<br>
 <sub>© 2026 Ascencia</sub>
 </div>
