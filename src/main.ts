@@ -36,13 +36,38 @@ type State =
   | 'title' | 'charselect' | 'playing' | 'levelup' | 'chest'
   | 'paused' | 'sanctuary' | 'shop' | 'codex' | 'options' | 'gameover' | 'victory';
 
-const canvas = document.getElementById('game') as HTMLCanvasElement;
+/**
+ * Deux canvas, et c'est la clé de la netteté.
+ *
+ * `display` est le canvas visible. Sa mémoire est dimensionnée en **pixels physiques** et sa
+ * taille CSS en pixels CSS correspondants : un pixel de sa mémoire vaut exactement un pixel
+ * de l'écran, donc le navigateur ne le rééchantillonne jamais.
+ *
+ * `scene` est un canvas hors écran à la résolution logique du jeu. Tout le rendu s'y fait à
+ * l'échelle 1, puis il est recopié une fois par frame sur `display` avec un facteur **entier**
+ * et le lissage désactivé.
+ *
+ * La version précédente donnait au canvas visible une taille CSS calculée, souvent
+ * fractionnaire (« 1539.2px »). Le compositeur l'arrondissait à sa façon, le rapport
+ * redevenait non entier, et le pixel art était rééchantillonné — invisible sur un écran à
+ * 100 %, très net sur une machine Windows à 125 %. Avec deux canvas, le problème ne peut
+ * plus se poser : aucun redimensionnement n'est laissé au navigateur.
+ */
+const display = document.getElementById('game') as HTMLCanvasElement;
 const uiLayer = document.getElementById('ui') as HTMLDivElement;
-const ctx = canvas.getContext('2d', { alpha: false, desynchronized: true })!;
+const displayCtx = display.getContext('2d', { alpha: false })!;
+
+const scene = document.createElement('canvas');
+const ctx = scene.getContext('2d', { alpha: false, desynchronized: true })!;
+
+/** Facteur entier et décalage de la recopie `scene` → `display`, en pixels physiques. */
+let blitScale = 1;
+let blitX = 0;
+let blitY = 0;
 
 
 
-const input = new Input(canvas, document.body);
+const input = new Input(display, document.body);
 const screens = new Screens(uiLayer);
 const renderer = new Renderer(ctx);
 const director = new Director();
@@ -86,35 +111,54 @@ let runSaveTimer = 0;
  */
 function resize(): void {
   const dpr = window.devicePixelRatio || 1;
-  const physW = window.innerWidth * dpr;
-  const physH = window.innerHeight * dpr;
+  const physW = Math.max(1, Math.round(window.innerWidth * dpr));
+  const physH = Math.max(1, Math.round(window.innerHeight * dpr));
+
+  // Le canvas visible épouse exactement la grille de pixels de l'écran.
+  display.width = physW;
+  display.height = physH;
+  display.style.width = `${window.innerWidth}px`;
+  display.style.height = `${window.innerHeight}px`;
 
   // Facteur entier, choisi sur la dimension la plus contraignante.
-  const scale = Math.max(1, Math.floor(Math.min(physW / BASE_W, physH / BASE_H)));
+  blitScale = Math.max(1, Math.floor(Math.min(physW / BASE_W, physH / BASE_H)));
 
   // Surface visible bornée : un écran très large ne doit pas offrir un avantage de jeu.
   const maxW = Math.round(BASE_W * 1.5);
   const maxH = Math.round(BASE_H * 1.5);
-  const logicalW = Math.min(maxW, Math.max(BASE_W, Math.ceil(physW / scale)));
-  const logicalH = Math.min(maxH, Math.max(BASE_H, Math.ceil(physH / scale)));
+  const lw = Math.min(maxW, Math.max(BASE_W, Math.floor(physW / blitScale)));
+  const lh = Math.min(maxH, Math.max(BASE_H, Math.floor(physH / blitScale)));
 
-  VIEW.w = logicalW;
-  VIEW.h = logicalH;
-  canvas.width = logicalW;
-  canvas.height = logicalH;
-  if (world) world.cam.resize(logicalW, logicalH);
+  VIEW.w = lw;
+  VIEW.h = lh;
+  scene.width = lw;
+  scene.height = lh;
+  if (world) world.cam.resize(lw, lh);
 
-  // Taille CSS déduite du physique : `logical * scale` pixels physiques exactement.
-  const cssW = (logicalW * scale) / dpr;
-  const cssH = (logicalH * scale) / dpr;
-  canvas.style.width = `${cssW}px`;
-  canvas.style.height = `${cssH}px`;
+  // Centrage de la recopie, en pixels physiques entiers.
+  blitX = Math.floor((physW - lw * blitScale) / 2);
+  blitY = Math.floor((physH - lh * blitScale) / 2);
 
-  // La couche UI recouvre exactement le canvas.
-  uiLayer.style.width = `${cssW}px`;
-  uiLayer.style.height = `${cssH}px`;
-  uiLayer.style.left = `${(window.innerWidth - cssW) / 2}px`;
-  uiLayer.style.top = `${(window.innerHeight - cssH) / 2}px`;
+  // La couche UI recouvre la zone de jeu, exprimée en pixels CSS.
+  uiLayer.style.width = `${(lw * blitScale) / dpr}px`;
+  uiLayer.style.height = `${(lh * blitScale) / dpr}px`;
+  uiLayer.style.left = `${blitX / dpr}px`;
+  uiLayer.style.top = `${blitY / dpr}px`;
+}
+
+/**
+ * Recopie la scène sur le canvas visible. Facteur entier, lissage désactivé : chaque pixel
+ * de jeu devient un bloc carré de `blitScale` pixels physiques, sans aucune interpolation.
+ */
+function present(): void {
+  displayCtx.imageSmoothingEnabled = false;
+  if (blitX > 0 || blitY > 0) {
+    displayCtx.fillStyle = '#05060a';
+    displayCtx.fillRect(0, 0, display.width, display.height);
+  }
+  displayCtx.drawImage(
+    scene, blitX, blitY, scene.width * blitScale, scene.height * blitScale,
+  );
 }
 
 window.addEventListener('resize', resize);
@@ -496,8 +540,9 @@ const loop = new Loop({
       if (hud && state !== 'title') hud.update(world, rdt);
     } else {
       // Hors partie, le canvas affiche la scène illustrée des menus.
-      backdrop.render(ctx, rdt, canvas.width, canvas.height);
+      backdrop.render(ctx, rdt, scene.width, scene.height);
     }
+    present();
     if (debug) updateDebug();
   },
 });
@@ -561,13 +606,16 @@ function updateDebug(): void {
   // rééchantillonnée par le navigateur et le pixel art paraît flou. C'est le seul moyen de
   // diagnostiquer à distance, la valeur dépendant de l'écran et du réglage système.
   const dpr = window.devicePixelRatio || 1;
-  const rect = canvas.getBoundingClientRect();
-  const ratio = (rect.width * dpr) / canvas.width;
-  const net = Number.isInteger(Math.round(ratio * 1000) / 1000) ? 'net' : 'RÉÉCHANTILLONNÉ';
+  const rect = display.getBoundingClientRect();
+  // Le canvas visible doit valoir 1 pixel mémoire pour 1 pixel écran, et la recopie doit se
+  // faire à facteur entier. Si les deux sont vrais, aucun rééchantillonnage n'est possible.
+  const backing = (rect.width * dpr) / display.width;
+  const exact = Math.abs(backing - 1) < 0.002 && Number.isInteger(blitScale);
 
   const lines = [
     `${loop.fps.toFixed(0)} fps  upd ${loop.updateMs.toFixed(2)}ms  ren ${loop.renderMs.toFixed(2)}ms`,
-    `vue ${canvas.width}×${canvas.height} logique  ·  dpr ${dpr}  ·  ×${ratio.toFixed(3)} physique  ·  ${net}`,
+    `scène ${scene.width}×${scene.height}  ·  ×${blitScale}  ·  écran ${display.width}×${display.height}  ·  dpr ${dpr}`,
+    `mémoire/écran ${backing.toFixed(4)}  ·  ${exact ? 'NET (aucun rééchantillonnage)' : 'RÉÉCHANTILLONNÉ'}`,
   ];
   if (w) {
     let proj = 0;

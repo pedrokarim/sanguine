@@ -49,8 +49,13 @@ html, body {
 #app {
   position: fixed;
   inset: 0;
-  display: grid;
-  place-items: center;
+}
+
+/* Le canvas occupe désormais toute la fenêtre : c'est lui qui gère son propre centrage,
+   en pixels physiques, via la recopie de la scène. */
+#game {
+  position: absolute;
+  inset: 0;
 }
 
 #game {
