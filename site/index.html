@@ -1,0 +1,418 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sanguine · Manuel</title>
+<meta name="description" content="Manuel de Sanguine, un survivor-like jouable dans le navigateur. Armes, reliques, bestiaire, biomes et structures.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%230b0d14'/%3E%3Cpath d='M8 3 L11 8 Q11 12 8 13 Q5 12 5 8 Z' fill='%23c42639'/%3E%3C/svg%3E">
+<style>
+:root{
+  --night:#0b0d14; --soil:#131725; --stone:#232b40; --stone-hi:#2d3654; --mist:#38425f;
+  --gold:#f2c46b; --copper:#e89a3c; --linen:#f7ede0; --steel:#a8c5d6;
+  --blood-dark:#8b1a2b; --blood:#c42639; --blood-hi:#f0405a;
+  --rare:#5b9df5; --epic:#a855f7; --cursed:#dc2626; --xp:#4ea9e8; --poison:#8ef07a; --fire:#ff9c3c;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:5rem}
+body{
+  background:
+    radial-gradient(ellipse 900px 500px at 50% -5%, rgba(139,26,43,.28), transparent 70%),
+    linear-gradient(180deg,#0d1024,#0b0d14 40%,#08090f);
+  background-attachment:fixed;
+  color:var(--linen);
+  font-family:ui-monospace,"SF Mono","Cascadia Mono",Menlo,Consolas,monospace;
+  line-height:1.65; font-size:15px;
+}
+img{max-width:100%;display:block;image-rendering:pixelated}
+a{color:var(--gold);text-decoration:none;border-bottom:1px solid rgba(242,196,107,.3)}
+a:hover{color:var(--copper);border-bottom-color:var(--copper)}
+.wrap{max-width:1080px;margin:0 auto;padding:0 1.25rem}
+
+/* ------------------------------------------------------------------ barre */
+nav{
+  position:sticky;top:0;z-index:50;
+  background:rgba(8,9,15,.92);backdrop-filter:blur(8px);
+  border-bottom:1px solid var(--stone);
+}
+nav .wrap{display:flex;align-items:center;gap:1.4rem;height:3.4rem;overflow-x:auto}
+nav .brand{font-weight:700;letter-spacing:.22em;color:var(--blood-hi);border:0;flex:none}
+nav a{font-size:.8rem;letter-spacing:.12em;text-transform:uppercase;color:var(--mist);border:0;white-space:nowrap}
+nav a:hover{color:var(--gold)}
+nav .play{
+  margin-left:auto;flex:none;padding:.4em 1em;border:1px solid var(--blood);
+  color:var(--blood-hi);border-radius:2px;background:rgba(196,38,57,.12)
+}
+nav .play:hover{background:var(--blood);color:#fff;border-color:var(--blood-hi)}
+
+/* ------------------------------------------------------------------- héros */
+header{text-align:center;padding:4.5rem 0 3rem;position:relative}
+header h1{
+  font-size:clamp(3rem,11vw,6.5rem);letter-spacing:.28em;text-indent:.28em;
+  color:var(--blood-hi);text-shadow:0 0 40px rgba(240,64,90,.45),0 4px 0 var(--blood-dark);
+}
+header .tag{color:var(--mist);font-style:italic;letter-spacing:.08em;margin-top:.4rem}
+.flourish{
+  width:210px;height:2px;margin:1.4rem auto;
+  background:linear-gradient(90deg,transparent,var(--gold),transparent);position:relative
+}
+.flourish::after{
+  content:'';position:absolute;left:50%;top:-3px;width:8px;height:8px;
+  transform:translateX(-50%) rotate(45deg);background:var(--gold)
+}
+.cta{display:flex;gap:.8rem;justify-content:center;flex-wrap:wrap;margin-top:1.8rem}
+.cta a{
+  padding:.85em 2em;border:2px solid var(--stone-hi);border-radius:2px;
+  letter-spacing:.16em;text-transform:uppercase;font-size:.86rem;font-weight:700;
+  color:var(--linen);background:rgba(24,30,48,.75);transition:.14s
+}
+.cta a:hover{transform:translateY(-2px)}
+.cta a.primary{border-color:var(--blood);color:var(--blood-hi);background:rgba(196,38,57,.14)}
+.cta a.primary:hover{background:var(--blood);color:#fff}
+
+/* --------------------------------------------------------------- sections */
+section{padding:3.2rem 0;border-top:1px solid rgba(45,54,84,.5)}
+h2{
+  font-size:1.5rem;letter-spacing:.2em;text-transform:uppercase;color:var(--gold);
+  display:flex;align-items:center;gap:1rem;margin-bottom:.4rem
+}
+h2::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,rgba(242,196,107,.45),transparent)}
+h3{font-size:1rem;letter-spacing:.14em;text-transform:uppercase;color:var(--steel);margin:2rem 0 .8rem}
+.lead{color:var(--steel);max-width:62ch;margin-bottom:1.6rem}
+p{max-width:74ch;margin-bottom:.9rem;color:#c9d0e4}
+strong{color:var(--linen)}
+em{color:var(--gold);font-style:normal}
+
+/* ------------------------------------------------------------- composants */
+.grid{display:grid;gap:.7rem}
+.g2{grid-template-columns:repeat(auto-fit,minmax(310px,1fr))}
+.g3{grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
+.g4{grid-template-columns:repeat(auto-fit,minmax(165px,1fr))}
+
+.card{
+  background:linear-gradient(180deg,rgba(35,43,64,.55),rgba(11,13,20,.85));
+  border:1px solid var(--stone-hi);border-radius:3px;padding:1rem 1.1rem;
+  transition:border-color .14s,transform .14s
+}
+.card:hover{border-color:var(--gold);transform:translateY(-2px)}
+.card .n{font-weight:700;color:var(--gold);letter-spacing:.05em;margin-bottom:.15rem}
+.card .k{font-size:.7rem;letter-spacing:.16em;text-transform:uppercase;color:var(--mist)}
+.card .d{font-size:.84rem;color:var(--steel);margin-top:.35rem}
+.card .s{font-size:.74rem;color:var(--mist);margin-top:.5rem;font-variant-numeric:tabular-nums}
+.card.rare{border-color:rgba(91,157,245,.55)} .card.rare .n{color:var(--rare)}
+.card.epic{border-color:rgba(168,85,247,.55)} .card.epic .n{color:var(--epic)}
+.card.cursed{border-color:rgba(220,38,38,.6)} .card.cursed .n{color:var(--cursed)}
+
+figure{border:1px solid var(--stone-hi);border-radius:3px;overflow:hidden;background:#05060a}
+figcaption{padding:.6rem .85rem;font-size:.78rem;color:var(--mist);border-top:1px solid var(--stone)}
+figcaption b{color:var(--steel);font-weight:400}
+
+table{width:100%;border-collapse:collapse;font-size:.85rem;margin:.6rem 0 1.2rem}
+th,td{text-align:left;padding:.5rem .7rem;border-bottom:1px solid rgba(45,54,84,.55)}
+th{color:var(--mist);font-size:.7rem;letter-spacing:.14em;text-transform:uppercase;font-weight:400}
+td:first-child{color:var(--gold)}
+tbody tr:hover{background:rgba(45,54,84,.18)}
+
+kbd{
+  display:inline-block;padding:.15em .55em;border:1px solid var(--mist);border-bottom-width:2px;
+  border-radius:3px;background:var(--stone);font-size:.8em;color:var(--linen)
+}
+.note{
+  border-left:3px solid var(--blood);background:rgba(139,26,43,.1);
+  padding:.9rem 1.1rem;margin:1.2rem 0;color:var(--steel);font-size:.88rem
+}
+.note b{color:var(--blood-hi)}
+.pill{
+  display:inline-block;padding:.2em .7em;border:1px solid var(--stone-hi);border-radius:99px;
+  font-size:.72rem;letter-spacing:.1em;color:var(--steel);margin:0 .3rem .4rem 0
+}
+
+footer{
+  padding:2.5rem 0 3.5rem;text-align:center;border-top:1px solid var(--stone);
+  color:var(--stone-hi);font-size:.76rem;letter-spacing:.18em;text-transform:uppercase
+}
+footer a{color:var(--mist);border:0}
+footer a:hover{color:var(--gold)}
+@media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
+</style>
+</head>
+<body>
+
+<nav><div class="wrap">
+  <span class="brand">SANGUINE</span>
+  <a href="#bases">Bases</a>
+  <a href="#armes">Armes</a>
+  <a href="#reliques">Reliques</a>
+  <a href="#monde">Monde</a>
+  <a href="#bestiaire">Bestiaire</a>
+  <a href="#meta">Sanctuaire</a>
+  <a href="#technique">Technique</a>
+  <a class="play" href="https://sanguine.ascencia.re">▶ Jouer</a>
+</div></nav>
+
+<header><div class="wrap">
+  <h1>SANGUINE</h1>
+  <p class="tag">« Tenez jusqu'à l'aube. Elle ne viendra pas. »</p>
+  <div class="flourish"></div>
+  <p class="lead" style="margin:0 auto">
+    Un survivor-like jouable dans le navigateur. Vos armes tirent seules ; votre seule
+    décision, c'est quoi devenir. Survivez trente minutes.
+  </p>
+  <div class="cta">
+    <a class="primary" href="https://sanguine.ascencia.re">Jouer maintenant</a>
+    <a href="https://github.com/pedrokarim/sanguine">Code source</a>
+  </div>
+</div></header>
+
+<div class="wrap">
+  <figure>
+    <img src="screenshots/03-jeu.png" alt="Une partie de Sanguine à la quinzième minute">
+    <figcaption><b>Minute 15.</b> Un boss, deux cents créatures, six armes, et un biome
+    traversé au mauvais moment.</figcaption>
+  </figure>
+</div>
+
+<!-- ------------------------------------------------------------- BASES -->
+<section id="bases"><div class="wrap">
+  <h2>Les bases</h2>
+  <p class="lead">Trois minutes pour comprendre, trente pour survivre.</p>
+
+  <div class="grid g3">
+    <div class="card"><div class="k">Règle n° 1</div><div class="n">Vous ne tirez jamais</div>
+      <div class="d">Il n'existe aucune touche d'attaque. Les armes se déclenchent seules, en
+      permanence. Vous ne pilotez qu'un déplacement.</div></div>
+    <div class="card"><div class="k">Règle n° 2</div><div class="n">L'XP est dans le danger</div>
+      <div class="d">Les gemmes tombent là où les ennemis meurent. Fuir en permanence, c'est
+      rester au niveau 1 et se faire rattraper par la courbe.</div></div>
+    <div class="card"><div class="k">Règle n° 3</div><div class="n">Six emplacements, pas plus</div>
+      <div class="d">Six armes, six passifs. Ce plafond ne bouge jamais. C'est lui qui
+      transforme chaque carte en décision.</div></div>
+  </div>
+
+  <h3>Commandes</h3>
+  <table>
+    <thead><tr><th>Action</th><th>Clavier</th><th>Manette</th><th>Tactile</th></tr></thead>
+    <tbody>
+      <tr><td>Déplacement</td><td><kbd>ZQSD</kbd> <kbd>WASD</kbd> flèches</td><td>Stick gauche</td><td>Glisser</td></tr>
+      <tr><td>Pause</td><td><kbd>Échap</kbd> <kbd>P</kbd></td><td>Start</td><td>–</td></tr>
+      <tr><td>Valider</td><td><kbd>Entrée</kbd> <kbd>Espace</kbd></td><td>A</td><td>Tap</td></tr>
+      <tr><td>Minimap</td><td><kbd>M</kbd></td><td>–</td><td>–</td></tr>
+      <tr><td>Plein écran</td><td><kbd>F</kbd></td><td>–</td><td>–</td></tr>
+    </tbody>
+  </table>
+  <p>AZERTY et QWERTY fonctionnent en même temps : les touches sont lues par code physique.</p>
+
+  <h3>Le déroulé d'une partie</h3>
+  <table>
+    <thead><tr><th>Minute</th><th>Phase</th><th>Ce qui vous attend</th></tr></thead>
+    <tbody>
+      <tr><td>0 – 3</td><td>Découverte</td><td>Peu d'ennemis. Vous testez votre arme de départ.</td></tr>
+      <tr><td>3 – 8</td><td>Densification</td><td>Les premiers groupes serrés. Il faut commencer à kiter.</td></tr>
+      <tr><td>8 – 12</td><td>Premier mur</td><td><em>La Matrone</em>. Un build mal orienté cale ici.</td></tr>
+      <tr><td>12 – 18</td><td>Explosion</td><td>Les évolutions arrivent. Vous devenez très fort d'un coup.</td></tr>
+      <tr><td>18 – 24</td><td>Rattrapage</td><td>La densité vous rattrape. Élites fréquents.</td></tr>
+      <tr><td>24 – 29</td><td>Survie pure</td><td>L'écran est plein. Seuls les builds aboutis tiennent.</td></tr>
+      <tr><td>30</td><td>Le Sanguinaire</td><td>Le tuer, c'est gagner. Sinon, la Faucheuse vient.</td></tr>
+    </tbody>
+  </table>
+
+  <div class="note"><b>La Faucheuse.</b> Si le boss final n'est pas tombé, elle apparaît :
+  invulnérable, rapide, et un seul contact suffit. C'est le rideau, pas un combat.</div>
+</div></section>
+
+<!-- ------------------------------------------------------------- ARMES -->
+<section id="armes"><div class="wrap">
+  <h2>Armes &amp; évolutions</h2>
+  <p class="lead">Dix-huit armes, quinze évolutions. Une arme montée au niveau maximum, associée
+  au bon passif au niveau 3, devient éligible à son évolution – qui ne sort <strong>que d'un
+  coffre</strong>. C'est ce qui rend les coffres réellement excitants.</p>
+
+  <div class="grid g4">
+    <div class="card"><div class="n">Pieu</div><div class="d">Vers l'ennemi le plus proche.</div><div class="s">Poudre → Salve du Charpentier</div></div>
+    <div class="card"><div class="n">Croix</div><div class="d">Boomerang qui traverse tout.</div><div class="s">Longue-vue → Crucifixion</div></div>
+    <div class="card"><div class="n">Ail</div><div class="d">Aura qui blesse et repousse.</div><div class="s">Calice → Aïoli</div></div>
+    <div class="card"><div class="n">Eau Bénite</div><div class="d">Fiole lobée, flaque brûlante.</div><div class="s">Grimoire → Déluge</div></div>
+    <div class="card"><div class="n">Lanterne</div><div class="d">Orbes en orbite.</div><div class="s">Sablier → Ronde des Âmes</div></div>
+    <div class="card"><div class="n">Faux</div><div class="d">Arc de mêlée devant vous.</div><div class="s">Reliquaire → Moisson</div></div>
+    <div class="card"><div class="n">Jugement</div><div class="d">La foudre frappe au hasard.</div><div class="s">Trèfle → Colère Divine</div></div>
+    <div class="card"><div class="n">Miroir</div><div class="d">Nova d'éclats radiale.</div><div class="s">Plume → Kaléidoscope</div></div>
+    <div class="card"><div class="n">Familier</div><div class="d">Chauve-souris autonome.</div><div class="s">Bottes → Nuée</div></div>
+    <div class="card"><div class="n">Arbalète</div><div class="d">Rafale de carreaux rapides.</div><div class="s">Plume → Balista</div></div>
+    <div class="card"><div class="n">Fléau</div><div class="d">Masse tournoyante.</div><div class="s">Cœur d'Argent → Comète</div></div>
+    <div class="card"><div class="n">Braséro</div><div class="d">Braises persistantes.</div><div class="s">Grimoire → Fournaise</div></div>
+    <div class="card"><div class="n">Dague Ricochet</div><div class="d">Rebondit d'ennemi en ennemi.</div><div class="s">Trèfle → Danse des Lames</div></div>
+    <div class="card"><div class="n">Ronces</div><div class="d">Pieux jaillissant du sol.</div><div class="s">Talisman → Jardin de Fer</div></div>
+    <div class="card"><div class="n">Cor de Chasse</div><div class="d">Onde de choc repoussante.</div><div class="s">Reliquaire → Appel de la Meute</div></div>
+    <div class="card"><div class="n">Sel</div><div class="d">Traînée derrière vous.</div><div class="s">Sans évolution</div></div>
+    <div class="card"><div class="n">Sang Corrompu</div><div class="d">Explose quand vous êtes touché.</div><div class="s">Sans évolution</div></div>
+    <div class="card"><div class="n">Encensoir</div><div class="d">Balayage conique large.</div><div class="s">Sans évolution</div></div>
+  </div>
+
+  <h3>Les douze passifs</h3>
+  <p>
+    <span class="pill">Reliquaire +10 % dégâts</span><span class="pill">Bottes +8 % vitesse</span>
+    <span class="pill">Cœur d'Argent +20 PV</span><span class="pill">Sablier −8 % recharge</span>
+    <span class="pill">Longue-vue +12 % zone</span><span class="pill">Poudre +projectile</span>
+    <span class="pill">Plume +15 % vitesse de tir</span><span class="pill">Grimoire +15 % durée</span>
+    <span class="pill">Aimant +25 % ramassage</span><span class="pill">Talisman +1 armure</span>
+    <span class="pill">Trèfle +chance, +critique</span><span class="pill">Calice +régénération</span>
+  </p>
+</div></section>
+
+<!-- --------------------------------------------------------- RELIQUES -->
+<section id="reliques"><div class="wrap">
+  <h2>Reliques</h2>
+  <p class="lead">Vingt-quatre objets uniques qui <strong>n'occupent aucun emplacement</strong> et
+  n'apparaissent jamais dans le menu de niveau. On ne les trouve qu'au sol, lâchées par les élites
+  et les boss, ou dans les coffres. C'est la couche de butin qui différencie deux parties menées
+  avec le même build.</p>
+
+  <div class="grid g3">
+    <div class="card"><div class="k">Commune</div><div class="n">Dent de Loup</div><div class="d">+25 % de dégâts sur les ennemis sous 30 % de PV.</div></div>
+    <div class="card"><div class="k">Commune</div><div class="n">Clé Rouillée</div><div class="d">+1 amélioration par coffre.</div></div>
+    <div class="card rare"><div class="k">Rare</div><div class="n">Chapelet Brisé</div><div class="d">Tous les 12 coups, la cible est étourdie une seconde.</div></div>
+    <div class="card rare"><div class="k">Rare</div><div class="n">Ambre</div><div class="d">Les ennemis tués figent leurs voisins deux secondes.</div></div>
+    <div class="card epic"><div class="k">Épique</div><div class="n">Faux Miniature</div><div class="d">3 % de chance d'exécuter net un ennemi ordinaire.</div></div>
+    <div class="card epic"><div class="k">Épique</div><div class="n">Orbe Fracturé</div><div class="d">Toutes les huit secondes, une nova jaillit de vous.</div></div>
+    <div class="card cursed"><div class="k">Maudite</div><div class="n">Pacte de Sang</div><div class="d">+45 % de dégâts, PV max divisés par deux.</div></div>
+    <div class="card cursed"><div class="k">Maudite</div><div class="n">Horloge Arrêtée</div><div class="d">−30 % de recharge, mais +15 % de PV pour tous les ennemis.</div></div>
+    <div class="card cursed"><div class="k">Maudite</div><div class="n">Dernier Souffle</div><div class="d">La mort vous recrache une fois – à un point de vie, et sans répit.</div></div>
+  </div>
+  <p style="margin-top:1rem"><em>Neuf sur vingt-quatre.</em> Le reste se découvre en jouant, et se
+  consulte dans le codex du jeu.</p>
+</div></section>
+
+<!-- ------------------------------------------------------------ MONDE -->
+<section id="monde"><div class="wrap">
+  <h2>Le monde</h2>
+  <p class="lead">Le domaine est infini et <strong>déterministe à partir de sa position</strong> :
+  aucune carte n'est stockée, et un lieu donné est toujours le même. Un autel situé quelque part
+  y sera encore si vous y revenez.</p>
+
+  <h3>Cinq biomes</h3>
+  <table>
+    <thead><tr><th>Biome</th><th>Créatures favorisées</th><th>Effet sur vous</th></tr></thead>
+    <tbody>
+      <tr><td>La Lande</td><td>Répartition neutre</td><td>–</td></tr>
+      <tr><td>Le Cimetière</td><td>Squelettes, spectres, goules</td><td>–</td></tr>
+      <tr><td>Le Marais</td><td>Zombies, sangsues, nécrophages</td><td><strong>−14 % de vitesse</strong></td></tr>
+      <tr><td>Les Cendres</td><td>Damnés, golems</td><td><strong>+8 % de dégâts</strong></td></tr>
+      <tr><td>Les Bois Morts</td><td>Loups, araignées, corbeaux</td><td>−4 % de vitesse</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Sept structures</h3>
+  <p>Chacune ne se déclenche <strong>qu'une fois</strong>, au contact. Les atteindre oblige à
+  quitter la zone dégagée que vous vous êtes ménagée, et à traverser la horde deux fois – à
+  l'aller et au retour.</p>
+  <div class="grid g4">
+    <div class="card"><div class="n">Autel de Sang</div><div class="d">Libère une relique.</div></div>
+    <div class="card"><div class="n">Bûcher</div><div class="d">Soigne 30 %, explose, laisse un foyer.</div></div>
+    <div class="card"><div class="n">Obélisque</div><div class="d">+30 % de dégâts pendant 45 s.</div></div>
+    <div class="card"><div class="n">Puits</div><div class="d">150 à 400 pièces d'or.</div></div>
+    <div class="card"><div class="n">Ossuaire</div><div class="d">Réveille un élite. Deux coffres.</div></div>
+    <div class="card"><div class="n">Chapelle Noyée</div><div class="d">Soins complets et un reroll.</div></div>
+    <div class="card"><div class="n">Cairn</div><div class="d">Dix gemmes d'un coup.</div></div>
+  </div>
+  <div class="note"><b>La minimap (<kbd>M</kbd>) existe pour ça.</b> Sans elle, une structure ne se
+  découvre qu'en marchant dessus, et le pari « je traverse la horde pour aller la chercher »
+  n'existe pas comme décision.</div>
+</div></section>
+
+<!-- -------------------------------------------------------- BESTIAIRE -->
+<section id="bestiaire"><div class="wrap">
+  <h2>Bestiaire</h2>
+  <p class="lead">Treize créatures, neuf comportements distincts, cinq boss. Une règle
+  d'équilibrage domine tout le reste : <strong>la vitesse des ennemis n'augmente jamais</strong>
+  avec le temps. Seuls leurs points de vie et leurs dégâts montent. C'est ce qui garde le kiting
+  possible à la vingt-huitième minute.</p>
+
+  <table>
+    <thead><tr><th>Créature</th><th>Apparaît</th><th>Comportement</th></tr></thead>
+    <tbody>
+      <tr><td>Chauve-souris</td><td>0 min</td><td>Poursuite ondulante</td></tr>
+      <tr><td>Goule</td><td>0 min</td><td>Poursuite directe</td></tr>
+      <tr><td>Corbeau</td><td>2 min</td><td>Trajectoire erratique</td></tr>
+      <tr><td>Loup</td><td>4 min</td><td>Charges répétées, avec une pause lisible</td></tr>
+      <tr><td>Squelette</td><td>5 min</td><td>Lent, résiste au recul</td></tr>
+      <tr><td>Araignée</td><td>7 min</td><td>Arrive par grappes de huit</td></tr>
+      <tr><td>Zombie</td><td>8 min</td><td>Très lent, très résistant</td></tr>
+      <tr><td>Spectre</td><td>10 min</td><td>Traverse les autres corps</td></tr>
+      <tr><td>Nécrophage</td><td>12 min</td><td>Le seul à attaquer à distance</td></tr>
+      <tr><td>Sangsue</td><td>14 min</td><td>Se soigne en vous touchant</td></tr>
+      <tr><td>Cavalier</td><td>16 min</td><td>Ruée rectiligne à travers l'écran</td></tr>
+      <tr><td>Golem de Chair</td><td>19 min</td><td>Énorme, immunisé au recul</td></tr>
+      <tr><td>Damné</td><td>22 min</td><td>Se scinde en deux à la mort</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Les boss</h3>
+  <div class="grid g2">
+    <div class="card"><div class="k">Minute 10</div><div class="n">La Matrone</div><div class="d">Invoque six araignées toutes les quatre secondes. Le combat se gagne en gérant la marée, pas la mère.</div></div>
+    <div class="card"><div class="k">Minute 18</div><div class="n">Le Chevalier Exsangue</div><div class="d">Alterne poursuite lente et charges télégraphiées.</div></div>
+    <div class="card"><div class="k">Minute 24</div><div class="n">Chœur de Cendres</div><div class="d">Trois corps liés. Il faut les faire tomber tous les trois.</div></div>
+    <div class="card cursed"><div class="k">Minute 30</div><div class="n">Le Sanguinaire</div><div class="d">Trois phases : invocation, nova de projectiles, frénésie. Le tuer, c'est gagner.</div></div>
+  </div>
+</div></section>
+
+<!-- ------------------------------------------------------------- META -->
+<section id="meta"><div class="wrap">
+  <h2>Sanctuaire</h2>
+  <p class="lead">L'or est conservé <strong>même en cas de mort</strong> et achète onze
+  améliorations permanentes. Le Sanctuaire est volontairement modeste : entièrement acheté, il
+  apporte environ +35 % de puissance globale. Il doit adoucir la courbe d'apprentissage, jamais
+  remplacer l'habileté.</p>
+  <div class="grid g2">
+    <figure><img src="screenshots/09-sanctuaire.png" alt="Le Sanctuaire">
+      <figcaption><b>Onze améliorations.</b> Le coût de chaque niveau croît de 80 %.</figcaption></figure>
+    <figure><img src="screenshots/02-personnages.png" alt="Sélection de personnage">
+      <figcaption><b>Six personnages</b>, dont quatre à débloquer – avec la progression affichée.</figcaption></figure>
+  </div>
+</div></section>
+
+<!-- -------------------------------------------------------- TECHNIQUE -->
+<section id="technique"><div class="wrap">
+  <h2>Sous le capot</h2>
+  <p class="lead">Tout ce que vous voyez et entendez est <strong>généré par le code au
+  démarrage</strong>. Aucun PNG, aucun fichier audio, aucune police. Le jeu entier pèse 57 ko
+  compressés et fonctionne hors ligne.</p>
+
+  <div class="grid g3">
+    <div class="card"><div class="n">Sprites procéduraux</div><div class="d">Chaque créature est dessinée par un générateur paramétré (humanoïde, bestial, volant, arachnide, amorphe, spectral). Les frames sont des déformations du sprite de base.</div></div>
+    <div class="card"><div class="n">Audio synthétisé</div><div class="d">Web Audio brut : oscillateurs, bruit filtré, enveloppes. La musique est un séquenceur à couches dont le tempo suit l'intensité de la partie.</div></div>
+    <div class="card"><div class="n">Monde déterministe</div><div class="d">Biomes, décor et structures sont calculés à partir de la position. Monde infini, coût mémoire nul, parties rejouables à la graine.</div></div>
+    <div class="card"><div class="n">Pools pré-alloués</div><div class="d">Pas d'ECS générique : peu de types d'entités, énormément d'instances. Rien n'est alloué pendant une partie.</div></div>
+    <div class="card"><div class="n">Grille de hachage</div><div class="d">Reconstruite intégralement chaque frame en listes chaînées sur <code>Int32Array</code> : plus rapide qu'une mise à jour incrémentale, et impossible à désynchroniser.</div></div>
+    <div class="card"><div class="n">60 fps mesurés</div><div class="d">Avec 344 ennemis : 0,9 ms de simulation, 2,4 ms de rendu. Boucle à pas fixe 60 Hz avec interpolation.</div></div>
+  </div>
+
+  <h3>L'équilibrage est mesuré, pas deviné</h3>
+  <p>Les courbes sont réglées par un bot qui joue réellement : il fuit la pression locale des
+  ennemis, dérive vers les gemmes et choisit ses cartes. Deux réglages de densité ont été mesurés
+  puis rejetés. Le second est le plus instructif.</p>
+  <table>
+    <thead><tr><th>Réglage</th><th>Résultat mesuré</th></tr></thead>
+    <tbody>
+      <tr><td>0,9 + min × 0,55</td><td>~20 ennemis à l'écran, niveau 8 à 3 min 30 : trop vide</td></tr>
+      <tr><td>1,6 + min × 1,05</td><td>474 ennemis à 6 min, <strong>une seule arme au niveau 5</strong>, mort à 6 min 48</td></tr>
+      <tr><td>1,1 + min × 0,70</td><td>Niveau 14 à 4 min 30, 4 armes, 745 morts, 60 fps – retenu</td></tr>
+    </tbody>
+  </table>
+  <div class="note"><b>La leçon.</b> Au-delà d'un certain seuil, augmenter la densité <em>réduit</em>
+  la progression : le joueur ne tue plus assez vite, ne ramasse plus de gemmes, et la courbe d'XP
+  s'effondre pendant que l'écran se remplit.</div>
+
+  <p>La documentation de conception complète – vision, game design, bible de contenu, direction
+  artistique, design audio – est
+  <a href="https://github.com/pedrokarim/sanguine/tree/main/docs">dans le dépôt</a>.</p>
+</div></section>
+
+<footer>
+  <p><a href="https://sanguine.ascencia.re">Jouer</a> ·
+     <a href="https://github.com/pedrokarim/sanguine">GitHub</a> ·
+     <a href="https://github.com/pedrokarim/sanguine/blob/main/LICENSE">Licence MIT</a></p>
+  <p style="margin-top:.8rem">© 2026 Ascencia</p>
+</footer>
+
+</body>
+</html>

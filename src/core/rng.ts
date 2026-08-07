@@ -1,7 +1,7 @@
 import { TAU } from './math';
 
 /**
- * PRNG déterministe (Mulberry32). Rapide, sans état global, et surtout **reproductible** :
+ * PRNG déterministe (Mulberry32). Rapide, sans état global, et surtout **reproductible** :
  * un run entier peut être rejoué depuis sa graine, ce qui rend les bugs déterministes.
  */
 export class Rng {
@@ -40,7 +40,7 @@ export class Rng {
     return arr[Math.floor(this.next() * arr.length)]!;
   }
 
-  /** Tirage pondéré : retourne l'index. `-1` si tous les poids sont nuls. */
+  /** Tirage pondéré : retourne l'index. `-1` si tous les poids sont nuls. */
   weighted(weights: readonly number[]): number {
     let total = 0;
     for (let i = 0; i < weights.length; i++) total += weights[i]!;
@@ -74,7 +74,7 @@ export class Rng {
     return (this.next() * 2 - 1) * m;
   }
 
-  /** Fork déterministe : utile pour générer un sprite sans perturber le flux principal. */
+  /** Fork déterministe : utile pour générer un sprite sans perturber le flux principal. */
   fork(salt: number): Rng {
     return new Rng((this.s ^ Math.imul(salt, 0x9e3779b9)) >>> 0);
   }
@@ -83,5 +83,5 @@ export class Rng {
 /** Instance partagée pour tout ce qui est purement cosmétique (particules, décor). */
 export const fxRng = new Rng(0xc0ffee);
 
-/** Génère une graine à partir de l'horloge — utilisé au lancement d'un run. */
+/** Génère une graine à partir de l'horloge – utilisé au lancement d'un run. */
 export const makeSeed = (): number => (Date.now() ^ (Math.random() * 0xffffffff)) >>> 0;

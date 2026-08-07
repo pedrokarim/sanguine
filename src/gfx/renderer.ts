@@ -1,18 +1,18 @@
 import { clamp, lerp, TAU } from '../core/math';
 import { P, rgba } from './palette';
 import { shadowSprite, type SpriteSet } from './sprites';
-import { biomeAt, groundTile, groundVariantAt, propSprite, poiSprite } from '../game/terrain';
+import { biomeAt, biomeAtTile, groundTile, groundVariantAt, propSprite, poiSprite } from '../game/terrain';
 import type { World } from '../game/world';
 import type { Enemy } from '../game/types';
 
 /**
  * Passe de rendu.
  *
- * Trois règles gouvernent ce fichier :
- *   1. **Culling systématique** — rien hors du viewport (+ marge) n'atteint `drawImage`.
- *   2. **Aucun `save()`/`restore()`** dans la boucle chaude ; les retournements horizontaux
+ * Trois règles gouvernent ce fichier :
+ *   1. **Culling systématique** – rien hors du viewport (+ marge) n'atteint `drawImage`.
+ *   2. **Aucun `save()`/`restore()`** dans la boucle chaude ; les retournements horizontaux
  *      passent par `setTransform`, qui est bien moins coûteux.
- *   3. **Tri par seau** plutôt qu'un `sort()` complet : trier 1200 ennemis chaque frame
+ *   3. **Tri par seau** plutôt qu'un `sort()` complet : trier 1200 ennemis chaque frame
  *      coûterait plus cher que tout le reste du rendu réuni.
  */
 
@@ -57,7 +57,7 @@ export class Renderer {
   /**
    * Sol dessiné tuile par tuile, chaque tuile prenant la texture de son biome.
    *
-   * Un `createPattern` global serait moins cher, mais interdirait toute transition de biome :
+   * Un `createPattern` global serait moins cher, mais interdirait toute transition de biome :
    * une soixantaine de `drawImage` par frame est un prix négligeable pour un monde qui change
    * visiblement de nature quand on le traverse.
    */
@@ -75,7 +75,7 @@ export class Renderer {
       for (let c = 0; c < cols; c++) {
         const wx = startWX + c * TILE;
         const tx = Math.floor(wx / TILE);
-        const biome = biomeAt(wx + TILE / 2, wy + TILE / 2);
+        const biome = biomeAtTile(tx, ty);
         ctx.drawImage(groundTile(biome, groundVariantAt(tx, ty)), wx + ox, wy + oy);
       }
     }
@@ -94,7 +94,7 @@ export class Renderer {
     }
   }
 
-  /** Structures : lueur pulsée tant qu'elles sont actives, sprite éteint une fois utilisées. */
+  /** Structures : lueur pulsée tant qu'elles sont actives, sprite éteint une fois utilisées. */
   private drawPois(w: World, ox: number, oy: number): void {
     const ctx = this.ctx;
     const cam = w.cam;
@@ -108,7 +108,7 @@ export class Renderer {
       const f = poi.used ? frames[4]! : frames[Math.floor(poi.anim * 4) % 4]!;
 
       if (!poi.used) {
-        // Halo au sol : rend la structure repérable même noyée dans la horde.
+        // Halo au sol : rend la structure repérable même noyée dans la horde.
         const pulse = 0.18 + Math.sin(poi.anim * 2.2) * 0.07;
         ctx.globalAlpha = pulse;
         ctx.fillStyle = poi.def.color;
@@ -159,7 +159,7 @@ export class Renderer {
       if (!this.onScreen(x, y, z.radius + 8, w)) continue;
 
       const fade = clamp(z.life / Math.max(0.001, z.maxLife), 0, 1);
-      // Deux passes : un disque diffus, puis un anneau net qui délimite la zone dangereuse.
+      // Deux passes : un disque diffus, puis un anneau net qui délimite la zone dangereuse.
       ctx.globalAlpha = 0.2 * fade;
       ctx.fillStyle = z.color;
       ctx.beginPath();
@@ -225,7 +225,7 @@ export class Renderer {
     for (const e of w.enemies) {
       if (!e.active) continue;
       if (!cam.visible(e.x, e.y, 48)) continue;
-      // Seau selon la position verticale à l'écran : approxime un tri en profondeur
+      // Seau selon la position verticale à l'écran : approxime un tri en profondeur
       // pour un coût constant.
       const sy = e.y + oy;
       const idx = clamp(Math.floor(sy / BUCKET_H) + 1, 0, BUCKETS - 1);
@@ -239,7 +239,7 @@ export class Renderer {
         const x = wx + ox;
         const y = wy + oy;
 
-        // Ombre portée : ancre le sprite au sol, sans quoi tout paraît flotter.
+        // Ombre portée : ancre le sprite au sol, sans quoi tout paraît flotter.
         const sh = shadowSprite();
         ctx.globalAlpha = 0.5;
         ctx.drawImage(sh, Math.round(x - 8), Math.round(y + e.radius - 4), 16, 8);
@@ -268,7 +268,7 @@ export class Renderer {
           ctx.drawImage(f, dx, dy);
         }
 
-        // Barre de vie : uniquement pour les élites, jamais pour la piétaille (bruit visuel).
+        // Barre de vie : uniquement pour les élites, jamais pour la piétaille (bruit visuel).
         if (e.elite && e.hp < e.maxHp) {
           const bw = 14;
           const ratio = clamp(e.hp / e.maxHp, 0, 1);
@@ -293,7 +293,7 @@ export class Renderer {
     ctx.globalAlpha = 1;
   }
 
-  /** Les plans orientés (bêtes, cavaliers) se retournent ; les plans symétriques non. */
+  /** Les plans orientés (bêtes, cavaliers) se retournent ; les plans symétriques non. */
   private flippable(e: Enemy): boolean {
     const plan = e.def.art.plan;
     return plan === 'beast' || plan === 'rider';
@@ -316,7 +316,7 @@ export class Renderer {
       const hw = f.width / 2;
       const hh = f.height / 2;
 
-      // Zones de mêlée / ondes : un halo coloré rend la portée lisible.
+      // Zones de mêlée / ondes : un halo coloré rend la portée lisible.
       if (p.behavior === 'melee' || p.behavior === 'wave' || p.behavior === 'strike') {
         const fade = clamp(p.life / Math.max(0.001, p.maxLife), 0, 1);
         ctx.globalAlpha = 0.28 * fade;
@@ -361,7 +361,7 @@ export class Renderer {
     ctx.drawImage(sh, Math.round(x - 8), Math.round(y + 5), 16, 8);
     ctx.globalAlpha = 1;
 
-    // Clignotement d'invulnérabilité : un créneau, pas un fondu — bien plus lisible.
+    // Clignotement d'invulnérabilité : un créneau, pas un fondu – bien plus lisible.
     if (pl.iframes > 0 && Math.floor(pl.iframes * 14) % 2 === 0) return;
 
     const set = pl.sprite;
@@ -386,7 +386,7 @@ export class Renderer {
     const pl = w.player;
     const reduce = w.cam.intensity === 0;
 
-    // Le domaine s'assombrit au fil des 30 minutes : le joueur sent le temps passer
+    // Le domaine s'assombrit au fil des 30 minutes : le joueur sent le temps passer
     // sans jamais regarder le chronomètre.
     const dark = clamp(w.minute / 30, 0, 1) * 0.45;
     if (dark > 0.01) {
@@ -414,7 +414,7 @@ export class Renderer {
       ctx.fillRect(0, 0, VW, VH);
     }
 
-    // Indicateurs de bord : une flèche pointe vers un boss ou un coffre hors écran.
+    // Indicateurs de bord : une flèche pointe vers un boss ou un coffre hors écran.
     this.drawEdgeMarkers(w, VW, VH);
   }
 

@@ -77,7 +77,7 @@ export class World {
   timeScale = 1;
   private slowMoTimer = 0;
   /**
-   * Gel complet de quelques frames. Réservé aux instants majeurs (chute d'un boss) : un
+   * Gel complet de quelques frames. Réservé aux instants majeurs (chute d'un boss) : un
    * micro-gel déclenché sur un événement fréquent produirait un jeu qui bégaie en continu.
    */
   private hitStop = 0;
@@ -103,7 +103,7 @@ export class World {
   private deathCache = new Map<string, SpriteSet>();
   private pickupSprites = new Map<string, SpriteSet>();
 
-  /** Reliques déjà obtenues — une relique ne peut pas tomber deux fois. */
+  /** Reliques déjà obtenues – une relique ne peut pas tomber deux fois. */
   ownedRelics = new Set<string>();
   /** Types d'ennemis croisés pendant le run, reversés au bestiaire à la fin. */
   seenEnemies = new Set<string>();
@@ -183,7 +183,7 @@ export class World {
     return s;
   }
 
-  /** Pré-génère tous les sprites — évite un à-coup au premier spawn de chaque type. */
+  /** Pré-génère tous les sprites – évite un à-coup au premier spawn de chaque type. */
   warmup(): void {
     for (const id of ['bat', 'ghoul', 'crow', 'wolf', 'skeleton', 'spider', 'zombie', 'wraith', 'spitter', 'leech', 'rider', 'golem', 'damned']) {
       const def = enemyById(id);
@@ -209,7 +209,7 @@ export class World {
   }
 
   private allocProjectile(): Projectile | null {
-    // Les projectiles sont volatils : si le pool sature, écraser le plus ancien est
+    // Les projectiles sont volatils : si le pool sature, écraser le plus ancien est
     // préférable à ne rien tirer du tout.
     for (let i = 0; i < MAX_PROJECTILES; i++) {
       const p = this.projectiles[this.projCursor]!;
@@ -400,7 +400,7 @@ export class World {
 
   /**
    * Applique des dégâts à un ennemi. Centralise le critique, le vol de vie, les reliques
-   * conditionnelles et tout le retour visuel/sonore — aucune arme ne duplique cette logique.
+   * conditionnelles et tout le retour visuel/sonore – aucune arme ne duplique cette logique.
    */
   damageEnemy(e: Enemy, raw: number, kbx = 0, kby = 0, knockback = 0, silent = false): void {
     if (!e.active || e.dying > 0) return;
@@ -415,7 +415,7 @@ export class World {
     const crit = this.rng.next() < pl.stats.crit;
     if (crit) dmg *= 2;
 
-    // Faux Miniature : exécution nette, mais jamais sur un boss.
+    // Faux Miniature : exécution nette, mais jamais sur un boss.
     const exec = pl.flag('execute');
     if (exec > 0 && !e.boss && this.rng.next() < exec) dmg = e.hp;
 
@@ -426,7 +426,7 @@ export class World {
 
     if (pl.stats.lifesteal > 0) pl.heal(final * pl.stats.lifesteal);
 
-    // Chapelet Brisé : étourdissement périodique.
+    // Chapelet Brisé : étourdissement périodique.
     const stunEvery = pl.flag('stunEvery');
     if (stunEvery > 0) {
       pl.hitCount++;
@@ -444,7 +444,7 @@ export class World {
       this.particles.number(e.x, e.y - e.radius - 2, final, crit);
       this.particles.sparks(e.x, e.y, Math.atan2(kby, kbx), crit ? 6 : 3, crit ? P.gold : P.spark);
       audio.play(crit ? 'crit' : 'hit');
-      // Ni secousse ni micro-gel sur un critique : à 5 % de chance et plusieurs dizaines de
+      // Ni secousse ni micro-gel sur un critique : à 5 % de chance et plusieurs dizaines de
       // coups par seconde, l'écran tremblerait sans interruption et le jeu perdrait des
       // frames en continu. Le critique reste signalé par le chiffre doré et le son.
     }
@@ -473,7 +473,7 @@ export class World {
 
     this.addSplat(e.x, e.y);
 
-    // Ambre : les voisins du mort sont ralentis.
+    // Ambre : les voisins du mort sont ralentis.
     const slowDur = this.player.flag('slowOnKill');
     if (slowDur > 0) {
       const n = this.grid.query(e.x, e.y, 46);
@@ -500,7 +500,7 @@ export class World {
     if (this.splats.length < MAX_SPLATS) {
       this.splats.push({ x, y, sprite });
     } else {
-      // Tampon circulaire : la trace du carnage reste visible sans coût qui dérive.
+      // Tampon circulaire : la trace du carnage reste visible sans coût qui dérive.
       this.splats[this.splatCursor] = { x, y, sprite };
       this.splatCursor = (this.splatCursor + 1) % MAX_SPLATS;
     }
@@ -513,7 +513,7 @@ export class World {
     const luck = pl.stats.luck;
     const r = this.rng;
 
-    // Gemme d'XP — toujours, sauf pour les scissions déjà comptées.
+    // Gemme d'XP – toujours, sauf pour les scissions déjà comptées.
     const rank = e.boss ? 3 : e.elite ? 2 : e.def.gemRank;
     const xpValue = [2, 9, 35, 140][rank]!;
     const gems = e.boss ? 14 : e.elite ? 3 : 1;
@@ -535,7 +535,7 @@ export class World {
     if (chance(D.hourglass)) this.spawnPickup('hourglass', e.x, e.y, 0, 0);
     if (chance(D.scroll)) this.spawnPickup('scroll', e.x, e.y, 0, 0);
 
-    // Coffres et reliques : élites et boss uniquement.
+    // Coffres et reliques : élites et boss uniquement.
     if (e.elite || e.boss) {
       const chests = 1 + pl.flag('eliteChests') + (e.boss ? 2 : 0);
       for (let i = 0; i < chests; i++) {
@@ -577,7 +577,7 @@ export class World {
 
   /**
    * Applique l'effet d'une structure atteinte. Chaque structure ne se déclenche qu'une fois,
-   * et récompense l'exploration : s'éloigner du troupeau pour atteindre un obélisque est un
+   * et récompense l'exploration : s'éloigner du troupeau pour atteindre un obélisque est un
    * pari, puisque le joueur traverse la horde dans les deux sens.
    */
   private activatePoi(poi: Poi): void {
@@ -600,14 +600,14 @@ export class World {
         this.announce(poi.def.name, 'la flamme purifie');
         audio.play('explode');
         this.explodeAt(x, y, 150, 140 * pl.stats.might);
-        // Laisse un foyer qui continue de brûler : le lieu reste tactiquement utile.
+        // Laisse un foyer qui continue de brûler : le lieu reste tactiquement utile.
         this.spawnZone(x, y, 60, 22 * pl.stats.might, 12, P.fire, poi.key.length + 5000, 0.4);
         break;
       }
 
       case 'obelisk':
         pl.addBuff('might', 0.3, 45);
-        this.announce(poi.def.name, '+30 % de dégâts pendant 45 s');
+        this.announce(poi.def.name, '+30 % de dégâts pendant 45 s');
         audio.play('unlock');
         break;
 
@@ -621,7 +621,7 @@ export class World {
       }
 
       case 'ossuary': {
-        // Piège volontaire : la récompense est bonne, mais il faut survivre à ce qui sort.
+        // Piège volontaire : la récompense est bonne, mais il faut survivre à ce qui sort.
         this.announce(poi.def.name, 'quelque chose se réveille');
         audio.play('boss');
         const e = this.spawnEnemy('golem', x + 24, y, true);
@@ -664,7 +664,7 @@ export class World {
     this.slowMoTimer = duration;
   }
 
-  /** Gèle la simulation quelques dizièmes de seconde — impact maximal, à utiliser rarement. */
+  /** Gèle la simulation quelques dizièmes de seconde – impact maximal, à utiliser rarement. */
   freezeFrames(seconds: number): void {
     this.hitStop = Math.max(this.hitStop, seconds);
   }
@@ -706,7 +706,7 @@ export class World {
 
   private onBossKilled(e: Enemy): void {
     this.bossGroup = this.bossGroup.filter((b) => b !== e && b.active && b.dying <= 0);
-    if (this.bossGroup.length > 0) return; // Chœur de Cendres : les trois corps doivent tomber
+    if (this.bossGroup.length > 0) return; // Chœur de Cendres : les trois corps doivent tomber
 
     this.boss = null;
     audio.play('bossDie');
@@ -726,7 +726,7 @@ export class World {
   update(dt: number): void {
     if (this.hitStop > 0) {
       this.hitStop -= dt;
-      return; // micro-gel : la frame est simplement sautée
+      return; // micro-gel : la frame est simplement sautée
     }
 
     if (this.slowMoTimer > 0) {
@@ -815,7 +815,7 @@ export class World {
         }
       }
 
-      // Recul : amorti indépendamment du déplacement propre de l'ennemi.
+      // Recul : amorti indépendamment du déplacement propre de l'ennemi.
       if (e.kx !== 0 || e.ky !== 0) {
         e.x += e.kx * dt;
         e.y += e.ky * dt;
@@ -850,7 +850,7 @@ export class World {
         }
       }
 
-      // Recyclage des ennemis trop lointains : on les remet de l'autre côté plutôt que de
+      // Recyclage des ennemis trop lointains : on les remet de l'autre côté plutôt que de
       // les détruire, ce qui garde la pression constante sans re-payer un spawn.
       if (!e.boss && d > RECYCLE_DIST) {
         const a = Math.atan2(pl.y - e.y, pl.x - e.x) + this.rng.spread(0.9);
@@ -874,7 +874,7 @@ export class World {
         break;
 
       case 'wave': {
-        // Poursuite + oscillation perpendiculaire : lisible, et rend le kiting moins trivial.
+        // Poursuite + oscillation perpendiculaire : lisible, et rend le kiting moins trivial.
         e.timer += dt;
         const s = Math.sin(e.timer * 5 + e.id) * 0.55;
         e.vx = (nx - ny * s) * speed;
@@ -894,7 +894,7 @@ export class World {
       }
 
       case 'charger': {
-        // Alternance élan / pause : le joueur peut lire l'attaque et l'esquiver.
+        // Alternance élan / pause : le joueur peut lire l'attaque et l'esquiver.
         e.timer -= dt;
         if (e.timer <= 0) {
           e.state = e.state === 0 ? 1 : 0;
@@ -926,7 +926,7 @@ export class World {
         break;
 
       case 'dasher': {
-        // Ruée rectiligne : verrouille sa direction, traverse, puis re-vise.
+        // Ruée rectiligne : verrouille sa direction, traverse, puis re-vise.
         e.timer -= dt;
         if (e.state === 0) {
           e.state = 1;
@@ -957,7 +957,7 @@ export class World {
   }
 
   private separate(e: Enemy, dt: number): void {
-    // Séparation approximative : seuls quelques voisins de la même cellule sont testés.
+    // Séparation approximative : seuls quelques voisins de la même cellule sont testés.
     // Une séparation exacte serait en O(n²) et le résultat visuel est indiscernable.
     let other = this.grid.cellHead(e.x, e.y);
     let checked = 0;
@@ -990,13 +990,13 @@ export class World {
 
     if (e.def.ai === 'leech') e.hp = Math.min(e.maxHp, e.hp + e.damage * 2);
 
-    // Miroir de Poche : renvoi des dégâts.
+    // Miroir de Poche : renvoi des dégâts.
     const reflect = pl.flag('reflect');
     if (reflect > 0 && this.rng.next() < reflect) {
       this.damageEnemy(e, e.damage * 3, e.x - pl.x, e.y - pl.y, 60);
     }
 
-    // Sang Corrompu : l'arme réactive se déclenche ici.
+    // Sang Corrompu : l'arme réactive se déclenche ici.
     const tainted = pl.weapon('tainted');
     if (tainted) {
       const w = tainted.def;
@@ -1023,7 +1023,7 @@ export class World {
         break;
 
       case 'charge':
-        // Déjà géré par l'IA `charger` ; on ajoute seulement le télégraphe visuel.
+        // Déjà géré par l'IA `charger` ; on ajoute seulement le télégraphe visuel.
         if (e.state === 1 && fxRng.chance(dt * 12)) {
           this.particles.ember(e.x, e.y, P.bloodHi, 1);
         }
@@ -1122,7 +1122,7 @@ export class World {
           break;
 
         case 'boomerang': {
-          // `a` mémorise l'instant de demi-tour : la croix ralentit, s'arrête, puis revient.
+          // `a` mémorise l'instant de demi-tour : la croix ralentit, s'arrête, puis revient.
           const t = 1 - p.life / p.maxLife;
           const curve = 1 - t * 2; // +1 → −1
           p.x += p.vx * curve * dt;
@@ -1146,7 +1146,7 @@ export class World {
         }
 
         case 'pet': {
-          // Familier : cherche la cible la plus proche et fonce dessus.
+          // Familier : cherche la cible la plus proche et fonce dessus.
           const target = this.nearestEnemy(p.x, p.y, 240);
           if (target) {
             const dx = target.x - p.x;
@@ -1171,7 +1171,7 @@ export class World {
         }
 
         case 'lob': {
-          // Trajectoire en cloche : `a` = distance totale, `b` = progression.
+          // Trajectoire en cloche : `a` = distance totale, `b` = progression.
           p.x += p.vx * dt;
           p.y += p.vy * dt;
           break;
@@ -1187,7 +1187,7 @@ export class World {
         case 'wave':
         case 'spike':
         case 'strike':
-          // Statiques : ils vivent le temps de leur animation et frappent une fois.
+          // Statiques : ils vivent le temps de leur animation et frappent une fois.
           if (p.anchored) {
             p.x = pl.x + p.a;
             p.y = pl.y + p.b;
@@ -1196,7 +1196,7 @@ export class World {
       }
 
       if (p.hostile) {
-        // Projectile ennemi : ne teste que le joueur.
+        // Projectile ennemi : ne teste que le joueur.
         if (dist2(p.x, p.y, pl.x, pl.y) < (p.radius + 5) ** 2) {
           if (pl.takeDamage(p.damage)) {
             audio.play('hurt');
@@ -1330,7 +1330,7 @@ export class World {
     return best;
   }
 
-  /** Cible aléatoire dans un rayon — utilisé par Jugement. */
+  /** Cible aléatoire dans un rayon – utilisé par Jugement. */
   randomEnemy(x: number, y: number, maxDist: number): Enemy | null {
     const n = this.grid.query(x, y, maxDist);
     if (n === 0) return null;
@@ -1413,7 +1413,7 @@ export class World {
       if (!p.drawn && magnetic && d2 < r2) p.drawn = true;
 
       if (p.drawn) {
-        // Attraction accélérée : plus la gemme approche, plus elle va vite. C'est ce qui
+        // Attraction accélérée : plus la gemme approche, plus elle va vite. C'est ce qui
         // rend le ramassage satisfaisant plutôt que mou.
         const d = Math.sqrt(d2) || 1;
         const pull = 120 + (1 - clamp(d / 200, 0, 1)) * 420;

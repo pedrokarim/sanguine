@@ -6,16 +6,16 @@ import type { World } from '../game/world';
 /**
  * Minimap.
  *
- * Elle existe pour une raison précise : depuis l'ajout des structures, le monde contient des
+ * Elle existe pour une raison précise : depuis l'ajout des structures, le monde contient des
  * objectifs qu'il faut **décider** d'aller chercher. Sans carte, un autel ne se découvre qu'au
- * moment où l'on marche dessus, et le pari « je traverse la horde pour aller le chercher »
+ * moment où l'on marche dessus, et le pari « je traverse la horde pour aller le chercher »
  * n'existe pas. La minimap transforme l'exploration en choix tactique.
  *
- * Coût maîtrisé par une séparation nette :
- *   — le **fond de biomes** est coûteux (un échantillon de bruit par pixel) mais quasi statique :
+ * Coût maîtrisé par une séparation nette :
+ *   – le **fond de biomes** est coûteux (un échantillon de bruit par pixel) mais quasi statique :
  *     il n'est régénéré que si le joueur s'est notablement déplacé, et au plus quelques fois
- *     par seconde ;
- *   — les **marqueurs** sont recalculés à chaque frame, mais ne coûtent que quelques dizaines
+ *     par seconde ;
+ *   – les **marqueurs** sont recalculés à chaque frame, mais ne coûtent que quelques dizaines
  *     de `fillRect`.
  */
 
@@ -80,7 +80,7 @@ export class Minimap {
 
   /**
    * Fond de biomes, en projection centrée sur le joueur. Le rendu se fait par `ImageData`
-   * plutôt qu'en `fillRect` : à 2 700 cellules, l'écriture directe des octets est nettement
+   * plutôt qu'en `fillRect` : à 2 700 cellules, l'écriture directe des octets est nettement
    * plus rapide que 2 700 appels de dessin.
    */
   private redrawBackground(cx: number, cy: number): void {
@@ -93,7 +93,7 @@ export class Minimap {
       for (let i = 0; i < BG; i++) {
         const wx = cx + origin + i * step;
         const biome = biomeAt(wx, wy);
-        // On réutilise la teinte « claire » du biome : plus lisible en miniature que la base,
+        // On réutilise la teinte « claire » du biome : plus lisible en miniature que la base,
         // qui est volontairement très sombre en jeu.
         const hex = biome.ground[2];
         const n = parseInt(hex.slice(1), 16);
@@ -123,14 +123,14 @@ export class Minimap {
     const ctx = this.ctx;
     const half = SIZE / 2;
 
-    // Le fond est dessiné décalé du déplacement effectué depuis sa génération : la carte
+    // Le fond est dessiné décalé du déplacement effectué depuis sa génération : la carte
     // glisse continûment au lieu de sauter à chaque régénération.
     const offX = (this.bgX - pl.x) * SCALE;
     const offY = (this.bgY - pl.y) * SCALE;
     ctx.globalAlpha = 1;
     ctx.drawImage(this.bg, offX, offY, SIZE, SIZE);
 
-    // Voile sombre : le fond doit rester une indication, pas rivaliser avec les marqueurs.
+    // Voile sombre : le fond doit rester une indication, pas rivaliser avec les marqueurs.
     ctx.fillStyle = 'rgba(5,6,10,0.42)';
     ctx.fillRect(0, 0, SIZE, SIZE);
 
@@ -138,7 +138,7 @@ export class Minimap {
     const py = (wy: number): number => half + (wy - pl.y) * SCALE;
     const inside = (x: number, y: number): boolean => x >= 1 && y >= 1 && x < SIZE - 1 && y < SIZE - 1;
 
-    // --- ennemis : nuage de points sombres, sans détail ---
+    // --- ennemis : nuage de points sombres, sans détail ---
     ctx.fillStyle = 'rgba(196,38,57,0.72)';
     for (const e of w.enemies) {
       if (!e.active || e.dying > 0 || e.boss || e.elite) continue;
@@ -156,7 +156,7 @@ export class Minimap {
       if (inside(x, y)) ctx.fillRect((x | 0) - 1, (y | 0) - 1, 3, 3);
     }
 
-    // --- butin au sol : seuls les objets qui valent un détour ---
+    // --- butin au sol : seuls les objets qui valent un détour ---
     for (const p of w.pickups) {
       if (!p.active) continue;
       if (p.kind !== 'chest' && p.kind !== 'relic' && p.kind !== 'heart') continue;
@@ -170,7 +170,7 @@ export class Minimap {
       ctx.fillRect((x | 0) - 1, (y | 0) - 1, 2, 2);
     }
 
-    // --- structures : le vrai intérêt de la carte ---
+    // --- structures : le vrai intérêt de la carte ---
     const blink = 0.55 + Math.sin(this.pulse * 3.4) * 0.45;
     for (const poi of w.terrain.poisNear(pl.x, pl.y, WORLD_RADIUS + 100)) {
       const x = px(poi.x);
@@ -178,7 +178,7 @@ export class Minimap {
       if (!inside(x, y)) continue;
 
       if (poi.used) {
-        // Une structure épuisée reste affichée, en gris : elle sert encore de repère.
+        // Une structure épuisée reste affichée, en gris : elle sert encore de repère.
         ctx.fillStyle = 'rgba(120,126,150,0.5)';
         ctx.fillRect((x | 0) - 1, (y | 0) - 1, 2, 2);
         continue;
@@ -193,7 +193,7 @@ export class Minimap {
       ctx.fillRect(x | 0, y | 0, 1, 1);
     }
 
-    // --- boss : impossible à manquer ---
+    // --- boss : impossible à manquer ---
     for (const b of w.bossGroup) {
       if (!b.active || b.dying > 0) continue;
       const x = clamp(px(b.x), 3, SIZE - 3);
@@ -209,7 +209,7 @@ export class Minimap {
       ctx.fillRect((x | 0) - 1, (y | 0) - 1, 3, 3);
     }
 
-    // --- cadre de vue : rappelle ce que l'écran couvre réellement ---
+    // --- cadre de vue : rappelle ce que l'écran couvre réellement ---
     ctx.strokeStyle = 'rgba(247,237,224,0.28)';
     ctx.lineWidth = 1;
     ctx.strokeRect(

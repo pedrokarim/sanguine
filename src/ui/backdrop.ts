@@ -3,14 +3,14 @@ import { valueNoise2, TAU } from '../core/math';
 import { P, rgba, shade } from '../gfx/palette';
 
 /**
- * Décor illustré des menus : une scène nocturne dessinée par le code, dans la même grammaire
+ * Décor illustré des menus : une scène nocturne dessinée par le code, dans la même grammaire
  * pixel que le jeu.
  *
  * Le fond est composé en **couches pré-rendues** une fois au démarrage, puis animé par
  * parallaxe. C'est ce qui permet d'avoir une illustration riche pour un coût de rendu proche
- * de zéro : cinq `drawImage` par frame, quel que soit le détail de la scène.
+ * de zéro : cinq `drawImage` par frame, quel que soit le détail de la scène.
  *
- * La scène raconte le pitch sans une ligne de texte : une chapelle en ruine, un cimetière,
+ * La scène raconte le pitch sans une ligne de texte : une chapelle en ruine, un cimetière,
  * une lune rouge trop basse, et des choses qui volent.
  */
 
@@ -36,7 +36,7 @@ function layer(): HTMLCanvasElement {
 /**
  * Ligne d'horizon irrégulière générée par bruit, remplie jusqu'en bas.
  *
- * `rim` dessine un liseré clair sur la crête. C'est ce liseré qui fait exister le relief :
+ * `rim` dessine un liseré clair sur la crête. C'est ce liseré qui fait exister le relief :
  * sans lui, des masses sombres empilées sur un ciel sombre se fondent en une seule tache et
  * la scène paraît vide, quelle que soit la richesse de ce qu'on y a mis.
  */
@@ -68,7 +68,7 @@ function hills(
     ctx.fillStyle = rim;
     for (let i = 0; i < crest.length; i++) {
       // Le liseré est volontairement **discontinu**. Tracé plein, il se lit comme une courbe
-      // de niveau sur une carte topographique et trahit immédiatement le procédé ; troué,
+      // de niveau sur une carte topographique et trahit immédiatement le procédé ; troué,
       // il redevient de la lumière accrochée par une crête irrégulière.
       const n = valueNoise2(i * 0.34, seed * 3.1, seed + 77);
       if (n < 0.34) continue;
@@ -78,27 +78,27 @@ function hills(
   }
 }
 
-/** Silhouette de chapelle en ruine : nef éventrée et clocher penché. */
+/** Silhouette de chapelle en ruine : nef éventrée et clocher penché. */
 function chapel(ctx: CanvasRenderingContext2D, x: number, y: number, s: number, color: string): void {
   ctx.fillStyle = color;
   const px = (a: number, b: number, w: number, h: number): void =>
     ctx.fillRect(Math.round(x + a * s), Math.round(y + b * s), Math.ceil(w * s), Math.ceil(h * s));
 
   px(-14, -16, 28, 16); // nef
-  // Toiture effondrée : une crête irrégulière vaut mieux qu'un triangle propre.
+  // Toiture effondrée : une crête irrégulière vaut mieux qu'un triangle propre.
   for (let i = 0; i < 14; i++) px(-14 + i * 2, -17 - (i % 3) - (i > 8 ? 1 : 0), 2, 2);
   px(8, -30, 9, 15); // clocher
   px(9, -34, 7, 4);
   px(12, -40, 1, 6); // croix
   px(10, -38, 5, 1);
 
-  // Ouvertures : c'est le vide qui fait lire la ruine, pas la masse.
+  // Ouvertures : c'est le vide qui fait lire la ruine, pas la masse.
   ctx.clearRect(Math.round(x - 4 * s), Math.round(y - 12 * s), Math.ceil(7 * s), Math.ceil(12 * s));
   ctx.clearRect(Math.round(x + 10 * s), Math.round(y - 27 * s), Math.ceil(4 * s), Math.ceil(6 * s));
   ctx.clearRect(Math.round(x - 12 * s), Math.round(y - 14 * s), Math.ceil(3 * s), Math.ceil(4 * s));
 }
 
-/** Arbre mort : tronc + branches récursives. */
+/** Arbre mort : tronc + branches récursives. */
 function deadTree(ctx: CanvasRenderingContext2D, x: number, y: number, h: number, rng: Rng, color: string): void {
   ctx.strokeStyle = color;
   ctx.lineCap = 'round';
@@ -191,7 +191,7 @@ export class Backdrop {
     /*
      * Ciel de nuit **claire**, pas de nuit d'encre.
      *
-     * La première version descendait à #04050a : correct sur le papier, illisible à l'écran —
+     * La première version descendait à #04050a : correct sur le papier, illisible à l'écran –
      * on ne distinguait plus rien de la scène. Une vraie nuit dégagée sous la lune est
      * nettement plus lumineuse qu'on ne le croit, et un décor de menu doit se voir.
      */
@@ -211,15 +211,15 @@ export class Backdrop {
       const b = rng.range(0.3, 1);
       ctx.fillStyle = rgba('#e6ecff', b);
       ctx.fillRect(x, y, 1, 1);
-      // Quelques étoiles doubles, à peine plus grosses : ça densifie sans faire du bruit.
+      // Quelques étoiles doubles, à peine plus grosses : ça densifie sans faire du bruit.
       if (rng.chance(0.12)) ctx.fillRect(x + 1, y, 1, 1);
     }
 
-    // Lune basse, cernée d'un halo sanglant : l'image de marque du jeu.
+    // Lune basse, cernée d'un halo sanglant : l'image de marque du jeu.
     const mx = 406;
     const my = 60;
-    // Halo double : un cœur lumineux froid qui éclaire réellement, cerné de rouge sourd
-    // pour garder l'identité « lune de sang » sans assombrir la scène.
+    // Halo double : un cœur lumineux froid qui éclaire réellement, cerné de rouge sourd
+    // pour garder l'identité « lune de sang » sans assombrir la scène.
     const halo = ctx.createRadialGradient(mx, my, 4, mx, my, 120);
     halo.addColorStop(0, rgba('#f0dcc0', 0.34));
     halo.addColorStop(0.22, rgba('#b7a9d8', 0.20));
@@ -245,7 +245,7 @@ export class Backdrop {
     mctx.beginPath();
     mctx.arc(cx, cy, R, 0, TAU);
     mctx.fill();
-    // Mers lunaires : quelques taches suffisent à éviter le disque plat.
+    // Mers lunaires : quelques taches suffisent à éviter le disque plat.
     mctx.fillStyle = '#d8bfa0';
     for (let i = 0; i < 7; i++) {
       const a = rng.angle();
@@ -261,7 +261,7 @@ export class Backdrop {
 
     ctx.drawImage(moon, mx - cx, my - cy);
 
-    // Bandes nuageuses devant la lune : éclairées par-dessous plutôt que noires, sinon
+    // Bandes nuageuses devant la lune : éclairées par-dessous plutôt que noires, sinon
     // elles creusent des trous sombres au milieu de la partie la plus lumineuse du ciel.
     for (let i = 0; i < 5; i++) {
       const y = 34 + i * 15 + rng.spread(6);
@@ -280,7 +280,7 @@ export class Backdrop {
 
   /**
    * Les couches s'éclaircissent avec la distance (perspective atmosphérique), et non
-   * l'inverse : une silhouette de premier plan quasi noire sur un ciel sombre ne se lit
+   * l'inverse : une silhouette de premier plan quasi noire sur un ciel sombre ne se lit
    * pas du tout. Chaque plan garde donc une valeur distincte, même très basse.
    */
   private buildFar(rng: Rng): void {
@@ -304,7 +304,7 @@ export class Backdrop {
   private buildNear(rng: Rng): void {
     const ctx = this.near.getContext('2d')!;
     hills(ctx, 224, 10, 80, '#1c1930', 21, '#332e52');
-    // Cimetière au premier plan moyen : le cœur thématique de la scène.
+    // Cimetière au premier plan moyen : le cœur thématique de la scène.
     for (let i = 0; i < 20; i++) {
       grave(ctx, rng.range(8, W - 8), rng.range(216, 236), rng.range(1.1, 1.9), rng, '#262240', '#4b446e');
     }
@@ -324,7 +324,7 @@ export class Backdrop {
     for (let i = 0; i < 110; i++) {
       const x = rng.range(0, W);
       const h = rng.range(3, 12);
-      // Une herbe sur trois attrape la lumière : le contraste interne empêche la bande du
+      // Une herbe sur trois attrape la lumière : le contraste interne empêche la bande du
       // bas de se réduire à une masse noire.
       ctx.strokeStyle = rng.chance(0.34) ? '#2e2947' : '#181529';
       ctx.beginPath();
@@ -334,7 +334,7 @@ export class Backdrop {
     }
   }
 
-  /** Lueur rasante sur l'horizon : détache les silhouettes du ciel. */
+  /** Lueur rasante sur l'horizon : détache les silhouettes du ciel. */
   private buildHorizonGlow(): void {
     const ctx = this.sky.getContext('2d')!;
     const g = ctx.createLinearGradient(0, 140, 0, 220);
@@ -348,7 +348,7 @@ export class Backdrop {
 
   private buildFog(): void {
     const ctx = this.fog.getContext('2d')!;
-    // Brume **claire** : sous la lune, le brouillard diffuse la lumière au lieu de l'absorber.
+    // Brume **claire** : sous la lune, le brouillard diffuse la lumière au lieu de l'absorber.
     // Une brume sombre serait un simple voile noir de plus, exactement ce qu'on cherche à
     // éviter ici.
     for (let i = 0; i < 4; i++) {
@@ -365,7 +365,7 @@ export class Backdrop {
   /**
    * Passe de lumière lunaire, appliquée **par-dessus** les silhouettes.
    *
-   * C'est elle qui unifie la scène : sans source de lumière commune, les couches restent
+   * C'est elle qui unifie la scène : sans source de lumière commune, les couches restent
    * quatre découpes juxtaposées. En `screen`, elle éclaircit sans jamais délaver les noirs.
    */
   private drawMoonlight(ctx: CanvasRenderingContext2D): void {
@@ -389,7 +389,7 @@ export class Backdrop {
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.imageSmoothingEnabled = false;
 
-    // Parallaxe : chaque couche dérive un peu plus vite que la précédente.
+    // Parallaxe : chaque couche dérive un peu plus vite que la précédente.
     const drift = (speed: number): number => -((t * speed) % W);
 
     ctx.drawImage(this.sky, 0, 0);
@@ -408,7 +408,7 @@ export class Backdrop {
 
     this.drawMoonlight(ctx);
 
-    // Brume : deux passes à vitesses opposées, ce qui évite tout motif perceptible.
+    // Brume : deux passes à vitesses opposées, ce qui évite tout motif perceptible.
     for (const [speed, alpha] of [[11, 0.9], [-7, 0.6]] as const) {
       const x = -((t * speed) % W) - (speed < 0 ? W : 0);
       ctx.globalAlpha = alpha;
@@ -417,7 +417,7 @@ export class Backdrop {
       ctx.globalAlpha = 1;
     }
 
-    // Chauves-souris : de simples chevrons qui battent, très lisibles en silhouette.
+    // Chauves-souris : de simples chevrons qui battent, très lisibles en silhouette.
     // Elles restent le seul élément franchement sombre, donc les plus lisibles de la scène.
     ctx.fillStyle = '#100c1c';
     for (const b of this.bats) {
@@ -430,8 +430,8 @@ export class Backdrop {
       ctx.fillRect(Math.round(bx + s), Math.round(by - flap * 0.5), Math.ceil(2 * s), Math.ceil(s));
     }
 
-    // Vignette très discrète : elle recentre l'œil sans reprendre d'une main la luminosité
-    // gagnée de l'autre. C'était l'erreur de la version précédente — un ciel déjà sombre,
+    // Vignette très discrète : elle recentre l'œil sans reprendre d'une main la luminosité
+    // gagnée de l'autre. C'était l'erreur de la version précédente – un ciel déjà sombre,
     // plus une vignette lourde, plus le voile du menu par-dessus.
     const vg = ctx.createRadialGradient(W / 2, H / 2, H * 0.42, W / 2, H / 2, H * 1.15);
     vg.addColorStop(0, 'rgba(0,0,0,0)');

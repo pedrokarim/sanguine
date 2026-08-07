@@ -1,4 +1,4 @@
-/** Persistance : une seule clé localStorage, un objet JSON versionné. */
+/** Persistance : une seule clé localStorage, un objet JSON versionné. */
 
 const KEY = 'sanguine.save.v1';
 
@@ -30,7 +30,7 @@ export interface SaveData {
   unlockedChars: string[];
   seenWeapons: string[];
   seenRelics: string[];
-  /** Ennemis rencontrés au moins une fois — alimente le bestiaire du codex. */
+  /** Ennemis rencontrés au moins une fois – alimente le bestiaire du codex. */
   seenEnemies: string[];
   stats: Stats;
   options: Options;
@@ -52,7 +52,7 @@ function fresh(): SaveData {
 
 /**
  * Fusionne la sauvegarde chargée avec la structure par défaut. Cela rend l'ajout de nouveaux
- * champs non destructif : une vieille sauvegarde ne perd rien et ne provoque pas d'`undefined`.
+ * champs non destructif : une vieille sauvegarde ne perd rien et ne provoque pas d'`undefined`.
  */
 function merge(loaded: unknown): SaveData {
   const base = fresh();
@@ -82,7 +82,7 @@ export function load(): SaveData {
     const raw = localStorage.getItem(KEY);
     cache = merge(raw ? JSON.parse(raw) : null);
   } catch {
-    // localStorage indisponible (navigation privée, quota, iframe sandboxée) : on joue
+    // localStorage indisponible (navigation privée, quota, iframe sandboxée) : on joue
     // quand même, simplement sans persistance.
     cache = fresh();
   }
@@ -94,7 +94,7 @@ export function save(): void {
   try {
     localStorage.setItem(KEY, JSON.stringify(cache));
   } catch {
-    /* quota dépassé ou stockage refusé — on ignore silencieusement */
+    /* quota dépassé ou stockage refusé – on ignore silencieusement */
   }
 }
 

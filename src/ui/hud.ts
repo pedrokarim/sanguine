@@ -6,10 +6,10 @@ import { Minimap } from './minimap';
 import type { World } from '../game/world';
 
 /**
- * HUD en DOM plutôt qu'en canvas : texte net à toute résolution, accessible aux lecteurs
+ * HUD en DOM plutôt qu'en canvas : texte net à toute résolution, accessible aux lecteurs
  * d'écran, et coût nul dans la boucle de rendu.
  *
- * Les nœuds sont créés une fois puis mis à jour ; les listes d'emplacements ne sont
+ * Les nœuds sont créés une fois puis mis à jour ; les listes d'emplacements ne sont
  * reconstruites que lorsque la signature du build change.
  */
 export class Hud {

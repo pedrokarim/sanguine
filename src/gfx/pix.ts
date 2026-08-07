@@ -3,11 +3,11 @@ import { hexToRgb } from './palette';
 /**
  * Primitives de dessin sur une grille de pixels indexée.
  *
- * On travaille sur des index de palette (`Int8Array`) plutôt que sur des couleurs RGBA :
- * c'est compact, ça rend le remplacement de palette trivial (une variante « élite » n'est
+ * On travaille sur des index de palette (`Int8Array`) plutôt que sur des couleurs RGBA :
+ * c'est compact, ça rend le remplacement de palette trivial (une variante « élite » n'est
  * qu'un autre tableau de couleurs), et l'ajout de contour se fait par simple voisinage.
  *
- * Convention : `-1` = transparent, origine en haut à gauche, `y` vers le bas.
+ * Convention : `-1` = transparent, origine en haut à gauche, `y` vers le bas.
  */
 export const EMPTY = -1;
 
@@ -42,7 +42,7 @@ export class Pix {
     return this.data[yi * this.w + xi]!;
   }
 
-  /** Ne peint que si le pixel est déjà vide — pratique pour dessiner « derrière ». */
+  /** Ne peint que si le pixel est déjà vide – pratique pour dessiner « derrière ». */
   setBehind(x: number, y: number, c: number): void {
     if (this.get(x, y) === EMPTY) this.set(x, y, c);
   }
@@ -124,7 +124,7 @@ export class Pix {
   }
 
   /**
-   * Ajoute un contour de 1 px autour de la silhouette. Indispensable à la lisibilité :
+   * Ajoute un contour de 1 px autour de la silhouette. Indispensable à la lisibilité :
    * sans contour, les ennemis sombres se fondent dans le décor sombre.
    */
   outline(c: number): void {
@@ -147,7 +147,7 @@ export class Pix {
   }
 
   /**
-   * Lumière zénithale implicite : la rangée supérieure de chaque colonne pleine est éclaircie,
+   * Lumière zénithale implicite : la rangée supérieure de chaque colonne pleine est éclaircie,
    * la rangée inférieure assombrie. `hi` et `lo` sont des index de palette.
    */
   shadeVertical(from: number, hi: number, lo: number): void {
@@ -167,7 +167,7 @@ export class Pix {
     }
   }
 
-  /** Damier entre deux index, pour des transitions « 16-bit ». */
+  /** Damier entre deux index, pour des transitions « 16-bit ». */
   dither(from: number, to: number, y0: number, y1: number): void {
     for (let y = Math.max(0, y0); y < Math.min(this.h, y1); y++) {
       for (let x = 0; x < this.w; x++) {
@@ -189,7 +189,7 @@ export class Pix {
 
   /**
    * Squash & stretch autour du point d'ancrage bas-centre. C'est la déformation qui donne
-   * tout le « game feel » 2D : un sprite qui s'aplatit en touchant le sol paraît vivant.
+   * tout le « game feel » 2D : un sprite qui s'aplatit en touchant le sol paraît vivant.
    */
   scaled(sx: number, sy: number): Pix {
     const p = new Pix(this.w, this.h);
@@ -248,7 +248,7 @@ export function toCanvas(pix: Pix, colors: readonly string[]): HTMLCanvasElement
 
 /**
  * Variante teintée d'un canvas existant. Utilisée pour pré-calculer le flash blanc de dégâts
- * et la silhouette rouge des élites : aucun filtre n'est appliqué au moment du rendu.
+ * et la silhouette rouge des élites : aucun filtre n'est appliqué au moment du rendu.
  */
 export function tint(src: HTMLCanvasElement, color: string, amount: number): HTMLCanvasElement {
   const c = makeCanvas(src.width, src.height);

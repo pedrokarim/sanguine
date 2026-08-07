@@ -7,12 +7,12 @@ import {
 import type { World } from './world';
 
 /**
- * Director : décide **quoi** faire apparaître et **quand**.
+ * Director : décide **quoi** faire apparaître et **quand**.
  *
- * Deux mécanismes cohabitent :
- *   — un flux continu, dont le débit suit une courbe et dont la composition dépend de la
- *     minute courante ;
- *   — des événements scriptés (nuées, meutes, boss) qui cassent la routine.
+ * Deux mécanismes cohabitent :
+ *   – un flux continu, dont le débit suit une courbe et dont la composition dépend de la
+ *     minute courante ;
+ *   – des événements scriptés (nuées, meutes, boss) qui cassent la routine.
  */
 
 /** Minute à laquelle la Faucheuse arrive si le boss final n'est pas tombé. */
@@ -43,7 +43,7 @@ export class Director {
     if (alive >= spawnCap(m)) return;
 
     this.accum += spawnRate(m) * w.surgeMult * dt;
-    // Plafond par frame : évite un pic de 300 spawns après un ralenti ou un onglet en fond.
+    // Plafond par frame : évite un pic de 300 spawns après un ralenti ou un onglet en fond.
     let budget = 24;
     while (this.accum >= 1 && budget-- > 0) {
       this.accum -= 1;
@@ -71,7 +71,7 @@ export class Director {
       const age = m - e.from;
       const ramp = Math.min(1, age / 1.5);
       const decay = age > 10 ? Math.max(0.25, 1 - (age - 10) / 22) : 1;
-      // Le biome infléchit la composition : traverser le cimetière ou le marais ne
+      // Le biome infléchit la composition : traverser le cimetière ou le marais ne
       // ressemble pas à traverser la lande, même à la même minute.
       const biomeMul = biome.weights[e.id] ?? 1;
       return e.weight * ramp * decay * biomeMul;
@@ -86,7 +86,7 @@ export class Director {
     const elite = w.rng.chance(eliteChance(m));
 
     if (def.cluster && def.cluster > 1) {
-      // Les araignées arrivent en grappe serrée : une seule direction, plusieurs corps.
+      // Les araignées arrivent en grappe serrée : une seule direction, plusieurs corps.
       const a = w.rng.angle();
       for (let i = 0; i < def.cluster; i++) {
         const e = w.spawnOffscreen(def.id, a + w.rng.spread(0.25), elite && i === 0);
@@ -122,7 +122,7 @@ export class Director {
         w.slowMo(0.35, 1.0);
         w.cam.shake(0.45, true);
 
-        // Le Chœur de Cendres est trois corps liés : tous doivent tomber.
+        // Le Chœur de Cendres est trois corps liés : tous doivent tomber.
         if (ev.enemy === 'ashchoir') {
           e.maxHp = Math.round(e.maxHp / 3);
           e.hp = e.maxHp;
@@ -138,7 +138,7 @@ export class Director {
       }
 
       case 'ring': {
-        // Cercle fermé : le joueur doit percer un flanc pour sortir.
+        // Cercle fermé : le joueur doit percer un flanc pour sortir.
         for (let i = 0; i < ev.count; i++) {
           w.spawnOffscreen(ev.enemy, (i / ev.count) * TAU);
         }
@@ -156,7 +156,7 @@ export class Director {
       }
 
       case 'wall': {
-        // Mur perpendiculaire à une direction : une ligne dense qui traverse l'écran.
+        // Mur perpendiculaire à une direction : une ligne dense qui traverse l'écran.
         const a = w.rng.angle();
         const perp = a + Math.PI / 2;
         for (let i = 0; i < ev.count; i++) {
@@ -202,7 +202,7 @@ export class Director {
       }
 
       case 'volleys': {
-        // Salves espacées : cinq groupes qui arrivent l'un après l'autre.
+        // Salves espacées : cinq groupes qui arrivent l'un après l'autre.
         const groups = 5;
         for (let g = 0; g < groups; g++) {
           window.setTimeout(() => {

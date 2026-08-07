@@ -7,10 +7,10 @@ import { Pix, toCanvas, tint, silhouette } from './pix';
  * Générateur de sprites procéduraux.
  *
  * Tout est dessiné par le code au démarrage (~30 ms), puis mis en cache. Aucun fichier image
- * n'est expédié. Chaque sprite existe en trois teintes pré-calculées — normale, flash blanc de
- * dégâts, silhouette rouge d'élite — pour qu'aucun filtre ne soit appliqué pendant le rendu.
+ * n'est expédié. Chaque sprite existe en trois teintes pré-calculées – normale, flash blanc de
+ * dégâts, silhouette rouge d'élite – pour qu'aucun filtre ne soit appliqué pendant le rendu.
  *
- * Index de palette utilisés par les générateurs :
+ * Index de palette utilisés par les générateurs :
  *   0 = contour   1 = ombre   2 = teinte principale   3 = lumière   4 = accent (yeux)   5 = accent 2
  */
 
@@ -74,10 +74,10 @@ function humanoid(p: Pix, a: BodyArt, t: number): void {
   const headR = p.w * 0.3;
   const headCy = h * 0.2 - bob;
 
-  // Jambes — la phase opposée des deux jambes crée la marche.
+  // Jambes – la phase opposée des deux jambes crée la marche.
   p.limb(cx - 1.3, hipY, cx - 1.3 + swing * 1.9, h - 1.5, 2, 1);
   p.limb(cx + 1.3, hipY, cx + 1.3 - swing * 1.9, h - 1.5, 2, 1);
-  // Bras — balancés à contretemps des jambes.
+  // Bras – balancés à contretemps des jambes.
   p.limb(cx - p.w * 0.26, shY, cx - p.w * 0.32 - swing * 1.3, shY + h * 0.3, 2, 1);
   p.limb(cx + p.w * 0.26, shY, cx + p.w * 0.32 + swing * 1.3, shY + h * 0.3, 2, 1);
   // Torse
@@ -101,7 +101,7 @@ function armored(p: Pix, a: BodyArt, t: number): void {
   const bob = Math.abs(Math.cos(t * TAU)) * 0.7;
   const headCy = p.h * 0.2 - bob;
   const headR = p.w * 0.3;
-  // Heaume : bandeau sombre à hauteur des yeux, avec une fente lumineuse.
+  // Heaume : bandeau sombre à hauteur des yeux, avec une fente lumineuse.
   p.rect(cx - headR, headCy - headR * 0.9, headR * 2 + 1, headR * 1.1, 1);
   p.set(cx - headR * 0.5, headCy + 0.2, 5);
   p.set(cx + headR * 0.5, headCy + 0.2, 5);
@@ -111,7 +111,7 @@ function armored(p: Pix, a: BodyArt, t: number): void {
 }
 
 function beast(p: Pix, a: BodyArt, t: number): void {
-  // Orienté vers la droite ; le rendu retourne le sprite selon la direction.
+  // Orienté vers la droite ; le rendu retourne le sprite selon la direction.
   const w = p.w;
   const h = p.h;
   const step = Math.sin(t * TAU);
@@ -119,7 +119,7 @@ function beast(p: Pix, a: BodyArt, t: number): void {
 
   if (a.tail !== false) p.limb(w * 0.14, bodyCy, w * 0.02, bodyCy - h * 0.22 - step, 1.6, 1);
 
-  // Pattes : avant et arrière en opposition de phase.
+  // Pattes : avant et arrière en opposition de phase.
   p.limb(w * 0.28, bodyCy + h * 0.1, w * 0.28 + step * 2, h - 1, 1.8, 1);
   p.limb(w * 0.66, bodyCy + h * 0.1, w * 0.66 - step * 2, h - 1, 1.8, 1);
   p.limb(w * 0.38, bodyCy + h * 0.1, w * 0.38 - step * 1.6, h - 1, 1.6, 1);
@@ -144,7 +144,7 @@ function flying(p: Pix, a: BodyArt, t: number): void {
   const tipY = cy - flap * p.h * 0.3;
   const midY = cy - flap * p.h * 0.12;
 
-  // Ailes membraneuses : deux segments par aile pour suggérer l'articulation.
+  // Ailes membraneuses : deux segments par aile pour suggérer l'articulation.
   for (const s of [-1, 1]) {
     p.limb(cx + s * 1.2, cy, cx + s * p.w * 0.26, midY, 1.6, 1);
     p.limb(cx + s * p.w * 0.26, midY, cx + s * p.w * 0.5, tipY, 1.4, 1);
@@ -197,7 +197,7 @@ function blob(p: Pix, a: BodyArt, t: number): void {
   p.limb(cx - rx * 0.85, cy, cx - rx * 1.25, cy + ry * 0.85 + wob, 2.4, 1);
   p.limb(cx + rx * 0.85, cy, cx + rx * 1.25, cy + ry * 0.85 - wob, 2.4, 1);
   p.ellipse(cx, cy, rx, ry, 2);
-  // Boursouflures asymétriques : sans elles, la masse ressemble à une simple ellipse.
+  // Boursouflures asymétriques : sans elles, la masse ressemble à une simple ellipse.
   p.ellipse(cx - rx * 0.4, cy - ry * 0.3, rx * 0.3, ry * 0.28, 3);
   p.ellipse(cx + rx * 0.45, cy + ry * 0.2, rx * 0.26, ry * 0.24, 1);
   p.shadeVertical(2, 3, 1);
@@ -216,7 +216,7 @@ function ghost(p: Pix, a: BodyArt, t: number): void {
   const rx = p.w * 0.34;
 
   p.ellipse(cx, top + rx, rx, rx * 1.05, 2);
-  // Corps qui s'effiloche : chaque colonne descend d'une hauteur ondulée.
+  // Corps qui s'effiloche : chaque colonne descend d'une hauteur ondulée.
   for (let x = -Math.ceil(rx); x <= Math.ceil(rx); x++) {
     const nx = x / rx;
     if (Math.abs(nx) > 1) continue;
@@ -232,7 +232,7 @@ function ghost(p: Pix, a: BodyArt, t: number): void {
   if (a.accent) p.set(cx, top + rx + 2, 5);
 }
 
-/** Cavalier : une monture bestiale surmontée d'un buste cuirassé. */
+/** Cavalier : une monture bestiale surmontée d'un buste cuirassé. */
 function rider(p: Pix, a: BodyArt, t: number): void {
   beast(p, { ...a, horns: false }, t);
   const cx = p.w * 0.5;
@@ -285,7 +285,7 @@ export function makeBody(key: string, art: BodyArt): SpriteSet {
   return set;
 }
 
-/** Frames de mort : dislocation progressive du sprite de base. */
+/** Frames de mort : dislocation progressive du sprite de base. */
 export function makeDeath(key: string, base: SpriteSet, seed: number): SpriteSet {
   const hit = cache.get(key);
   if (hit) return hit;
@@ -313,7 +313,7 @@ export function makeDeath(key: string, base: SpriteSet, seed: number): SpriteSet
       for (let x = 0; x < w; x++) {
         const o = (y * w + x) * 4;
         if (data[o + 3] === 0) continue;
-        if (r2.next() < t * 0.85) continue; // le pixel a « éclaté »
+        if (r2.next() < t * 0.85) continue; // le pixel a « éclaté »
         const nx = Math.round(x + r2.spread(t * 3));
         const ny = Math.round(y + r2.spread(t * 2) + t * 1.5);
         if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue;
@@ -375,7 +375,7 @@ export function makeHero(key: string, art: HeroArt, moving: boolean): SpriteSet 
     // Jambes
     p.limb(cx - 1.4, hipY, cx - 1.4 + swing * 2.1, H - 1.5, 2, 1);
     p.limb(cx + 1.4, hipY, cx + 1.4 - swing * 2.1, H - 1.5, 2, 1);
-    // Cape qui traîne derrière — décalée à l'opposé du mouvement.
+    // Cape qui traîne derrière – décalée à l'opposé du mouvement.
     p.ellipse(cx - swing * 0.8, shY + 2.4, 4.2, 3.4, 2);
     p.ellipse(cx - swing * 1.4, shY + 4.2, 3.2, 2.2, 1);
     // Torse
@@ -410,7 +410,7 @@ export function makeHero(key: string, art: HeroArt, moving: boolean): SpriteSet 
     }
 
     p.shadeVertical(2, 5, 1);
-    // Yeux : deux pixels sombres, le seul détail qui « personnifie » à cette échelle.
+    // Yeux : deux pixels sombres, le seul détail qui « personnifie » à cette échelle.
     p.set(cx - 1, headCy + 0.3, 0);
     p.set(cx + 1, headCy + 0.3, 0);
     p.outline(0);
@@ -426,7 +426,7 @@ export function makeHero(key: string, art: HeroArt, moving: boolean): SpriteSet 
 // Butin et objets
 // ---------------------------------------------------------------------------
 
-/** Gemme d'XP : losange qui oscille et scintille. La forme varie par rang (daltonisme). */
+/** Gemme d'XP : losange qui oscille et scintille. La forme varie par rang (daltonisme). */
 export function makeGem(rank: 0 | 1 | 2 | 3): SpriteSet {
   const key = `gem:${rank}`;
   const hit = cache.get(key);
@@ -445,7 +445,7 @@ export function makeGem(rank: 0 | 1 | 2 | 3): SpriteSet {
     const cy = p.h / 2 - 0.5 + Math.sin(t * TAU) * 0.8;
     const r = size / 2;
 
-    // Le rang détermine le nombre de pointes : lisible même en niveaux de gris.
+    // Le rang détermine le nombre de pointes : lisible même en niveaux de gris.
     const spikes = 4 + rank;
     for (let y = -r - 1; y <= r + 1; y++) {
       for (let x = -r - 1; x <= r + 1; x++) {
@@ -468,7 +468,7 @@ export function makeGem(rank: 0 | 1 | 2 | 3): SpriteSet {
   return set;
 }
 
-/** Pièce d'or : rotation complète sur 6 frames (largeur qui se pince). */
+/** Pièce d'or : rotation complète sur 6 frames (largeur qui se pince). */
 export function makeCoin(): SpriteSet {
   const key = 'coin';
   const hit = cache.get(key);
@@ -490,7 +490,7 @@ export function makeCoin(): SpriteSet {
   return set;
 }
 
-/** Cœur : battement à deux temps (systole/diastole), pas une simple pulsation sinusoïdale. */
+/** Cœur : battement à deux temps (systole/diastole), pas une simple pulsation sinusoïdale. */
 export function makeHeart(): SpriteSet {
   const key = 'heart';
   const hit = cache.get(key);
@@ -519,7 +519,7 @@ export function makeHeart(): SpriteSet {
   return set;
 }
 
-/** Coffre : 8 frames, fermé → couvercle qui bascule → rayons. */
+/** Coffre : 8 frames, fermé → couvercle qui bascule → rayons. */
 export function makeChest(): SpriteSet {
   const key = 'chest';
   const hit = cache.get(key);
@@ -558,7 +558,7 @@ export function makeChest(): SpriteSet {
   return set;
 }
 
-/** Relique : silhouette d'amulette, teintée par rareté, en rotation lente. */
+/** Relique : silhouette d'amulette, teintée par rareté, en rotation lente. */
 export function makeRelic(rarity: Rarity): SpriteSet {
   const key = `relic:${rarity}`;
   const hit = cache.get(key);
@@ -587,7 +587,7 @@ export function makeRelic(rarity: Rarity): SpriteSet {
   return set;
 }
 
-/** Petits objets consommables : aimant, bombe, sablier, parchemin, encensoir. */
+/** Petits objets consommables : aimant, bombe, sablier, parchemin, encensoir. */
 export function makeItem(kind: 'magnet' | 'bomb' | 'hourglass' | 'scroll' | 'censer'): SpriteSet {
   const key = `item:${kind}`;
   const hit = cache.get(key);
@@ -844,7 +844,7 @@ export type PassiveIcon =
   | 'gem' | 'boot' | 'heart' | 'glass' | 'lens' | 'flask'
   | 'feather' | 'book' | 'magnet' | 'shield' | 'clover' | 'cup';
 
-/** Icônes des passifs — dessinées à la main en 12×12, une forme reconnaissable par passif. */
+/** Icônes des passifs – dessinées à la main en 12×12, une forme reconnaissable par passif. */
 export function makePassiveSprite(icon: PassiveIcon, color: string): SpriteSet {
   const key = `passive:${icon}`;
   const hit = cache.get(key);
@@ -938,7 +938,7 @@ export function makePassiveSprite(icon: PassiveIcon, color: string): SpriteSet {
   return set;
 }
 
-/** Disque plein utilisé pour les auras, flaques et zones — teinté au rendu. */
+/** Disque plein utilisé pour les auras, flaques et zones – teinté au rendu. */
 export function makeDisc(radius: number, color: string, soft = true): HTMLCanvasElement {
   const d = radius * 2 + 2;
   const c = document.createElement('canvas');
@@ -1006,7 +1006,7 @@ export function makeGroundTile(seed: number): HTMLCanvasElement {
       ctx.fillRect(x + k, y - Math.abs(k), 1, 2 + rng.int(0, 1));
     }
   }
-  // Os épars — rappel discret du thème
+  // Os épars – rappel discret du thème
   for (let i = 0; i < 3; i++) {
     const x = rng.int(3, S - 6);
     const y = rng.int(3, S - 4);
@@ -1059,7 +1059,7 @@ export function makeGlow(radius: number, color: string): HTMLCanvasElement {
   return c;
 }
 
-/** Ombre portée sous les entités — ancre les sprites au sol. */
+/** Ombre portée sous les entités – ancre les sprites au sol. */
 export const shadowSprite = (() => {
   let cached: HTMLCanvasElement | null = null;
   return (): HTMLCanvasElement => {
@@ -1093,7 +1093,7 @@ const sheetCache = new Map<string, Sheet>();
  * Planche de sprites horizontale, exportée en `data:` URI.
  *
  * Permet d'animer un sprite en CSS pur (`steps()` sur `background-position`) plutôt qu'avec
- * une boucle JavaScript : le codex peut afficher cinquante sprites animés simultanément sans
+ * une boucle JavaScript : le codex peut afficher cinquante sprites animés simultanément sans
  * qu'aucun code ne tourne. `toDataURL` étant coûteux, le résultat est mis en cache par clé.
  */
 export function spriteSheet(key: string, set: SpriteSet, scale = 3): Sheet {
@@ -1116,7 +1116,7 @@ export function spriteSheet(key: string, set: SpriteSet, scale = 3): Sheet {
   return sheet;
 }
 
-/** Icône carrée utilisée par l'UI (cartes, HUD) — dérivée d'un sprite existant. */
+/** Icône carrée utilisée par l'UI (cartes, HUD) – dérivée d'un sprite existant. */
 export function makeIcon(set: SpriteSet, size = 16): HTMLCanvasElement {
   const c = document.createElement('canvas');
   c.width = size;

@@ -2,8 +2,8 @@ import { P } from '../gfx/palette';
 import type { Mods } from './mods';
 
 /**
- * Passifs : 12 objets, niveau maximum 5, gain linéaire par niveau.
- * Ils occupent 6 emplacements — c'est ce plafond qui force les vrais choix de build.
+ * Passifs : 12 objets, niveau maximum 5, gain linéaire par niveau.
+ * Ils occupent 6 emplacements – c'est ce plafond qui force les vrais choix de build.
  */
 export interface PassiveDef {
   id: string;
@@ -108,6 +108,6 @@ export const PASSIVE_BY_ID = new Map(PASSIVES.map((p) => [p.id, p]));
 
 export function passiveById(id: string): PassiveDef {
   const p = PASSIVE_BY_ID.get(id);
-  if (!p) throw new Error(`Passif inconnu : ${id}`);
+  if (!p) throw new Error(`Passif inconnu : ${id}`);
   return p;
 }

@@ -3,7 +3,7 @@ import type { EnemyDef, BossDef } from '../data/enemies';
 import type { WeaponDef } from '../data/weapons';
 
 /**
- * Interfaces des entités. Tous les pools stockent des objets **pré-alloués** : `active`
+ * Interfaces des entités. Tous les pools stockent des objets **pré-alloués** : `active`
  * remplace la suppression, et rien n'est jamais créé pendant une partie.
  *
  * `px`/`py` conservent la position du pas précédent pour permettre au rendu d'interpoler
@@ -50,7 +50,7 @@ export interface Enemy {
   stun: number;
   poison: number;
   poisonDps: number;
-  /** Marque le dernier projectile ayant touché : évite les coups multiples en perforation. */
+  /** Marque le dernier projectile ayant touché : évite les coups multiples en perforation. */
   lastPid: number;
 
   immuneSrc: Int32Array;
@@ -63,10 +63,10 @@ export interface Enemy {
   /** Direction verrouillée des ennemis en ruée (`dasher`). */
   dirX: number;
   dirY: number;
-  /** Pour les boss : phase courante et compteur de mécanique. */
+  /** Pour les boss : phase courante et compteur de mécanique. */
   phase: number;
   mechTimer: number;
-  /** Mort en cours : durée restante de l'animation de dislocation. */
+  /** Mort en cours : durée restante de l'animation de dislocation. */
   dying: number;
 }
 
@@ -118,7 +118,7 @@ export interface Projectile {
   c: number;
   /** Intervalle entre deux coups pour les sources persistantes (orbes, mêlée, auras). */
   tick: number;
-  /** Pour les fioles : ce que devient le projectile à l'impact (rayon, dégâts, durée). */
+  /** Pour les fioles : ce que devient le projectile à l'impact (rayon, dégâts, durée). */
   zoneRadius: number;
   zoneDamage: number;
   zoneLife: number;
@@ -169,7 +169,7 @@ export interface Pickup {
   /** Rang de gemme 0..3, ou rareté de relique. */
   rank: number;
   anim: number;
-  /** Le ramassage a commencé : l'objet fonce vers le joueur. */
+  /** Le ramassage a commencé : l'objet fonce vers le joueur. */
   drawn: boolean;
   /** Délai avant de pouvoir être ramassé (évite le ramassage instantané à l'éjection). */
   armTime: number;
@@ -266,7 +266,7 @@ export function makePickup(): Pickup {
 
 /**
  * Vérifie qu'une source persistante (aura, orbe, flaque) a le droit de toucher cet ennemi,
- * et enregistre l'immunité si oui. Quatre créneaux suffisent en pratique : au-delà, la
+ * et enregistre l'immunité si oui. Quatre créneaux suffisent en pratique : au-delà, la
  * source la plus ancienne est écrasée, ce qui n'est pas perceptible en jeu.
  */
 export function claimHit(e: Enemy, srcId: number, now: number, cooldown: number): boolean {

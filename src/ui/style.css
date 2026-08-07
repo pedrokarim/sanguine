@@ -1,6 +1,6 @@
 /* ==========================================================================
-   Sanguine — habillage DOM
-   Le canvas porte le jeu ; tout le texte est en DOM par-dessus (net à toute
+   Sanguine – habillage DOM
+   Le canvas porte le jeu ; tout le texte est en DOM par-dessus (net à toute
    résolution, accessible, et gratuit dans la boucle de rendu).
    ========================================================================== */
 
@@ -33,7 +33,7 @@ html, body {
   overflow: hidden;
   /*
    * Curseur en pixel art généré par le code (voir ui/decor.ts). La variable contient la
-   * déclaration complète, repli `auto` compris : sans ce repli, un navigateur qui refuse
+   * déclaration complète, repli `auto` compris : sans ce repli, un navigateur qui refuse
    * l'image invalide toute la propriété et le curseur disparaît purement et simplement.
    */
   cursor: var(--cursor, auto);
@@ -61,7 +61,7 @@ html, body {
 }
 
 /*
- * En partie, la souris ne sert à rien : le jeu vise tout seul. Le curseur s'efface donc après
+ * En partie, la souris ne sert à rien : le jeu vise tout seul. Le curseur s'efface donc après
  * un temps d'immobilité et réapparaît au moindre mouvement. On ne le masque jamais dans les
  * menus, où il reste le principal moyen d'interaction.
  */
@@ -82,7 +82,7 @@ body.cursor-hidden #game { cursor: none; }
 /* ---------------------------------------------------------------- primitives */
 
 /*
- * Les cadres sont des images 9-slice générées par le code (voir ui/decor.ts) : quatre coins
+ * Les cadres sont des images 9-slice générées par le code (voir ui/decor.ts) : quatre coins
  * ornés fixes, quatre bords répétés. `border-image` les applique à n'importe quelle boîte
  * sans ajouter le moindre élément au DOM.
  */
@@ -153,7 +153,7 @@ body.cursor-hidden #game { cursor: none; }
   gap: 1.1em;
   padding: 2em;
   /*
-   * Voile léger : la scène illustrée du canvas doit rester visible derrière les menus,
+   * Voile léger : la scène illustrée du canvas doit rester visible derrière les menus,
    * c'est elle qui porte l'ambiance. La lisibilité du texte est assurée par les ombres
    * portées, pas en noyant le fond.
    */
@@ -161,13 +161,13 @@ body.cursor-hidden #game { cursor: none; }
   animation: fade-in .18s ease-out;
 }
 
-/* Les écrans de fin, eux, doivent isoler : on ne veut plus regarder le décor. */
+/* Les écrans de fin, eux, doivent isoler : on ne veut plus regarder le décor. */
 .screen.gameover, .screen.victory {
   background: radial-gradient(ellipse at center, rgba(5, 6, 10, .82), rgba(2, 2, 5, .97));
 }
 
 /*
- * Les menus qui s'ouvrent *pendant* une partie restent volontairement translucides : voir la
+ * Les menus qui s'ouvrent *pendant* une partie restent volontairement translucides : voir la
  * horde figée derrière ses cartes fait partie de la tension du choix.
  */
 .screen.levelup,
@@ -208,7 +208,7 @@ body.cursor-hidden #game { cursor: none; }
   text-shadow: 0 2px 0 #000, 0 0 18px rgba(242, 196, 107, .3);
   padding-bottom: .55em;
 }
-/* Fleuron systématique sous les titres de section : c'est ce qui « habille » l'écran. */
+/* Fleuron systématique sous les titres de section : c'est ce qui « habille » l'écran. */
 .screen h2::after {
   content: '';
   position: absolute; left: 50%; bottom: 0;
@@ -218,8 +218,8 @@ body.cursor-hidden #game { cursor: none; }
   image-rendering: pixelated;
 }
 /*
- * Textes secondaires : éclaircis et ombrés depuis que la scène de fond l'est aussi. Un gris
- * sourd posé sur un ciel devenu clair devient illisible — la lisibilité d'un texte se juge
+ * Textes secondaires : éclaircis et ombrés depuis que la scène de fond l'est aussi. Un gris
+ * sourd posé sur un ciel devenu clair devient illisible – la lisibilité d'un texte se juge
  * contre son fond réel, jamais dans l'absolu.
  */
 .screen .tagline {
@@ -337,7 +337,7 @@ body.cursor-hidden #game { cursor: none; }
 
 .minimap {
   position: absolute; right: 12px; bottom: 12px;
-  /* `content-box` : la carte doit faire exactement sa taille native × l'échelle du HUD,
+  /* `content-box` : la carte doit faire exactement sa taille native × l'échelle du HUD,
      sinon le canvas est ré-échantillonné et le pixel art devient flou. */
   box-sizing: content-box;
   width: calc(104px * var(--hud-scale));
@@ -394,7 +394,7 @@ body.cursor-hidden #game { cursor: none; }
   animation: card-in .28s cubic-bezier(.2, 1.4, .4, 1) backwards;
 }
 .card > * { image-rendering: auto; }
-/* Équerres dorées aux angles internes : le détail qui fait « objet précieux ». */
+/* Équerres dorées aux angles internes : le détail qui fait « objet précieux ». */
 .card::before, .card::after {
   content: '';
   position: absolute; width: 14px; height: 14px;
@@ -455,7 +455,7 @@ body.cursor-hidden #game { cursor: none; }
 
 /* --------------------------------------------------- sélection personnage */
 
-/* Trois colonnes fixes : six personnages donnent une grille 3×2 équilibrée, là où
+/* Trois colonnes fixes : six personnages donnent une grille 3×2 équilibrée, là où
    `auto-fit` produisait un 4+2 bancal. */
 .grid-pick {
   display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -485,7 +485,35 @@ body.cursor-hidden #game { cursor: none; }
 .pick .name { font-weight: 700; color: var(--gold); letter-spacing: .07em; font-size: .95em }
 .pick .perk { font-size: .78em; color: var(--steel) }
 .pick .flaw { font-size: .78em; color: var(--blood-hi) }
-.pick.locked { opacity: .4; cursor: not-allowed; filter: grayscale(1) }
+.pick.locked { opacity: .55; cursor: not-allowed; filter: grayscale(.85) }
+
+/* Jauge de progression vers le déblocage : la condition seule ne sert à rien si le joueur
+   ne peut pas savoir où il en est. */
+.pick .unlock-gauge {
+  width: 82%; height: 4px; margin-top: .35em;
+  background: rgba(5, 6, 10, .85);
+  border: 1px solid var(--stone-hi);
+}
+.pick .unlock-gauge > div {
+  height: 100%;
+  background: linear-gradient(90deg, var(--copper), var(--gold));
+  box-shadow: 0 0 5px rgba(242, 196, 107, .55);
+  transition: width .3s ease-out;
+}
+.pick .unlock-count {
+  font-size: .74em; letter-spacing: .06em; color: var(--gold); opacity: .85;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Mention de copyright de l'écran-titre : présente sans jamais capter l'attention. */
+.copyright {
+  position: absolute; left: 0; right: 0; bottom: .9em;
+  text-align: center;
+  font-size: .72em; letter-spacing: .22em; text-transform: uppercase;
+  color: var(--stone-hi);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, .9);
+  pointer-events: none;
+}
 .pick.locked .unlock { font-size: .74em; color: var(--mist); font-style: italic }
 
 /* ------------------------------------------------------------- sanctuaire */
@@ -519,7 +547,7 @@ body.cursor-hidden #game { cursor: none; }
   width: 100%; max-width: 68em;
   max-height: 66vh; overflow-y: auto;
   padding: .3em .5em .3em 0;
-  /* Fondu aux deux extrémités : sans lui, les vignettes sont tranchées net au bord de la
+  /* Fondu aux deux extrémités : sans lui, les vignettes sont tranchées net au bord de la
      zone de défilement, ce qui donne l'impression d'un bug d'affichage plutôt que d'une
      liste qui continue. */
   -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 22px, #000 calc(100% - 26px), transparent 100%);
@@ -536,7 +564,7 @@ body.cursor-hidden #game { cursor: none; }
   color: var(--gold);
 }
 .codex-section:first-child { margin-top: 0 }
-/* Filet qui prolonge le titre jusqu'au compteur : structure l'écran sans une seule bordure. */
+/* Filet qui prolonge le titre jusqu'au compteur : structure l'écran sans une seule bordure. */
 .codex-section .t { flex: none }
 .codex-section::after {
   content: ''; flex: 1; height: 1px;
@@ -568,7 +596,7 @@ body.cursor-hidden #game { cursor: none; }
   box-shadow: 0 8px 22px rgba(0, 0, 0, .7);
 }
 
-/* Scène du sprite : hauteur fixe, sprite ancré en bas, pour que les tailles très
+/* Scène du sprite : hauteur fixe, sprite ancré en bas, pour que les tailles très
    différentes (une dague, un boss de 60 px) s'alignent proprement. */
 .codex-stage {
   display: flex; align-items: flex-end; justify-content: center;
@@ -585,7 +613,7 @@ body.cursor-hidden #game { cursor: none; }
 }
 @keyframes codex-play { to { background-position-x: var(--end) } }
 
-/* Entrée non découverte : silhouette pleine, qui laisse deviner la forme sans la révéler. */
+/* Entrée non découverte : silhouette pleine, qui laisse deviner la forme sans la révéler. */
 .codex-sprite.unknown { filter: brightness(0) saturate(0) opacity(.4) }
 .codex-cell.locked { opacity: .62 }
 .codex-cell.locked .codex-name { color: var(--mist) }
@@ -655,5 +683,5 @@ body.cursor-hidden #game { cursor: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important }
+  *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important }
 }

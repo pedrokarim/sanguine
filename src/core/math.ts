@@ -1,4 +1,4 @@
-/** Helpers mathématiques. Tout est en fonctions libres : aucune allocation dans la boucle chaude. */
+/** Helpers mathématiques. Tout est en fonctions libres : aucune allocation dans la boucle chaude. */
 
 export const TAU = Math.PI * 2;
 export const PI = Math.PI;
@@ -10,7 +10,7 @@ export const clamp01 = (v: number): number => (v < 0 ? 0 : v > 1 ? 1 : v);
 
 export const lerp = (a: number, b: number, t: number): number => a + (b - a) * t;
 
-/** Interpolation indépendante du framerate : `rate` = fraction restante après 1 s. */
+/** Interpolation indépendante du framerate : `rate` = fraction restante après 1 s. */
 export const damp = (a: number, b: number, rate: number, dt: number): number =>
   lerp(a, b, 1 - Math.pow(rate, dt));
 
@@ -52,7 +52,7 @@ export const easeOutBack = (t: number): number => {
   return 1 + 2.7 * Math.pow(x - 1, 3) + 1.7 * Math.pow(x - 1, 2);
 };
 
-/** Bruit de valeur 2D, lissé. Utilisé pour le décor — pas besoin de vrai Perlin. */
+/** Bruit de valeur 2D, lissé. Utilisé pour le décor – pas besoin de vrai Perlin. */
 export function valueNoise2(x: number, y: number, seed = 0): number {
   const xi = Math.floor(x);
   const yi = Math.floor(y);
@@ -81,7 +81,7 @@ export function formatTime(seconds: number): string {
   return `${m.toString().padStart(2, '0')}:${r.toString().padStart(2, '0')}`;
 }
 
-/** Abrège les grands nombres : 1234 → "1.2k". */
+/** Abrège les grands nombres : 1234 → "1.2k". */
 export function abbrev(n: number): string {
   const v = Math.round(n);
   if (v < 1000) return String(v);

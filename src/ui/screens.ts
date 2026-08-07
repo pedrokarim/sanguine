@@ -27,7 +27,7 @@ const AI_LABEL: Record<EnemyAI, string> = {
   split: 'se scinde à la mort',
 };
 
-/** La CSS nomme les raretés en anglais court ; la table évite d'éparpiller la correspondance. */
+/** La CSS nomme les raretés en anglais court ; la table évite d'éparpiller la correspondance. */
 const RARITY_CSS: Record<Rarity, string> = {
   common: 'common',
   rare: 'rare',
@@ -36,10 +36,10 @@ const RARITY_CSS: Record<Rarity, string> = {
 };
 
 /**
- * Écrans DOM. Chaque écran est reconstruit à l'affichage puis détruit — la fréquence est
+ * Écrans DOM. Chaque écran est reconstruit à l'affichage puis détruit – la fréquence est
  * faible (quelques fois par partie) et cela évite toute désynchronisation d'état.
  *
- * Tous les écrans sont navigables au clavier et à la manette : la sélection courante est
+ * Tous les écrans sont navigables au clavier et à la manette : la sélection courante est
  * suivie explicitement plutôt que de s'en remettre au focus du navigateur, dont le
  * comportement diffère trop d'un moteur à l'autre.
  */
@@ -55,6 +55,14 @@ export interface RunSummary {
   seed: number;
   character: string;
 }
+
+/**
+ * Année et version affichées dans la mention de copyright. L'année est figée plutôt que
+ * calculée : un écran-titre dont le copyright change tout seul au 1er janvier est un
+ * détail qui trahit le bricolage.
+ */
+const YEAR = 2026;
+const VERSION = '1.0.0';
 
 type Cleanup = () => void;
 
@@ -146,7 +154,7 @@ export class Screens {
     el.innerHTML = `
       <h1 class="title-font">SANGUINE</h1>
       <div class="flourish"></div>
-      <p class="tagline">« Tenez jusqu'à l'aube. Elle ne viendra pas. »</p>
+      <p class="tagline">« Tenez jusqu'à l'aube. Elle ne viendra pas. »</p>
     `;
 
     const list = document.createElement('div');
@@ -166,9 +174,15 @@ export class Screens {
     stats.className = 'hint';
     stats.style.marginTop = '1em';
     stats.textContent = sv.stats.runs > 0
-      ? `${sv.stats.runs} parties · ${abbrev(sv.stats.kills)} ennemis abattus · meilleur temps ${formatTime(sv.stats.bestTime)} · ${abbrev(sv.gold)} or`
+      ? `${sv.stats.runs} parties · ${abbrev(sv.stats.kills)} ennemis abattus · ${abbrev(sv.stats.gems)} gemmes · meilleur temps ${formatTime(sv.stats.bestTime)} · ${abbrev(sv.gold)} or`
       : 'ZQSD ou WASD pour se déplacer. Les armes tirent seules.';
     el.appendChild(stats);
+
+    // Mention de copyright, comme sur un écran-titre de jeu : discrète, en bas, permanente.
+    const legal = document.createElement('div');
+    legal.className = 'copyright';
+    legal.textContent = `© ${YEAR} Ascencia · v${VERSION}`;
+    el.appendChild(legal);
 
     this.navigable([bPlay, bSanct, bCodex, bOpt]);
   }
@@ -178,7 +192,7 @@ export class Screens {
   characterSelect(onPick: (id: string) => void, onBack: () => void): void {
     const el = this.open('charselect');
     const sv = load();
-    el.innerHTML = `<h2 class="title-font">Qui entre dans le domaine ?</h2>`;
+    el.innerHTML = `<h2 class="title-font">Qui entre dans le domaine ?</h2>`;
 
     const grid = document.createElement('div');
     grid.className = 'grid-pick';
@@ -215,10 +229,22 @@ export class Screens {
         card.addEventListener('click', () => { audio.play('confirm'); onPick(c.id); });
         items.push(card);
       } else {
+        // Une condition de déblocage sans compteur est inutilisable : le joueur n'a aucun
+        // moyen de savoir où il en est, ni si sa dernière partie l'a fait avancer. On affiche
+        // donc systématiquement la progression chiffrée et une jauge.
+        const p = this.unlockProgress(c, sv);
         const lock = document.createElement('div');
         lock.className = 'unlock';
-        lock.textContent = c.unlock?.label ?? '';
-        card.appendChild(lock);
+        lock.textContent = p.label;
+        const gauge = document.createElement('div');
+        gauge.className = 'unlock-gauge';
+        const fill = document.createElement('div');
+        fill.style.width = `${Math.round(p.ratio * 100)}%`;
+        gauge.appendChild(fill);
+        const count = document.createElement('div');
+        count.className = 'unlock-count';
+        count.textContent = p.count;
+        card.append(lock, gauge, count);
         card.addEventListener('click', () => audio.play('deny'));
       }
       grid.appendChild(card);
@@ -230,6 +256,30 @@ export class Screens {
     el.appendChild(back);
     items.push(back);
     this.navigable(items, 3);
+  }
+
+  /** Avancement chiffré vers le déblocage d'un personnage. */
+  private unlockProgress(
+    c: CharacterDef,
+    sv: SaveData,
+  ): { label: string; count: string; ratio: number } {
+    const u = c.unlock;
+    if (!u) return { label: '', count: '', ratio: 1 };
+
+    const current =
+      u.kind === 'time' ? sv.stats.bestTime
+        : u.kind === 'gems' ? sv.stats.gems
+          : u.kind === 'kills' ? sv.stats.kills
+            : sv.stats.wins;
+
+    const fmt = (v: number): string =>
+      u.kind === 'time' ? formatTime(v) : v.toLocaleString('fr-FR');
+
+    return {
+      label: u.label,
+      count: `${fmt(Math.min(current, u.value))} / ${fmt(u.value)}`,
+      ratio: Math.min(1, u.value > 0 ? current / u.value : 1),
+    };
   }
 
   private isUnlocked(c: CharacterDef, sv: SaveData): boolean {
@@ -353,7 +403,7 @@ export class Screens {
 
     const gold = document.createElement('div');
     gold.className = 'gold-count';
-    gold.textContent = `+${res.gold} or${res.rerolls ? ` · +${res.rerolls} reroll` : ''}`;
+    gold.textContent = `+${res.gold} or${res.rerolls ? ` · +${res.rerolls} reroll` : ''}`;
     el.appendChild(gold);
 
     const ok = this.button('Empocher', 'primary');
@@ -436,7 +486,7 @@ export class Screens {
       reset.addEventListener('click', () => {
         if (!armed) {
           armed = true;
-          reset.textContent = 'Confirmer ? (irréversible)';
+          reset.textContent = 'Confirmer ? (irréversible)';
           audio.play('deny');
           return;
         }
@@ -460,7 +510,7 @@ export class Screens {
    *
    * Les frames sont aplaties en une planche horizontale, puis défilées par
    * `steps()` sur `background-position`. Le codex peut ainsi afficher une soixantaine de
-   * sprites animés simultanément sans qu'une seule ligne de JavaScript ne tourne — là où une
+   * sprites animés simultanément sans qu'une seule ligne de JavaScript ne tourne – là où une
    * boucle d'animation par vignette coûterait cher pour un écran purement contemplatif.
    */
   private spriteBlock(sheet: Sheet, discovered: boolean, speed = 0.6): HTMLDivElement {
@@ -480,7 +530,7 @@ export class Screens {
    * Facteur d'agrandissement entier le plus grand qui tienne dans la vignette.
    *
    * Nécessaire parce que le codex mélange des sprites allant de 5 px (un éclat) à 60 px
-   * (le Sanguinaire) : un facteur fixe ferait déborder les uns et rendrait les autres
+   * (le Sanguinaire) : un facteur fixe ferait déborder les uns et rendrait les autres
    * illisibles. Le facteur reste **entier** pour préserver la netteté du pixel art.
    */
   private fitScale(set: SpriteSet, maxW: number, maxH: number): number {
@@ -659,8 +709,8 @@ export class Screens {
       onHudScale(scale);
     }));
 
-    // Secousse de caméra : réglable jusqu'à zéro. Un survivor-like enchaîne tant d'impacts
-    // qu'une secousse mal dosée devient physiquement pénible ; c'est un réglage de confort,
+    // Secousse de caméra : réglable jusqu'à zéro. Un survivor-like enchaîne tant d'impacts
+    // qu'une secousse mal dosée devient physiquement pénible ; c'est un réglage de confort,
     // pas un effet cosmétique.
     el.appendChild(slider('Secousse de caméra', sv.options.shake, (v) => {
       sv.options.shake = v;

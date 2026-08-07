@@ -2,9 +2,9 @@
  * Moteur audio entièrement synthétisé (Web Audio API). Aucun fichier n'est expédié.
  *
  * Trois garde-fous, tous indispensables dans un survivor-like où 300 événements peuvent
- * survenir dans la même frame :
- *   1. plafond de voix simultanées ;
- *   2. anti-empilement par effet (un même son ne se déclenche qu'à intervalle minimal) ;
+ * survenir dans la même frame :
+ *   1. plafond de voix simultanées ;
+ *   2. anti-empilement par effet (un même son ne se déclenche qu'à intervalle minimal) ;
  *   3. compresseur en sortie, qui rattrape les pics résiduels.
  */
 
@@ -146,7 +146,7 @@ class Engine {
     this.track(osc, t + dur + 0.02);
   }
 
-  /** Bruit filtré — impacts, explosions, souffle. */
+  /** Bruit filtré – impacts, explosions, souffle. */
   private noise(
     dur: number,
     gain: number,
@@ -174,7 +174,7 @@ class Engine {
     this.track(src, t + dur + 0.02);
   }
 
-  /** Sinus descendant + clic : grosse caisse, explosion, impact lourd. */
+  /** Sinus descendant + clic : grosse caisse, explosion, impact lourd. */
   private thump(f0: number, f1: number, dur: number, gain: number, bus: GainNode): void {
     this.blip(f0, dur, 'sine', gain, bus, 0, f1);
   }
@@ -255,7 +255,7 @@ class Engine {
         break;
       case 'relicCursed':
         this.blip(110, 1.0, 'sawtooth', 0.10, bus);
-        this.blip(155.6, 0.9, 'sawtooth', 0.07, bus); // triton : dissonance volontaire
+        this.blip(155.6, 0.9, 'sawtooth', 0.07, bus); // triton : dissonance volontaire
         this.blip(55, 1.2, 'sine', 0.12, bus);
         this.duck();
         break;
@@ -373,7 +373,7 @@ class Engine {
   }
 
   /**
-   * Séquenceur à lookahead : on programme les notes ~120 ms à l'avance sur l'horloge audio,
+   * Séquenceur à lookahead : on programme les notes ~120 ms à l'avance sur l'horloge audio,
    * ce qui rend le rythme insensible aux hoquets de la boucle de rendu.
    */
   private scheduleMusic(): void {
@@ -396,7 +396,7 @@ class Engine {
     const I = this.intensity;
     const bar = Math.floor(step / 8);
 
-    // Ré mineur : Dm — Bb — F — A7. Le A7 final laisse une tension non résolue.
+    // Ré mineur : Dm – Bb – F – A7. Le A7 final laisse une tension non résolue.
     const roots = [146.83, 116.54, 174.61, 110.0];
     const chords = [
       [146.83, 174.61, 220.0],
@@ -428,13 +428,13 @@ class Engine {
       osc.stop(when + d + 0.02);
     };
 
-    // Couche 1 — bourdon (toujours actif)
+    // Couche 1 – bourdon (toujours actif)
     if (step % 8 === 0) {
       at(root / 2, dur * 8, 'sine', 0.10);
       at(root, dur * 8, 'triangle', 0.035);
     }
 
-    // Couche 2 — pouls
+    // Couche 2 – pouls
     if (I > 0.15 && step % 4 === 0) {
       const osc = ctx.createOscillator();
       const g = ctx.createGain();
@@ -449,24 +449,24 @@ class Engine {
       osc.stop(when + 0.2);
     }
 
-    // Couche 3 — arpège
+    // Couche 3 – arpège
     if (I > 0.35) {
       const pattern = [0, 2, 1, 2, 0, 1, 2, 1];
       const n = chord[pattern[step % 8]! % chord.length]!;
       at(n * 2, dur * 1.6, 'triangle', 0.045 * Math.min(1, (I - 0.35) * 3));
     }
 
-    // Couche 4 — contrechant
+    // Couche 4 – contrechant
     if (I > 0.6 && step % 8 === 4) {
       at(chord[1]! * 2, dur * 5, 'sine', 0.05);
     }
 
-    // Couche 5 — cuivres
+    // Couche 5 – cuivres
     if (I > 0.8 && step % 16 === 0) {
       for (const f of chord) at(f, dur * 10, 'sawtooth', 0.022, -6);
     }
 
-    // Couche boss — chœur d'oscillateurs désaccordés
+    // Couche boss – chœur d'oscillateurs désaccordés
     if (this.bossMode && step % 8 === 0) {
       for (const det of [-14, 0, 14]) at(root * 2, dur * 8, 'sawtooth', 0.03, det);
       at(root / 2, dur * 8, 'square', 0.05);

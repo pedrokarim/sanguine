@@ -1,18 +1,18 @@
 /**
  * Boucle à pas fixe avec interpolation de rendu.
  *
- * La simulation avance toujours par pas de 1/60 s, quelle que soit la fréquence de l'écran :
+ * La simulation avance toujours par pas de 1/60 s, quelle que soit la fréquence de l'écran :
  * la physique et l'équilibrage sont donc identiques sur un 60 Hz et sur un 144 Hz. Le rendu,
  * lui, tourne à la fréquence de l'écran et interpole entre les deux derniers états.
  */
 
 export const STEP = 1 / 60;
-const MAX_FRAME = 0.25; // 250 ms : au-delà, on abandonne le rattrapage
-const MAX_STEPS = 5; // garde-fou anti « spirale de la mort »
+const MAX_FRAME = 0.25; // 250 ms : au-delà, on abandonne le rattrapage
+const MAX_STEPS = 5; // garde-fou anti « spirale de la mort »
 
 export interface LoopHooks {
   update(dt: number): void;
-  /** `alpha` ∈ [0,1) : position dans le pas courant, pour interpoler le rendu. */
+  /** `alpha` ∈ [0,1) : position dans le pas courant, pour interpoler le rendu. */
   render(alpha: number): void;
 }
 
@@ -62,7 +62,7 @@ export class Loop {
       this.accumulator -= STEP;
       steps++;
     }
-    // Si l'on a saturé le budget de rattrapage, on jette le retard accumulé : mieux vaut
+    // Si l'on a saturé le budget de rattrapage, on jette le retard accumulé : mieux vaut
     // un léger ralenti visible qu'une boucle qui ne rend plus jamais la main.
     if (steps === MAX_STEPS) this.accumulator = 0;
     this.updateMs = performance.now() - t0;

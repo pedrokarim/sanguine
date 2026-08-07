@@ -4,15 +4,15 @@ import { P, shade, hexToRgb } from '../gfx/palette';
 import { Pix, toCanvas } from '../gfx/pix';
 
 /**
- * Terrain : biomes procéduraux, décor et points d'intérêt.
+ * Terrain : biomes procéduraux, décor et points d'intérêt.
  *
- * Le monde est infini et entièrement **déterministe à partir de sa position** : aucune
+ * Le monde est infini et entièrement **déterministe à partir de sa position** : aucune
  * donnée de carte n'est stockée. Un point d'intérêt situé en (4200, −900) est toujours le
  * même autel, qu'on y arrive par la gauche ou après un détour de dix minutes. Cela permet
  * de générer un monde illimité pour un coût mémoire nul, et rend les runs rejouables à la
  * graine près.
  *
- * Seul l'état « déjà activé » est mémorisé, dans un `Set` de clés de cellule.
+ * Seul l'état « déjà activé » est mémorisé, dans un `Set` de clés de cellule.
  */
 
 // ---------------------------------------------------------------------------
@@ -22,7 +22,7 @@ import { Pix, toCanvas } from '../gfx/pix';
 export interface Biome {
   id: string;
   name: string;
-  /** Couleurs du sol : [base, variation sombre, variation claire, détail]. */
+  /** Couleurs du sol : [base, variation sombre, variation claire, détail]. */
   ground: [string, string, string, string];
   /** Multiplicateurs d'apparition par ennemi. Absent = 1. */
   weights: Record<string, number>;
@@ -67,7 +67,7 @@ export const BIOMES: Biome[] = [
     name: 'Le Marais',
     ground: ['#16211a', '#0d1410', '#1f2e22', '#2f4a2c'],
     weights: { zombie: 3.0, leech: 2.6, spitter: 2.2, spider: 1.4, rider: 0.3 },
-    // Le marais ralentit : c'est le seul biome réellement dangereux à traverser.
+    // Le marais ralentit : c'est le seul biome réellement dangereux à traverser.
     moveMul: 0.86,
     mightMul: 1,
     props: 0.6,
@@ -80,7 +80,7 @@ export const BIOMES: Biome[] = [
     ground: ['#221a1c', '#140f11', '#2e2225', '#4a2c2c'],
     weights: { damned: 2.6, golem: 2.2, wolf: 1.5, crow: 1.6, zombie: 0.5 },
     moveMul: 1,
-    // Compense le danger : la chaleur attise les armes.
+    // Compense le danger : la chaleur attise les armes.
     mightMul: 1.08,
     props: 0.45,
     propKind: 'bone',
@@ -101,11 +101,11 @@ export const BIOMES: Biome[] = [
 
 export const BIOME_BY_ID = new Map(BIOMES.map((b) => [b.id, b]));
 
-/** Échelle des biomes en pixels : ~1400 px de large, soit environ trois écrans. */
+/** Échelle des biomes en pixels : ~1400 px de large, soit environ trois écrans. */
 const BIOME_SCALE = 1400;
 
 /**
- * Biome à une position du monde. Deux octaves de bruit : la première découpe de grandes
+ * Biome à une position du monde. Deux octaves de bruit : la première découpe de grandes
  * régions, la seconde brise les frontières pour qu'elles ne soient pas des cercles nets.
  */
 export function biomeAt(x: number, y: number): Biome {
@@ -113,7 +113,7 @@ export function biomeAt(x: number, y: number): Biome {
   const b = valueNoise2(x / (BIOME_SCALE * 0.43) + 31.7, y / (BIOME_SCALE * 0.43) + 17.3, 991);
   const v = a * 0.72 + b * 0.28;
 
-  // La Lande domine : les biomes marqués doivent rester des événements, pas la norme.
+  // La Lande domine : les biomes marqués doivent rester des événements, pas la norme.
   if (v < 0.40) return BIOMES[0]!;
   if (v < 0.55) return BIOMES[1]!;
   if (v < 0.68) return BIOMES[4]!;
@@ -167,7 +167,7 @@ export interface Poi {
 /** Taille de la cellule de placement. Un POI tous les ~600 px, soit un toutes les ~8 s. */
 const POI_CELL = 600;
 
-/** Hachage entier stable : la même cellule donne toujours la même graine. */
+/** Hachage entier stable : la même cellule donne toujours la même graine. */
 function cellSeed(cx: number, cy: number, salt: number): number {
   let n = Math.imul(cx, 0x27d4eb2d) ^ Math.imul(cy, 0x165667b1) ^ Math.imul(salt, 0x9e3779b9);
   n = (n ^ (n >>> 15)) >>> 0;
@@ -203,10 +203,10 @@ export const GROUND_VARIANTS = 4;
 /**
  * Tuile de sol 64×64 propre à un biome.
  *
- * Deux précautions, apprises en regardant le résultat à l'écran :
- *   — **plusieurs variantes**, sélectionnées par la position, sinon la grille de 64 px saute
- *     aux yeux et le monde entier a l'air d'un papier peint ;
- *   — **peu de détails contrastés**, sinon le sol concurrence les ennemis. Le décor doit
+ * Deux précautions, apprises en regardant le résultat à l'écran :
+ *   – **plusieurs variantes**, sélectionnées par la position, sinon la grille de 64 px saute
+ *     aux yeux et le monde entier a l'air d'un papier peint ;
+ *   – **peu de détails contrastés**, sinon le sol concurrence les ennemis. Le décor doit
  *     être une texture, pas une information.
  */
 export function groundTile(biome: Biome, variant = 0): HTMLCanvasElement {
@@ -222,7 +222,7 @@ export function groundTile(biome: Biome, variant = 0): HTMLCanvasElement {
   const rng = new Rng(cellSeed(biome.id.length * 31 + variant, 7, 42));
   const [base, dark, light, detail] = biome.ground;
 
-  // Le sol est tiré d'un bruit **périodique** évalué par pixel : deux octaves qui se
+  // Le sol est tiré d'un bruit **périodique** évalué par pixel : deux octaves qui se
   // raccordent exactement aux bords de la tuile. C'est ce qui remplace les rectangles semi-
   // transparents de la première version, dont les arêtes donnaient au monde un aspect de
   // patchwork cousu.
@@ -234,7 +234,7 @@ export function groundTile(biome: Biome, variant = 0): HTMLCanvasElement {
   /*
    * Le champ de bruit ne dépend **que du biome**, jamais de la variante.
    *
-   * C'est contre-intuitif mais indispensable : un bruit périodique se raccorde avec
+   * C'est contre-intuitif mais indispensable : un bruit périodique se raccorde avec
    * lui-même, pas avec un bruit de graine différente. Faire varier la graine par variante
    * rendait la grille de 64 px *plus* visible qu'avant, chaque tuile ayant sa propre
    * luminosité moyenne et donc une arête franche avec ses voisines. Les variantes ne jouent
@@ -272,7 +272,7 @@ export function groundTile(biome: Biome, variant = 0): HTMLCanvasElement {
   }
   ctx.putImageData(img, 0, 0);
 
-  // Quelques cailloux seulement — le détail ponctue, il ne meuble pas.
+  // Quelques cailloux seulement – le détail ponctue, il ne meuble pas.
   for (let i = 0; i < 5; i++) {
     const x = rng.int(1, S - 3);
     const y = rng.int(1, S - 3);
@@ -282,7 +282,7 @@ export function groundTile(biome: Biome, variant = 0): HTMLCanvasElement {
     ctx.fillRect(x, y, 1, 1);
   }
 
-  // Touffes rares et peu contrastées : trois par tuile, pas douze.
+  // Touffes rares et peu contrastées : trois par tuile, pas douze.
   for (let i = 0; i < 3; i++) {
     const x = rng.int(2, S - 4);
     const y = rng.int(3, S - 3);
@@ -295,7 +295,7 @@ export function groundTile(biome: Biome, variant = 0): HTMLCanvasElement {
 }
 
 /**
- * Bruit de valeur **périodique** : la grille de hachage se replie modulo `period`, donc la
+ * Bruit de valeur **périodique** : la grille de hachage se replie modulo `period`, donc la
  * texture se raccorde parfaitement sur elle-même. Indispensable ici, sinon chaque tuile
  * afficherait une couture nette sur ses quatre bords.
  */
@@ -325,12 +325,32 @@ function periodicNoise(x: number, y: number, period: number, seed: number): numb
   return top + (bottom - top) * v;
 }
 
-/** Variante de tuile à une position de grille — stable, donc sans scintillement au scroll. */
+/** Variante de tuile à une position de grille – stable, donc sans scintillement au scroll. */
 export function groundVariantAt(tx: number, ty: number): number {
   return cellSeed(tx, ty, 0x51ed) % GROUND_VARIANTS;
 }
 
-/** Décor secondaire : rochers, tombes, roseaux, souches, ossements. */
+/**
+ * Biome d'une tuile de sol, échantillonné avec un **décalage déterministe** propre à la tuile.
+ *
+ * Sans ce décalage, la frontière suit exactement le contour du champ de bruit, quantifié à
+ * 64 px : là où le champ frôle un seuil, on obtient des îlots de deux ou trois tuiles aux
+ * arêtes parfaitement rectilignes. À l'écran, cela ressemble à un rectangle posé sur le
+ * décor – un artefact que l'œil repère immédiatement.
+ *
+ * En bruitant le point d'échantillonnage d'environ trois quarts de tuile, la frontière
+ * devient déchiquetée et les îlots se dissolvent en bordures organiques. La granularité du
+ * jeu, elle, continue d'utiliser `biomeAt` sur la position exacte du joueur : c'est le champ
+ * lisse qui fait foi pour les règles, le bruitage ne concerne que l'affichage.
+ */
+export function biomeAtTile(tx: number, ty: number): Biome {
+  const h = cellSeed(tx, ty, 0x7a11);
+  const jx = ((h & 0xffff) / 0xffff - 0.5) * 48;
+  const jy = (((h >>> 16) & 0xffff) / 0xffff - 0.5) * 48;
+  return biomeAt(tx * 64 + 32 + jx, ty * 64 + 32 + jy);
+}
+
+/** Décor secondaire : rochers, tombes, roseaux, souches, ossements. */
 export function propSprite(kind: PropKind, variant: number, biome: Biome): HTMLCanvasElement {
   const key = `${kind}:${variant}:${biome.id}`;
   const hit = propCache.get(key);
@@ -354,7 +374,7 @@ export function propSprite(kind: PropKind, variant: number, biome: Biome): HTMLC
       p.ellipse(11, 14, 2.2, 1.4, 1);
       break;
     case 'grave': {
-      // Stèle inclinée : l'inclinaison aléatoire évite l'alignement mécanique.
+      // Stèle inclinée : l'inclinaison aléatoire évite l'alignement mécanique.
       const tilt = rng.spread(1.4);
       p.limb(8, 17, 8 + tilt, 8, 4.4, 2);
       p.ellipse(8 + tilt, 8, 2.6, 2.2, 2);
@@ -375,7 +395,7 @@ export function propSprite(kind: PropKind, variant: number, biome: Biome): HTMLC
       p.limb(8, 17, 8, 9, 5, 1);
       p.ellipse(8, 9, 3.2, 1.8, 2);
       p.ellipse(8, 9, 1.6, 0.9, 3);
-      // Branche morte : silhouette bien plus reconnaissable qu'un simple cylindre.
+      // Branche morte : silhouette bien plus reconnaissable qu'un simple cylindre.
       p.line(8, 11, 13, 5, 1);
       p.line(11, 8, 13, 7, 1);
       p.line(8, 12, 3, 7, 1);
@@ -395,7 +415,7 @@ export function propSprite(kind: PropKind, variant: number, biome: Biome): HTMLC
   return c;
 }
 
-/** Structure : 4 frames d'animation (lueur pulsée), plus une frame « épuisée ». */
+/** Structure : 4 frames d'animation (lueur pulsée), plus une frame « épuisée ». */
 export function poiSprite(type: PoiType): HTMLCanvasElement[] {
   const hit = poiCache.get(type);
   if (hit) return hit;
@@ -414,7 +434,7 @@ export function poiSprite(type: PoiType): HTMLCanvasElement[] {
   for (let f = 0; f < 5; f++) {
     const spent = f === 4;
     const t = f / 4;
-    const glow = spent ? -1 : 4; // -1 = transparent : la structure épuisée perd sa lueur
+    const glow = spent ? -1 : 4; // -1 = transparent : la structure épuisée perd sa lueur
     const p = new Pix(def.w, def.h);
     const cx = def.w / 2 - 0.5;
     const bot = def.h - 1;
@@ -442,7 +462,7 @@ export function poiSprite(type: PoiType): HTMLCanvasElement[] {
         break;
 
       case 'obelisk':
-        // Monolithe effilé : la silhouette verticale se repère de loin.
+        // Monolithe effilé : la silhouette verticale se repère de loin.
         p.rect(cx - 5, bot - 3, 11, 3, 1);
         for (let y = 0; y < def.h - 4; y++) {
           const hw = 4 - (y / (def.h - 4)) * 2.2;
@@ -484,7 +504,7 @@ export function poiSprite(type: PoiType): HTMLCanvasElement[] {
         break;
 
       case 'chapel':
-        // Ruine : mur arrière, arche béante, clocher penché.
+        // Ruine : mur arrière, arche béante, clocher penché.
         p.rect(cx - 13, bot - 16, 27, 16, 1);
         p.shadeVertical(1, 2, 0);
         p.rect(cx - 5, bot - 12, 11, 12, 0);
@@ -502,7 +522,7 @@ export function poiSprite(type: PoiType): HTMLCanvasElement[] {
         break;
 
       case 'cairn': {
-        // Empilement de pierres : chaque niveau plus petit que le précédent.
+        // Empilement de pierres : chaque niveau plus petit que le précédent.
         let y = bot;
         let rw = 6.5;
         while (rw > 1.6) {
@@ -548,7 +568,7 @@ export class Terrain {
     if (hit !== undefined) return hit;
 
     const rng = new Rng(cellSeed(cx, cy, this.seed));
-    // La cellule d'origine reste vide : le joueur ne doit pas démarrer sur une structure.
+    // La cellule d'origine reste vide : le joueur ne doit pas démarrer sur une structure.
     if ((cx === 0 && cy === 0) || !rng.chance(0.62)) {
       this.pois.set(key, null);
       return null;
@@ -558,7 +578,7 @@ export class Terrain {
     const y = cy * POI_CELL + rng.range(POI_CELL * 0.2, POI_CELL * 0.8);
     const biome = biomeAt(x, y);
 
-    // Le biome infléchit le type : un ossuaire au cimetière, un bûcher dans les cendres.
+    // Le biome infléchit le type : un ossuaire au cimetière, un bûcher dans les cendres.
     const weights = POI_LIST.map((d) => {
       let w = d.weight;
       if (biome.id === 'graveyard' && (d.type === 'ossuary' || d.type === 'chapel')) w *= 2.4;
@@ -637,7 +657,7 @@ export class Terrain {
 
   /**
    * Met à jour les animations et détecte les activations. Retourne le POI activé cette
-   * frame, ou `null` — l'effet lui-même est appliqué par le monde, qui seul connaît le
+   * frame, ou `null` – l'effet lui-même est appliqué par le monde, qui seul connaît le
    * joueur, les ennemis et le butin.
    */
   update(px: number, py: number, dt: number): Poi | null {

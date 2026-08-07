@@ -5,7 +5,7 @@ import type { SfxName } from '../audio/audio';
 /**
  * Table des armes. Chaque arme est décrite par un **comportement** (une fonction du runtime)
  * plus des paramètres numériques. Ajouter une arme qui réutilise un comportement existant ne
- * demande aucune ligne de code — seulement une entrée ici.
+ * demande aucune ligne de code – seulement une entrée ici.
  */
 
 export type WeaponBehavior =
@@ -58,7 +58,7 @@ export interface WeaponDef {
   cdPerLevel: number;
   /** Niveaux auxquels un projectile s'ajoute. */
   countAt: number[];
-  /** Niveaux auxquels la zone augmente de 15 %. */
+  /** Niveaux auxquels la zone augmente de 15 %. */
   areaAt: number[];
   /** Niveaux auxquels la perforation augmente. */
   pierceAt: number[];
@@ -285,7 +285,7 @@ export const WEAPONS: WeaponDef[] = [
   W({
     id: 'crucifixion',
     name: 'Crucifixion',
-    desc: 'Les croix ne reviennent plus : elles orbitent au loin, éternellement.',
+    desc: 'Les croix ne reviennent plus : elles orbitent au loin, éternellement.',
     behavior: 'orbitFar',
     damage: 26, cooldown: 3.2, speed: 1.9, area: 78, count: 4, pierce: 99, duration: 999, knockback: 20,
     color: P.gold, sprite: 'cross', sfx: 'shootHeavy',
@@ -430,7 +430,7 @@ export const BASE_WEAPONS = WEAPONS.filter((w) => !w.isEvolution);
 
 export function weaponById(id: string): WeaponDef {
   const w = WEAPON_BY_ID.get(id);
-  if (!w) throw new Error(`Arme inconnue : ${id}`);
+  if (!w) throw new Error(`Arme inconnue : ${id}`);
   return w;
 }
 
@@ -438,9 +438,9 @@ export function weaponById(id: string): WeaponDef {
 export function levelUpText(w: WeaponDef, next: number): string {
   const parts: string[] = [];
   if (w.countAt.includes(next)) parts.push('+1 projectile');
-  if (w.areaAt.includes(next)) parts.push('+15 % de zone');
+  if (w.areaAt.includes(next)) parts.push('+15 % de zone');
   if (w.pierceAt.includes(next)) parts.push('+1 perforation');
-  parts.push(`+${Math.round(w.dmgPerLevel * 100)} % de dégâts`);
-  if (w.cdPerLevel < 1) parts.push(`−${Math.round((1 - w.cdPerLevel) * 100)} % de recharge`);
+  parts.push(`+${Math.round(w.dmgPerLevel * 100)} % de dégâts`);
+  if (w.cdPerLevel < 1) parts.push(`−${Math.round((1 - w.cdPerLevel) * 100)} % de recharge`);
   return parts.join(', ');
 }
