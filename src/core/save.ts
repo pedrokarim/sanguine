@@ -22,8 +22,47 @@ export interface Stats {
   bestLevel: number;
 }
 
+/**
+ * Reprise d'une partie interrompue.
+ *
+ * Ce n'est **pas** un instantané exact du monde : ni les ennemis, ni les projectiles, ni les
+ * gemmes au sol n'y figurent. Sérialiser quinze cents entités serait volumineux, fragile, et
+ * casserait au moindre changement de structure. On enregistre uniquement ce que le joueur a
+ * *acquis* — son build, sa progression, les lieux qu'il a visités — et le director repeuple
+ * le terrain à la reprise.
+ *
+ * Le joueur perd donc la vague en cours et les gemmes qu'il n'avait pas ramassées. C'est un
+ * prix compréhensible pour une interruption, et cela rend la reprise robuste par construction.
+ */
+export interface RunSave {
+  seed: number;
+  charId: string;
+  time: number;
+  x: number;
+  y: number;
+  level: number;
+  xp: number;
+  hp: number;
+  weapons: { id: string; level: number }[];
+  passives: [string, number][];
+  relics: string[];
+  rerolls: number;
+  revives: number;
+  gold: number;
+  kills: number;
+  gems: number;
+  damage: number;
+  /** Clés des structures déjà activées, pour ne pas les rendre à nouveau utilisables. */
+  poisUsed: string[];
+  /** Index des événements de vague déjà déclenchés. */
+  events: number[];
+  reaper: boolean;
+}
+
 export interface SaveData {
   version: 1;
+  /** Partie en cours, `null` si aucune n'est interrompue. */
+  run: RunSave | null;
   gold: number;
   /** `id d'amélioration du Sanctuaire` → niveau acheté. */
   sanctuary: Record<string, number>;
@@ -39,6 +78,7 @@ export interface SaveData {
 function fresh(): SaveData {
   return {
     version: 1,
+    run: null,
     gold: 0,
     sanctuary: {},
     unlockedChars: ['ysolde', 'anselme'],
@@ -61,6 +101,7 @@ function merge(loaded: unknown): SaveData {
   if (l.version !== 1) return base;
   return {
     version: 1,
+    run: (l.run as RunSave | undefined) ?? null,
     gold: typeof l.gold === 'number' && isFinite(l.gold) ? Math.max(0, Math.floor(l.gold)) : 0,
     sanctuary: l.sanctuary && typeof l.sanctuary === 'object' ? { ...l.sanctuary } : {},
     unlockedChars: Array.isArray(l.unlockedChars)

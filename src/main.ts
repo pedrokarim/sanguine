@@ -490,8 +490,17 @@ function updateDebug(): void {
     uiLayer.appendChild(debugEl);
   }
   const w = world;
+  // Rapport d'échelle affiché en clair : si le ratio n'est pas un entier, l'image est
+  // rééchantillonnée par le navigateur et le pixel art paraît flou. C'est le seul moyen de
+  // diagnostiquer à distance, la valeur dépendant de l'écran et du réglage système.
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  const ratio = (rect.width * dpr) / canvas.width;
+  const net = Number.isInteger(Math.round(ratio * 1000) / 1000) ? 'net' : 'RÉÉCHANTILLONNÉ';
+
   const lines = [
     `${loop.fps.toFixed(0)} fps  upd ${loop.updateMs.toFixed(2)}ms  ren ${loop.renderMs.toFixed(2)}ms`,
+    `vue ${canvas.width}×${canvas.height} logique  ·  dpr ${dpr}  ·  ×${ratio.toFixed(3)} physique  ·  ${net}`,
   ];
   if (w) {
     let proj = 0;
