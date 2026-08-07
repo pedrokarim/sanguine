@@ -381,13 +381,23 @@ export class Backdrop {
     ctx.globalCompositeOperation = 'source-over';
   }
 
-  /** Dessine la scène animée. `dt` en secondes. */
-  render(ctx: CanvasRenderingContext2D, dt: number): void {
+  /**
+   * Dessine la scène animée. `dt` en secondes.
+   *
+   * Les couches sont peintes en 480 × 270 puis mises à l'échelle pour couvrir le canvas,
+   * dont la taille varie désormais avec la fenêtre. Le lissage reste désactivé : la scène
+   * garde son grain pixel plutôt que de se ramollir sur les grands écrans.
+   */
+  render(ctx: CanvasRenderingContext2D, dt: number, outW = W, outH = H): void {
     this.t += dt;
     const t = this.t;
 
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.imageSmoothingEnabled = false;
+    // On couvre par le plus grand des deux rapports pour ne jamais laisser de bord vide,
+    // quitte à rogner légèrement la scène.
+    const k = Math.max(outW / W, outH / H);
+    ctx.setTransform(k, 0, 0, k, (outW - W * k) / 2, (outH - H * k) / 2);
 
     // Parallaxe : chaque couche dérive un peu plus vite que la précédente.
     const drift = (speed: number): number => -((t * speed) % W);
@@ -438,5 +448,7 @@ export class Backdrop {
     vg.addColorStop(1, rgba(shade(P.bloodDark, -0.55), 0.34));
     ctx.fillStyle = vg;
     ctx.fillRect(0, 0, W, H);
+
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
   }
 }

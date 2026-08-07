@@ -19,8 +19,29 @@ import {
   type Enemy, type Projectile, type Zone, type Pickup, type PickupKind, type ProjBehavior,
 } from './types';
 
-export const VIEW_W = 480;
-export const VIEW_H = 270;
+/**
+ * Résolution logique **de référence**. La résolution réelle s'en écarte légèrement pour
+ * remplir exactement la fenêtre : voir `VIEW` et `resize()` dans `main.ts`.
+ */
+export const BASE_W = 480;
+export const BASE_H = 270;
+
+/**
+ * Résolution logique courante, en pixels de jeu.
+ *
+ * Elle est **variable** : le facteur d'agrandissement reste entier (indispensable au pixel
+ * art), mais la taille du canvas s'ajuste pour couvrir toute la fenêtre. Sans cela, tout
+ * écran dont les dimensions ne sont pas un multiple exact de 480 × 270 affiche des bandes
+ * noires — ce qui était le cas de la quasi-totalité des écrans.
+ *
+ * La surface visible est bornée à 1,5× la référence pour qu'un écran très large ne confère
+ * pas un avantage de jeu disproportionné.
+ */
+export const VIEW = { w: BASE_W, h: BASE_H };
+
+/** Conservés pour compatibilité : la référence, pas la taille courante. */
+export const VIEW_W = BASE_W;
+export const VIEW_H = BASE_H;
 
 const MAX_ENEMIES = 1500;
 const MAX_PROJECTILES = 900;
@@ -49,7 +70,7 @@ interface Splat {
 export class World {
   readonly seed: number;
   readonly rng: Rng;
-  readonly cam = new Camera(VIEW_W, VIEW_H);
+  readonly cam = new Camera(VIEW.w, VIEW.h);
   readonly particles = new Particles();
   readonly player: Player;
   readonly grid = new SpatialGrid(64, 40000, MAX_ENEMIES);
@@ -296,7 +317,8 @@ export class World {
   /** Fait apparaître un ennemi sur un anneau hors écran autour du joueur. */
   spawnOffscreen(defId: string, angle?: number, elite = false): Enemy | null {
     const a = angle ?? this.rng.angle();
-    const r = 300 + this.rng.range(0, 60);
+    // Juste au-delà du coin de l'écran, quelle que soit la taille réelle de la vue.
+    const r = Math.hypot(this.cam.viewW, this.cam.viewH) * 0.55 + this.rng.range(0, 60);
     return this.spawnEnemy(
       defId,
       this.player.x + Math.cos(a) * r,
@@ -1262,8 +1284,8 @@ export class World {
 
     // Rebond sur les bords de l'écran (Kaléidoscope).
     if (p.tags.includes('screenBounce')) {
-      const hw = VIEW_W / 2 - 6;
-      const hh = VIEW_H / 2 - 6;
+      const hw = this.cam.viewW / 2 - 6;
+      const hh = this.cam.viewH / 2 - 6;
       const rx = p.x - this.cam.x;
       const ry = p.y - this.cam.y;
       if (rx < -hw || rx > hw) {
