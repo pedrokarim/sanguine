@@ -1,11 +1,11 @@
 import { formatTime, abbrev } from '../core/math';
-import { load, save, update, wipe, type SaveData } from '../core/save';
+import { load, save, update, wipe, type SaveData, type RunSave } from '../core/save';
 import { audio } from '../audio/audio';
 import {
   makeHero, makeIcon, makeProjectile, makeBody, makeRelic, spriteSheet,
   type Sheet, type SpriteSet,
 } from '../gfx/sprites';
-import { CHARACTERS, type CharacterDef } from '../data/characters';
+import { CHARACTERS, characterById, type CharacterDef } from '../data/characters';
 import { META_UPGRADES, costOf } from '../data/meta';
 import { RELICS, RARITY_LABEL } from '../data/relics';
 import { WEAPONS } from '../data/weapons';
@@ -147,7 +147,14 @@ export class Screens {
 
   // ------------------------------------------------------------------ titre
 
-  title(onPlay: () => void, onSanctuary: () => void, onOptions: () => void, onCodex: () => void): void {
+  title(
+    onPlay: () => void,
+    onSanctuary: () => void,
+    onOptions: () => void,
+    onCodex: () => void,
+    savedRun: RunSave | null,
+    onResume: () => void,
+  ): void {
     const el = this.open('title');
     const sv = load();
 
@@ -159,7 +166,23 @@ export class Screens {
 
     const list = document.createElement('div');
     list.className = 'menu-list';
-    const bPlay = this.button('Jouer', 'primary');
+
+    // La reprise passe **avant** « Jouer » et porte le contexte de la partie interrompue :
+    // proposer « Jouer » en premier ferait perdre la partie sauvegardée d'un clic distrait.
+    let bResume: HTMLButtonElement | null = null;
+    if (savedRun) {
+      const c = characterById(savedRun.charId);
+      bResume = this.button(`Reprendre · ${formatTime(savedRun.time)} · niv ${savedRun.level}`, 'primary');
+      bResume.addEventListener('click', () => { audio.play('confirm'); onResume(); });
+      list.appendChild(bResume);
+      const who = document.createElement('div');
+      who.className = 'hint';
+      who.style.marginTop = '-.2em';
+      who.textContent = `${c.name} ${c.epithet}`;
+      list.appendChild(who);
+    }
+
+    const bPlay = this.button(savedRun ? 'Nouvelle partie' : 'Jouer', savedRun ? '' : 'primary');
     const bSanct = this.button('Sanctuaire');
     const bCodex = this.button('Codex');
     const bOpt = this.button('Options');
@@ -184,7 +207,7 @@ export class Screens {
     legal.textContent = `© ${YEAR} Ascencia · v${VERSION}`;
     el.appendChild(legal);
 
-    this.navigable([bPlay, bSanct, bCodex, bOpt]);
+    this.navigable(bResume ? [bResume, bPlay, bSanct, bCodex, bOpt] : [bPlay, bSanct, bCodex, bOpt]);
   }
 
   // ------------------------------------------------- sélection de personnage

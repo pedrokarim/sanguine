@@ -12,7 +12,9 @@ import {
 import { enemyById, type EnemyDef, type BossDef } from '../data/enemies';
 import { RELICS, RARITY_WEIGHT, RARITY_LABEL, type RelicDef } from '../data/relics';
 import { DROP_TABLE, hpScale, damageScale } from '../data/waves';
+import type { RunSave } from '../core/save';
 import { Player } from './player';
+import { xpForLevel } from '../data/waves';
 import { Terrain, type Poi } from './terrain';
 import {
   makeEnemy, makeProjectile, makeZone, makePickup, resetImmunity, claimHit,
@@ -1536,6 +1538,73 @@ export class World {
         break;
       }
     }
+  }
+
+  // ------------------------------------------------------- reprise de partie
+
+  /**
+   * Capture ce qu'il faut pour reprendre la partie. Volontairement **partiel** : ni ennemis,
+   * ni projectiles, ni gemmes au sol. Voir `RunSave` pour le raisonnement.
+   */
+  serializeRun(dir: { events: number[]; reaper: boolean }): RunSave {
+    const pl = this.player;
+    return {
+      seed: this.seed,
+      charId: pl.char.id,
+      time: this.time,
+      x: pl.x,
+      y: pl.y,
+      level: pl.level,
+      xp: pl.xp,
+      hp: pl.hp,
+      weapons: pl.weapons.map((w) => ({ id: w.def.id, level: w.level })),
+      passives: [...pl.passives],
+      relics: [...pl.relics],
+      rerolls: pl.rerolls,
+      revives: pl.revivesLeft,
+      gold: this.gold,
+      kills: this.kills,
+      gems: this.gemsCollected,
+      damage: pl.damageDealt,
+      poisUsed: this.terrain.usedKeys(),
+      events: dir.events,
+      reaper: dir.reaper,
+    };
+  }
+
+  /** Réinjecte une partie sauvegardée dans un monde fraîchement construit. */
+  restoreRun(d: RunSave): void {
+    const pl = this.player;
+
+    pl.weapons.length = 0;
+    for (const w of d.weapons) pl.addWeapon(w.id).level = w.level;
+    pl.passives.clear();
+    for (const [id, lvl] of d.passives) pl.passives.set(id, lvl);
+    pl.relics.length = 0;
+    pl.relics.push(...d.relics);
+    this.ownedRelics = new Set(d.relics);
+    pl.recompute();
+
+    pl.level = d.level;
+    pl.xp = d.xp;
+    pl.xpNext = xpForLevel(d.level);
+    pl.hp = Math.min(d.hp, pl.stats.maxHp);
+    pl.rerolls = d.rerolls;
+    pl.revivesLeft = d.revives;
+    pl.damageDealt = d.damage;
+    pl.x = pl.px = d.x;
+    pl.y = pl.py = d.y;
+    // Court répit à la reprise : le joueur n'a pas les mains sur le clavier à la frame 0.
+    pl.iframes = 2;
+
+    this.time = d.time;
+    this.gold = d.gold;
+    this.kills = d.kills;
+    this.gemsCollected = d.gems;
+    this.terrain.restoreUsed(d.poisUsed);
+    this.terrain.update(pl.x, pl.y, 0);
+    this.cam.snapTo(pl.x, pl.y);
+    this.announce('REPRISE', 'la horde s\'est dispersée');
   }
 
   private onLevelUp(): void {
