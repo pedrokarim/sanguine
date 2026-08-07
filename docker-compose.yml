@@ -1,0 +1,23 @@
+services:
+  sanguine:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: sanguine:latest
+    container_name: sanguine
+    restart: unless-stopped
+    # Publié uniquement sur la boucle locale : le nginx système de l'hôte fait le reverse
+    # proxy devant, et Cloudflare assure le TLS. Exposer le port sur 0.0.0.0 ouvrirait le
+    # conteneur au monde entier en clair, en contournant les deux.
+    ports:
+      - "127.0.0.1:4020:80"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost/healthz"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
