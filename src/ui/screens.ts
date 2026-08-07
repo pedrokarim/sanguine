@@ -2,7 +2,8 @@ import { formatTime, abbrev } from '../core/math';
 import { load, save, update, wipe, type SaveData, type RunSave } from '../core/save';
 import { audio } from '../audio/audio';
 import {
-  makeHero, makeIcon, makeProjectile, makeBody, makeRelic, spriteSheet,
+  makeHero, makeIcon, makeProjectile, makeBody, makeRelic, makeGem, makeCoin, makeHeart,
+  makeChest, makeItem, makePassiveSprite, spriteSheet,
   type Sheet, type SpriteSet,
 } from '../gfx/sprites';
 import { CHARACTERS, characterById, type CharacterDef } from '../data/characters';
@@ -10,9 +11,10 @@ import { META_UPGRADES, costOf } from '../data/meta';
 import { RELICS, RARITY_LABEL } from '../data/relics';
 import { WEAPONS } from '../data/weapons';
 import { PASSIVE_BY_ID } from '../data/passives';
-import { ENEMIES, BOSSES, type EnemyAI } from '../data/enemies';
+import { ENEMIES, BOSSES, enemyById, type EnemyAI } from '../data/enemies';
 import type { Rarity } from '../gfx/palette';
 import type { Offer, ChestResult } from '../game/upgrades';
+import { BloodLogo } from './logo';
 
 /** Libellés lisibles des comportements d'IA, pour le bestiaire. */
 const AI_LABEL: Record<EnemyAI, string> = {
@@ -61,6 +63,8 @@ export interface RunSummary {
  * calculée : un écran-titre dont le copyright change tout seul au 1er janvier est un
  * détail qui trahit le bricolage.
  */
+const P_GOLD = '#f2c46b';
+
 const YEAR = 2026;
 const VERSION = '1.0.0';
 
@@ -145,6 +149,71 @@ export class Screens {
     return b;
   }
 
+  // ------------------------------------------------------- tuiles chiffrées
+
+  /**
+   * Tuile de statistique : un sprite animé du jeu, une valeur, un intitulé.
+   *
+   * Une ligne de texte du type « 3,1 k ennemis abattus · 1,2 k gemmes » demande au joueur de
+   * *lire* pour comprendre ; une gemme et une goule se reconnaissent d'un coup d'œil. Le jeu
+   * dispose déjà de tous ces sprites — les afficher ne coûte rien et évite de traiter en
+   * texte ce qui est, par nature, un vocabulaire visuel.
+   */
+  private statTile(key: string, set: SpriteSet, value: string, label: string): HTMLDivElement {
+    const el = document.createElement('div');
+    el.className = 'stat-tile';
+
+    const stage = document.createElement('div');
+    stage.className = 'stat-icon';
+    stage.appendChild(this.spriteBlock(spriteSheet(`stat:${key}`, set, this.fitScale(set, 34, 30)), true, 0.7));
+
+    const v = document.createElement('div');
+    v.className = 'stat-value';
+    v.textContent = value;
+    const l = document.createElement('div');
+    l.className = 'stat-label';
+    l.textContent = label;
+
+    el.append(stage, v, l);
+    return el;
+  }
+
+  /** Variante compacte : sprite et valeur côte à côte, pour meubler un coin d'écran. */
+  private statChip(key: string, set: SpriteSet, value: string, label: string): HTMLDivElement {
+    const el = document.createElement('div');
+    el.className = 'stat-chip';
+    el.appendChild(this.spriteBlock(spriteSheet(`chip:${key}`, set, this.fitScale(set, 22, 20)), true, 0.7));
+    const txt = document.createElement('div');
+    txt.className = 'chip-text';
+    const v = document.createElement('span');
+    v.className = 'chip-value';
+    v.textContent = value;
+    const l = document.createElement('span');
+    l.className = 'chip-label';
+    l.textContent = label;
+    txt.append(v, l);
+    el.appendChild(txt);
+    return el;
+  }
+
+  /** Groupe de puces ancré dans un coin de l'écran. */
+  private statCorner(
+    pos: 'tl' | 'tr' | 'bl' | 'br',
+    items: [string, SpriteSet, string, string][],
+  ): HTMLDivElement {
+    const box = document.createElement('div');
+    box.className = `stat-corner ${pos}`;
+    for (const [k, set, v, l] of items) box.appendChild(this.statChip(k, set, v, l));
+    return box;
+  }
+
+  private statStrip(items: [string, SpriteSet, string, string][]): HTMLDivElement {
+    const strip = document.createElement('div');
+    strip.className = 'stat-strip';
+    for (const [k, set, v, l] of items) strip.appendChild(this.statTile(k, set, v, l));
+    return strip;
+  }
+
   // ------------------------------------------------------------------ titre
 
   title(
@@ -157,12 +226,30 @@ export class Screens {
   ): void {
     const el = this.open('title');
     const sv = load();
+    // Le personnage illustrant le compteur de parties est le dernier débloqué : il change
+    // au fil de la progression, ce qui donne au bandeau une valeur de trophée.
+    const lastChar = sv.unlockedChars[sv.unlockedChars.length - 1] ?? 'ysolde';
 
-    el.innerHTML = `
-      <h1 class="title-font">SANGUINE</h1>
-      <div class="flourish"></div>
-      <p class="tagline">« Tenez jusqu'à l'aube. Elle ne viendra pas. »</p>
-    `;
+    // Logo en pixel art dont le sang coule, dessiné et animé par le code.
+    const logo = new BloodLogo('SANGUINE');
+    const h1 = document.createElement('h1');
+    h1.className = 'title-font';
+    h1.appendChild(logo.canvas);
+    el.appendChild(h1);
+    logo.start();
+    // L'animation doit s'arrêter avec l'écran, sinon une boucle rAF survit au menu.
+    const prevCleanup = this.cleanup;
+    this.cleanup = (): void => {
+      prevCleanup?.();
+      logo.stop();
+    };
+
+    const fl = document.createElement('div');
+    fl.className = 'flourish';
+    const tag = document.createElement('p');
+    tag.className = 'tagline';
+    tag.textContent = '« Tenez jusqu\'à l\'aube. Elle ne viendra pas. »';
+    el.append(fl, tag);
 
     const list = document.createElement('div');
     list.className = 'menu-list';
@@ -193,13 +280,33 @@ export class Screens {
     list.append(bPlay, bSanct, bCodex, bOpt);
     el.appendChild(list);
 
-    const stats = document.createElement('div');
-    stats.className = 'hint';
-    stats.style.marginTop = '1em';
-    stats.textContent = sv.stats.runs > 0
-      ? `${sv.stats.runs} parties · ${abbrev(sv.stats.kills)} ennemis abattus · ${abbrev(sv.stats.gems)} gemmes · meilleur temps ${formatTime(sv.stats.bestTime)} · ${abbrev(sv.gold)} or`
-      : 'ZQSD ou WASD pour se déplacer. Les armes tirent seules.';
-    el.appendChild(stats);
+    if (sv.stats.runs > 0) {
+      // Les compteurs ne sont pas empilés au centre mais **groupés par sens** dans les
+      // quatre coins : le parcours à gauche, les ressources à droite, le carnage en bas.
+      // L'écran se remplit, le logo et le menu gardent le centre, et la lune du décor
+      // reste dégagée.
+      el.appendChild(this.statCorner('tl', [
+        ['runs', makeHero(`hero:${lastChar}`, characterById(lastChar).art, false), String(sv.stats.runs), 'parties'],
+        ['time', makeItem('hourglass'), formatTime(sv.stats.bestTime), 'record'],
+      ]));
+      el.appendChild(this.statCorner('tr', [
+        ['gold', makeCoin(), abbrev(sv.gold), 'or'],
+        ['gems', makeGem(2), abbrev(sv.stats.gems), 'gemmes'],
+      ]));
+      el.appendChild(this.statCorner('bl', [
+        ['kills', makeBody('enemy:ghoul', enemyById('ghoul').art), abbrev(sv.stats.kills), 'abattus'],
+      ]));
+      el.appendChild(this.statCorner('br', [
+        ['wins', makeChest(), String(sv.stats.wins), 'victoires'],
+        ['relics', makeRelic('epic'), `${sv.seenRelics.length}/24`, 'reliques'],
+      ]));
+    } else {
+      const stats = document.createElement('div');
+      stats.className = 'hint';
+      stats.style.marginTop = '1em';
+      stats.textContent = 'ZQSD ou WASD pour se déplacer. Les armes tirent seules.';
+      el.appendChild(stats);
+    }
 
     // Mention de copyright, comme sur un écran-titre de jeu : discrète, en bas, permanente.
     const legal = document.createElement('div');
@@ -452,6 +559,22 @@ export class Screens {
       grid.className = 'sanct-grid';
       const items: HTMLElement[] = [];
 
+      // Chaque amélioration reçoit l'icône du passif ou de l'objet qu'elle prolonge : le
+      // Sanctuaire parle alors le même vocabulaire visuel que le reste du jeu.
+      const ICONS: Record<string, () => SpriteSet> = {
+        power: () => makePassiveSprite('gem', P_GOLD),
+        vitality: () => makeHeart(),
+        celerity: () => makePassiveSprite('boot', '#c96f2a'),
+        armor: () => makePassiveSprite('shield', '#232b40'),
+        regen: () => makePassiveSprite('cup', '#c42639'),
+        magnetism: () => makePassiveSprite('magnet', '#4ea9e8'),
+        greed: () => makeCoin(),
+        growth: () => makeGem(1),
+        fortune: () => makePassiveSprite('clover', '#8ef07a'),
+        reroll: () => makeItem('scroll'),
+        revive: () => makeRelic('epic'),
+      };
+
       for (const up of META_UPGRADES) {
         const lvl = sv.sanctuary[up.id] ?? 0;
         const maxed = lvl >= up.levels;
@@ -459,6 +582,15 @@ export class Screens {
 
         const row = document.createElement('div');
         row.className = 'sanct-row';
+
+        const make = ICONS[up.id];
+        if (make) {
+          const icon = document.createElement('div');
+          icon.className = 'sanct-icon';
+          const set = make();
+          icon.appendChild(this.spriteBlock(spriteSheet(`sanct:${up.id}`, set, this.fitScale(set, 28, 26)), true, 0.8));
+          row.appendChild(icon);
+        }
 
         const info = document.createElement('div');
         info.className = 'info';
@@ -785,32 +917,33 @@ export class Screens {
       ? `<h1 class="title-font">L'AUBE</h1><p class="tagline">Elle est venue, finalement.</p>`
       : `<h1 class="title-font">MORT</h1><p class="tagline">Le domaine vous garde.</p>`;
 
+    // Le bilan de fin est le moment où l'on regarde ses chiffres : c'est précisément là
+    // qu'un tableau de texte est le plus décevant.
+    el.appendChild(this.statStrip([
+      ['t', makeItem('hourglass'), formatTime(sum.time), 'Temps'],
+      ['lv', makeGem(3), String(sum.level), 'Niveau'],
+      ['k', makeBody('enemy:ghoul', enemyById('ghoul').art), abbrev(sum.kills), 'Abattus'],
+      ['d', makeProjectile('stake', '#f7ede0'), abbrev(sum.damage), 'Dégâts'],
+      ['g', makeGem(1), abbrev(sum.gems), 'Gemmes'],
+      ['r', makeRelic('epic'), String(sum.relics), 'Reliques'],
+      ['o', makeCoin(), abbrev(sum.gold), 'Or'],
+    ]));
+
     const panel = document.createElement('div');
     panel.className = 'panel';
-    panel.style.padding = '1.2em 1.8em';
-    const table = document.createElement('div');
-    table.className = 'stats-table';
-    const rows: [string, string][] = [
-      ['Temps', formatTime(sum.time)],
-      ['Niveau', String(sum.level)],
-      ['Ennemis abattus', abbrev(sum.kills)],
-      ['Dégâts infligés', abbrev(sum.damage)],
-      ['Gemmes ramassées', abbrev(sum.gems)],
-      ['Reliques trouvées', String(sum.relics)],
-      ['Or gagné', `${abbrev(sum.gold)}`],
-      ['Personnage', sum.character],
-      ['Graine', String(sum.seed)],
-    ];
-    for (const [k, v] of rows) {
+    panel.style.padding = '.9em 1.6em';
+    const who = document.createElement('div');
+    who.className = 'stats-table';
+    for (const [k, v] of [['Personnage', sum.character], ['Graine', String(sum.seed)]] as [string, string][]) {
       const kd = document.createElement('div');
       kd.className = 'k';
       kd.textContent = k;
       const vd = document.createElement('div');
       vd.className = 'v';
       vd.textContent = v;
-      table.append(kd, vd);
+      who.append(kd, vd);
     }
-    panel.appendChild(table);
+    panel.appendChild(who);
     el.appendChild(panel);
 
     const list = document.createElement('div');
