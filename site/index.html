@@ -47,9 +47,12 @@ nav .play:hover{background:var(--blood);color:#fff;border-color:var(--blood-hi)}
 
 /* ------------------------------------------------------------------- héros */
 header{text-align:center;padding:4.5rem 0 3rem;position:relative}
-header h1{
-  font-size:clamp(3rem,11vw,6.5rem);letter-spacing:.28em;text-indent:.28em;
-  color:var(--blood-hi);text-shadow:0 0 40px rgba(240,64,90,.45),0 4px 0 var(--blood-dark);
+/* Le logo du manuel est le PNG exporté depuis le jeu : la documentation et le jeu ne
+   peuvent donc pas afficher deux titres différents. */
+.hero-logo{
+  width:min(78vw,560px);height:auto;margin:0 auto;
+  image-rendering:pixelated;
+  filter:drop-shadow(0 0 26px rgba(240,64,90,.4)) drop-shadow(0 4px 0 rgba(0,0,0,.5));
 }
 header .tag{color:var(--mist);font-style:italic;letter-spacing:.08em;margin-top:.4rem}
 .flourish{
@@ -159,7 +162,7 @@ footer a:hover{color:var(--gold)}
 </div></nav>
 
 <header><div class="wrap">
-  <h1>SANGUINE</h1>
+  <img class="hero-logo" src="logo.png" alt="SANGUINE">
   <p class="tag">« Tenez jusqu'à l'aube. Elle ne viendra pas. »</p>
   <div class="flourish"></div>
   <p class="lead" style="margin:0 auto">
@@ -209,6 +212,12 @@ footer a:hover{color:var(--gold)}
     </tbody>
   </table>
   <p>AZERTY et QWERTY fonctionnent en même temps : les touches sont lues par code physique.</p>
+
+  <div class="note"><b>Une partie interrompue se reprend.</b> Le genre ne sauvegarde
+  traditionnellement pas les runs en cours, mais un onglet fermé par mégarde coûterait une
+  demi-heure. Le jeu enregistre votre build et votre progression toutes les dix secondes et à
+  chaque choix ; la horde, elle, se disperse. La sauvegarde est écrite <em>après</em>
+  l'application d'un choix — recharger ne permet pas de revenir sur une carte déjà prise.</div>
 
   <h3>Le déroulé d'une partie</h3>
   <table>
@@ -330,7 +339,7 @@ footer a:hover{color:var(--gold)}
 <section id="technique"><div class="wrap">
   <h2>Sous le capot</h2>
   <p class="lead">Tout ce que vous voyez et entendez est <strong>généré par le code au
-  démarrage</strong>. Aucun PNG, aucun fichier audio, aucune police. Le jeu entier pèse 57 ko
+  démarrage</strong>. Aucun PNG, aucun fichier audio, aucune police. Le jeu entier pèse 60 ko
   compressés et fonctionne hors ligne.</p>
 
   <div class="grid g3">

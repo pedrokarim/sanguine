@@ -754,8 +754,10 @@ body.cursor-hidden #game { cursor: none; }
 .stats-table .k { color: var(--mist); text-align: right }
 .stats-table .v { color: var(--linen); font-weight: 700 }
 
-.victory h1 { color: var(--gold); text-shadow: 0 0 30px rgba(242, 196, 107, .7), 0 4px 0 #7a5a1e }
-.gameover h1 { color: var(--blood); }
+.victory .blood-logo { filter: drop-shadow(0 0 18px rgba(242, 196, 107, .5)) drop-shadow(0 3px 0 rgba(0, 0, 0, .5)) }
+.gameover .blood-logo { filter: drop-shadow(0 0 16px rgba(196, 38, 57, .55)) drop-shadow(0 3px 0 rgba(0, 0, 0, .6)) }
+/* Les titres de fin sont plus courts que « SANGUINE » : ils peuvent être plus hauts. */
+.gameover .blood-logo, .victory .blood-logo { height: clamp(96px, 19vh, 168px) }
 
 /* --------------------------------------------------------------- options */
 

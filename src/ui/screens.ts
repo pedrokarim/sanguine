@@ -14,7 +14,7 @@ import { PASSIVE_BY_ID } from '../data/passives';
 import { ENEMIES, BOSSES, enemyById, type EnemyAI } from '../data/enemies';
 import type { Rarity } from '../gfx/palette';
 import type { Offer, ChestResult } from '../game/upgrades';
-import { BloodLogo } from './logo';
+import { BloodLogo, BLOOD, DAWN } from './logo';
 
 /** Libellés lisibles des comportements d'IA, pour le bestiaire. */
 const AI_LABEL: Record<EnemyAI, string> = {
@@ -913,9 +913,25 @@ export class Screens {
 
   gameOver(sum: RunSummary, victory: boolean, onRetry: () => void, onMenu: () => void): void {
     const el = this.open(victory ? 'victory' : 'gameover');
-    el.innerHTML = victory
-      ? `<h1 class="title-font">L'AUBE</h1><p class="tagline">Elle est venue, finalement.</p>`
-      : `<h1 class="title-font">MORT</h1><p class="tagline">Le domaine vous garde.</p>`;
+
+    // Le même logo saignant que l'écran-titre : c'est précisément ici qu'il prend son sens.
+    // À la victoire, ce n'est plus du sang qui coule mais la lumière de l'aube.
+    const logo = new BloodLogo(victory ? 'AUBE' : 'MORT', victory ? 0x21b : 0x9c4, victory ? DAWN : BLOOD);
+    const h1 = document.createElement('h1');
+    h1.className = 'title-font';
+    h1.appendChild(logo.canvas);
+    el.appendChild(h1);
+    logo.start();
+    const prevCleanup = this.cleanup;
+    this.cleanup = (): void => {
+      prevCleanup?.();
+      logo.stop();
+    };
+
+    const tag = document.createElement('p');
+    tag.className = 'tagline';
+    tag.textContent = victory ? 'Elle est venue, finalement.' : 'Le domaine vous garde.';
+    el.appendChild(tag);
 
     // Le bilan de fin est le moment où l'on regarde ses chiffres : c'est précisément là
     // qu'un tableau de texte est le plus décevant.
