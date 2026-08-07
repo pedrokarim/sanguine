@@ -6,11 +6,19 @@ import { load, save, update } from './core/save';
 import { formatTime } from './core/math';
 import { audio } from './audio/audio';
 import { Renderer } from './gfx/renderer';
+import {
+  spriteSheet, makeProjectile, makeBody, makeRelic, makeHero, makePassiveSprite,
+  makeGem, makeCoin, makeHeart, makeChest, type SpriteSet,
+} from './gfx/sprites';
+import { WEAPONS } from './data/weapons';
+import { ENEMIES, BOSSES } from './data/enemies';
+import { PASSIVES } from './data/passives';
+import { POI_DEFS, poiSprite } from './game/terrain';
 import { World, VIEW_W, VIEW_H } from './game/world';
 import { Director } from './game/director';
 import { updateWeapons } from './game/weapons';
 import { rollOffers, openChest, applyChest, type Offer, type ChestResult } from './game/upgrades';
-import { characterById } from './data/characters';
+import { characterById, CHARACTERS } from './data/characters';
 import { Hud } from './ui/hud';
 import { Screens, type RunSummary } from './ui/screens';
 import { Backdrop } from './ui/backdrop';
@@ -488,6 +496,59 @@ Object.defineProperty(window, 'sanguine', {
       if (world) for (const p of world.projectiles) if (p.active) n++;
       return n;
     },
+    /**
+     * Exporte toutes les planches de sprites du jeu en `data:` URI.
+     *
+     * Sert à alimenter le manuel en ligne : les visuels de la documentation sont ainsi
+     * produits par **les générateurs du jeu eux-mêmes**, et ne peuvent donc jamais diverger
+     * de ce que le joueur voit réellement à l'écran.
+     */
+    exportSprites(): Record<string, { url: string; frames: number; w: number; h: number }> {
+      const out: Record<string, { url: string; frames: number; w: number; h: number }> = {};
+      const put = (key: string, set: SpriteSet, scale: number): void => {
+        const s = spriteSheet(`export:${key}`, set, scale);
+        out[key] = { url: s.url, frames: s.frames, w: s.w, h: s.h };
+      };
+      const fit = (set: SpriteSet, max: number): number =>
+        Math.max(1, Math.min(6, Math.floor(max / Math.max(set.w, set.h))));
+
+      for (const def of WEAPONS) {
+        const set = makeProjectile(def.sprite, def.color);
+        put(`weapon-${def.id}`, set, fit(set, 40));
+      }
+      for (const def of [...ENEMIES, ...BOSSES]) {
+        const set = makeBody(`enemy:${def.id}`, def.art);
+        put(`enemy-${def.id}`, set, fit(set, 48));
+      }
+      for (const r of ['common', 'rare', 'epic', 'cursed'] as const) {
+        const set = makeRelic(r);
+        put(`relic-${r}`, set, fit(set, 40));
+      }
+      for (const c of CHARACTERS) {
+        const set = makeHero(`hero:${c.id}`, c.art, false);
+        put(`hero-${c.id}`, set, fit(set, 44));
+      }
+      for (const p of PASSIVES) {
+        put(`passive-${p.id}`, makePassiveSprite(p.icon, p.color), 3);
+      }
+      for (const t of Object.keys(POI_DEFS) as (keyof typeof POI_DEFS)[]) {
+        const frames = poiSprite(t);
+        const set: SpriteSet = {
+          frames: frames.slice(0, 4),
+          flash: frames,
+          elite: frames,
+          w: frames[0]!.width,
+          h: frames[0]!.height,
+        };
+        put(`poi-${t}`, set, fit(set, 56));
+      }
+      for (let r = 0; r < 4; r++) put(`gem-${r}`, makeGem(r as 0 | 1 | 2 | 3), 4);
+      put('coin', makeCoin(), 4);
+      put('heart', makeHeart(), 4);
+      put('chest', makeChest(), 3);
+      return out;
+    },
+
     /** Instantané complet du build courant, pour vérifier l'équilibrage. */
     snapshot(): unknown {
       if (!world) return null;

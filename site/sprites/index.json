@@ -1,0 +1,437 @@
+{
+ "weapon-stake": {
+  "frames": 4,
+  "w": 40,
+  "h": 24
+ },
+ "weapon-cross": {
+  "frames": 4,
+  "w": 33,
+  "h": 33
+ },
+ "weapon-garlic": {
+  "frames": 4,
+  "w": 40,
+  "h": 40
+ },
+ "weapon-water": {
+  "frames": 4,
+  "w": 36,
+  "h": 40
+ },
+ "weapon-lantern": {
+  "frames": 4,
+  "w": 40,
+  "h": 40
+ },
+ "weapon-scythe": {
+  "frames": 4,
+  "w": 22,
+  "h": 22
+ },
+ "weapon-judgement": {
+  "frames": 4,
+  "w": 11,
+  "h": 22
+ },
+ "weapon-mirror": {
+  "frames": 4,
+  "w": 35,
+  "h": 35
+ },
+ "weapon-familiar": {
+  "frames": 4,
+  "w": 36,
+  "h": 30
+ },
+ "weapon-salt": {
+  "frames": 4,
+  "w": 36,
+  "h": 36
+ },
+ "weapon-tainted": {
+  "frames": 4,
+  "w": 40,
+  "h": 40
+ },
+ "weapon-censer": {
+  "frames": 4,
+  "w": 32,
+  "h": 32
+ },
+ "weapon-crossbow": {
+  "frames": 4,
+  "w": 36,
+  "h": 20
+ },
+ "weapon-flail": {
+  "frames": 4,
+  "w": 40,
+  "h": 40
+ },
+ "weapon-brazier": {
+  "frames": 4,
+  "w": 36,
+  "h": 36
+ },
+ "weapon-ricochet": {
+  "frames": 4,
+  "w": 33,
+  "h": 21
+ },
+ "weapon-thorns": {
+  "frames": 4,
+  "w": 24,
+  "h": 36
+ },
+ "weapon-horn": {
+  "frames": 4,
+  "w": 32,
+  "h": 32
+ },
+ "weapon-carpenter": {
+  "frames": 4,
+  "w": 40,
+  "h": 24
+ },
+ "weapon-crucifixion": {
+  "frames": 4,
+  "w": 33,
+  "h": 33
+ },
+ "weapon-aioli": {
+  "frames": 4,
+  "w": 40,
+  "h": 40
+ },
+ "weapon-deluge": {
+  "frames": 4,
+  "w": 36,
+  "h": 40
+ },
+ "weapon-souls": {
+  "frames": 4,
+  "w": 40,
+  "h": 40
+ },
+ "weapon-harvest": {
+  "frames": 4,
+  "w": 22,
+  "h": 22
+ },
+ "weapon-wrath": {
+  "frames": 4,
+  "w": 11,
+  "h": 22
+ },
+ "weapon-kaleidoscope": {
+  "frames": 4,
+  "w": 35,
+  "h": 35
+ },
+ "weapon-swarm": {
+  "frames": 4,
+  "w": 36,
+  "h": 30
+ },
+ "weapon-ballista": {
+  "frames": 4,
+  "w": 36,
+  "h": 20
+ },
+ "weapon-comet": {
+  "frames": 4,
+  "w": 40,
+  "h": 40
+ },
+ "weapon-furnace": {
+  "frames": 4,
+  "w": 36,
+  "h": 36
+ },
+ "weapon-bladedance": {
+  "frames": 4,
+  "w": 33,
+  "h": 21
+ },
+ "weapon-irongarden": {
+  "frames": 4,
+  "w": 24,
+  "h": 36
+ },
+ "weapon-packcall": {
+  "frames": 4,
+  "w": 32,
+  "h": 32
+ },
+ "enemy-bat": {
+  "frames": 4,
+  "w": 42,
+  "h": 33
+ },
+ "enemy-ghoul": {
+  "frames": 4,
+  "w": 33,
+  "h": 39
+ },
+ "enemy-crow": {
+  "frames": 4,
+  "w": 45,
+  "h": 36
+ },
+ "enemy-wolf": {
+  "frames": 4,
+  "w": 48,
+  "h": 36
+ },
+ "enemy-skeleton": {
+  "frames": 4,
+  "w": 36,
+  "h": 42
+ },
+ "enemy-spider": {
+  "frames": 4,
+  "w": 45,
+  "h": 36
+ },
+ "enemy-zombie": {
+  "frames": 4,
+  "w": 39,
+  "h": 45
+ },
+ "enemy-wraith": {
+  "frames": 6,
+  "w": 42,
+  "h": 45
+ },
+ "enemy-spitter": {
+  "frames": 4,
+  "w": 45,
+  "h": 42
+ },
+ "enemy-leech": {
+  "frames": 4,
+  "w": 48,
+  "h": 36
+ },
+ "enemy-rider": {
+  "frames": 4,
+  "w": 40,
+  "h": 32
+ },
+ "enemy-golem": {
+  "frames": 4,
+  "w": 48,
+  "h": 48
+ },
+ "enemy-damned": {
+  "frames": 4,
+  "w": 42,
+  "h": 48
+ },
+ "enemy-matron": {
+  "frames": 4,
+  "w": 44,
+  "h": 38
+ },
+ "enemy-exsanguine": {
+  "frames": 4,
+  "w": 40,
+  "h": 46
+ },
+ "enemy-ashchoir": {
+  "frames": 6,
+  "w": 38,
+  "h": 44
+ },
+ "enemy-sanguine": {
+  "frames": 4,
+  "w": 56,
+  "h": 60
+ },
+ "enemy-reaper": {
+  "frames": 6,
+  "w": 40,
+  "h": 48
+ },
+ "relic-common": {
+  "frames": 8,
+  "w": 24,
+  "h": 28
+ },
+ "relic-rare": {
+  "frames": 8,
+  "w": 24,
+  "h": 28
+ },
+ "relic-epic": {
+  "frames": 8,
+  "w": 24,
+  "h": 28
+ },
+ "relic-cursed": {
+  "frames": 8,
+  "w": 24,
+  "h": 28
+ },
+ "hero-ysolde": {
+  "frames": 4,
+  "w": 26,
+  "h": 30
+ },
+ "hero-anselme": {
+  "frames": 4,
+  "w": 26,
+  "h": 30
+ },
+ "hero-vasco": {
+  "frames": 4,
+  "w": 26,
+  "h": 30
+ },
+ "hero-marguerite": {
+  "frames": 4,
+  "w": 26,
+  "h": 30
+ },
+ "hero-ombre": {
+  "frames": 4,
+  "w": 26,
+  "h": 30
+ },
+ "hero-comte": {
+  "frames": 4,
+  "w": 26,
+  "h": 30
+ },
+ "passive-reliquary": {
+  "frames": 1,
+  "w": 39,
+  "h": 39
+ },
+ "passive-boots": {
+  "frames": 1,
+  "w": 39,
+  "h": 39
+ },
+ "passive-silverheart": {
+  "frames": 1,
+  "w": 39,
+  "h": 39
+ },
+ "passive-hourglass": {
+  "frames": 1,
+  "w": 39,
+  "h": 39
+ },
+ "passive-scope": {
+  "frames": 1,
+  "w": 39,
+  "h": 39
+ },
+ "passive-powder": {
+  "frames": 1,
+  "w": 39,
+  "h": 39
+ },
+ "passive-feather": {
+  "frames": 1,
+  "w": 39,
+  "h": 39
+ },
+ "passive-grimoire": {
+  "frames": 1,
+  "w": 39,
+  "h": 39
+ },
+ "passive-magnet": {
+  "frames": 1,
+  "w": 39,
+  "h": 39
+ },
+ "passive-talisman": {
+  "frames": 1,
+  "w": 39,
+  "h": 39
+ },
+ "passive-clover": {
+  "frames": 1,
+  "w": 39,
+  "h": 39
+ },
+ "passive-chalice": {
+  "frames": 1,
+  "w": 39,
+  "h": 39
+ },
+ "poi-altar": {
+  "frames": 4,
+  "w": 52,
+  "h": 52
+ },
+ "poi-pyre": {
+  "frames": 4,
+  "w": 44,
+  "h": 52
+ },
+ "poi-obelisk": {
+  "frames": 4,
+  "w": 18,
+  "h": 34
+ },
+ "poi-well": {
+  "frames": 4,
+  "w": 48,
+  "h": 44
+ },
+ "poi-ossuary": {
+  "frames": 4,
+  "w": 56,
+  "h": 48
+ },
+ "poi-chapel": {
+  "frames": 4,
+  "w": 40,
+  "h": 38
+ },
+ "poi-cairn": {
+  "frames": 4,
+  "w": 40,
+  "h": 48
+ },
+ "gem-0": {
+  "frames": 8,
+  "w": 36,
+  "h": 36
+ },
+ "gem-1": {
+  "frames": 8,
+  "w": 44,
+  "h": 44
+ },
+ "gem-2": {
+  "frames": 8,
+  "w": 52,
+  "h": 52
+ },
+ "gem-3": {
+  "frames": 8,
+  "w": 60,
+  "h": 60
+ },
+ "coin": {
+  "frames": 6,
+  "w": 32,
+  "h": 32
+ },
+ "heart": {
+  "frames": 6,
+  "w": 40,
+  "h": 40
+ },
+ "chest": {
+  "frames": 8,
+  "w": 48,
+  "h": 45
+ }
+}
