@@ -201,6 +201,13 @@ const poiCache = new Map<string, HTMLCanvasElement[]>();
 export const GROUND_VARIANTS = 4;
 
 /**
+ * Côté d'une tuile de sol. Élargi de 64 à 128 px : à 64, le motif se répétait sept fois et
+ * demie par écran, ce qui se remarque immédiatement une fois la texture quantifiée. À 128, il
+ * se répète moins de quatre fois, et le rendu coûte quatre fois moins de `drawImage`.
+ */
+export const GROUND_TILE = 128;
+
+/**
  * Tuile de sol 64×64 propre à un biome.
  *
  * Deux précautions, apprises en regardant le résultat à l'écran :
@@ -214,7 +221,7 @@ export function groundTile(biome: Biome, variant = 0): HTMLCanvasElement {
   const hit = groundCache.get(key);
   if (hit) return hit;
 
-  const S = 64;
+  const S = GROUND_TILE;
   const c = document.createElement('canvas');
   c.width = S;
   c.height = S;
@@ -227,53 +234,51 @@ export function groundTile(biome: Biome, variant = 0): HTMLCanvasElement {
   // transparents de la première version, dont les arêtes donnaient au monde un aspect de
   // patchwork cousu.
   const img = ctx.createImageData(S, S);
-  const [dr, dg, db] = hexToRgb(dark);
-  const [br, bg, bb] = hexToRgb(base);
-  const [lr, lg, lb] = hexToRgb(light);
+  const ramp = [dark, base, light].map(hexToRgb);
 
   /*
-   * Le champ de bruit ne dépend **que du biome**, jamais de la variante.
+   * Le champ de bruit ne dépend **que du biome**, jamais de la variante : un bruit périodique
+   * se raccorde avec lui-même, pas avec un bruit de graine différente. Faire varier la graine
+   * par variante rendait la grille de 64 px plus visible qu'avant.
    *
-   * C'est contre-intuitif mais indispensable : un bruit périodique se raccorde avec
-   * lui-même, pas avec un bruit de graine différente. Faire varier la graine par variante
-   * rendait la grille de 64 px *plus* visible qu'avant, chaque tuile ayant sa propre
-   * luminosité moyenne et donc une arête franche avec ses voisines. Les variantes ne jouent
-   * plus que sur les cailloux et les touffes, dont l'absence de raccord ne se voit pas.
+   * Surtout, le résultat est **quantifié**. La première version interpolait continûment entre
+   * les trois teintes : mathématiquement correct, mais dans un jeu dont tout le reste est à
+   * arêtes dures, un sol en dégradé lisse ne se lit pas comme une texture — il se lit comme du
+   * flou. Cinq paliers suffisent à retrouver des aplats francs, cohérents avec les sprites.
    */
   const salt = biome.id.length * 13 + 7;
+  const LEVELS = 5;
 
   for (let y = 0; y < S; y++) {
     for (let x = 0; x < S; x++) {
-      // Octave large (période 4 sur 64 px) + octave fine (période 16).
       const n =
-        periodicNoise(x / 16, y / 16, 4, salt) * 0.62 +
-        periodicNoise(x / 4, y / 4, 16, salt + 101) * 0.38;
+        periodicNoise(x / 32, y / 32, S / 32, salt) * 0.58 +
+        periodicNoise(x / 8, y / 8, S / 8, salt + 101) * 0.42;
 
-      let r: number;
-      let g: number;
-      let b: number;
-      if (n < 0.5) {
-        const t = n / 0.5;
-        r = dr + (br - dr) * t;
-        g = dg + (bg - dg) * t;
-        b = db + (bb - db) * t;
-      } else {
-        const t = (n - 0.5) / 0.5;
-        r = br + (lr - br) * t;
-        g = bg + (lg - bg) * t;
-        b = bb + (lb - bb) * t;
-      }
+      // Quantification : `n` continu → un palier discret, puis une teinte de la rampe.
+      // La rampe est ensuite **comprimée** vers le centre : les arêtes restent franches, mais
+      // le sol n'atteint jamais ses extrêmes. Sans cette compression, la texture rivalise
+      // d'intensité avec les ennemis, ce qui contredit toute la règle de lisibilité du jeu :
+      // le décor doit rester une texture, jamais un signal.
+      const step = Math.min(LEVELS - 1, Math.floor(n * LEVELS));
+      const raw = step / (LEVELS - 1);
+      const t = 0.5 + (raw - 0.5) * 0.55;
+      const seg = t < 0.5 ? 0 : 1;
+      const f = t < 0.5 ? t * 2 : (t - 0.5) * 2;
+      const a = ramp[seg]!;
+      const b = ramp[seg + 1]!;
+
       const o = (y * S + x) * 4;
-      img.data[o] = r;
-      img.data[o + 1] = g;
-      img.data[o + 2] = b;
+      img.data[o] = a[0] + (b[0] - a[0]) * f;
+      img.data[o + 1] = a[1] + (b[1] - a[1]) * f;
+      img.data[o + 2] = a[2] + (b[2] - a[2]) * f;
       img.data[o + 3] = 255;
     }
   }
   ctx.putImageData(img, 0, 0);
 
   // Quelques cailloux seulement – le détail ponctue, il ne meuble pas.
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < 18; i++) {
     const x = rng.int(1, S - 3);
     const y = rng.int(1, S - 3);
     ctx.fillStyle = shade(detail, -0.3);
@@ -283,7 +288,7 @@ export function groundTile(biome: Biome, variant = 0): HTMLCanvasElement {
   }
 
   // Touffes rares et peu contrastées : trois par tuile, pas douze.
-  for (let i = 0; i < 3; i++) {
+  for (let i = 0; i < 11; i++) {
     const x = rng.int(2, S - 4);
     const y = rng.int(3, S - 3);
     ctx.fillStyle = shade(detail, -0.1);
@@ -345,9 +350,9 @@ export function groundVariantAt(tx: number, ty: number): number {
  */
 export function biomeAtTile(tx: number, ty: number): Biome {
   const h = cellSeed(tx, ty, 0x7a11);
-  const jx = ((h & 0xffff) / 0xffff - 0.5) * 48;
-  const jy = (((h >>> 16) & 0xffff) / 0xffff - 0.5) * 48;
-  return biomeAt(tx * 64 + 32 + jx, ty * 64 + 32 + jy);
+  const jx = ((h & 0xffff) / 0xffff - 0.5) * GROUND_TILE * 0.75;
+  const jy = (((h >>> 16) & 0xffff) / 0xffff - 0.5) * GROUND_TILE * 0.75;
+  return biomeAt(tx * GROUND_TILE + GROUND_TILE / 2 + jx, ty * GROUND_TILE + GROUND_TILE / 2 + jy);
 }
 
 /** Décor secondaire : rochers, tombes, roseaux, souches, ossements. */
@@ -685,4 +690,24 @@ export class Terrain {
 
   /** `true` la frame où le joueur change de biome. */
   biomeChanged = false;
+
+  /** Clés des structures déjà consommées, pour la sauvegarde de reprise. */
+  usedKeys(): string[] {
+    const out: string[] = [];
+    for (const poi of this.pois.values()) if (poi?.used) out.push(poi.key);
+    return out;
+  }
+
+  /**
+   * Marque des structures comme déjà activées. Les cellules sont générées à la demande :
+   * on force donc leur création avant de poser le drapeau, sinon la structure réapparaîtrait
+   * intacte à la première visite suivante.
+   */
+  restoreUsed(keys: string[]): void {
+    for (const key of keys) {
+      const [cx, cy] = key.split(',').map(Number);
+      const poi = this.poiAt(cx!, cy!);
+      if (poi) poi.used = true;
+    }
+  }
 }

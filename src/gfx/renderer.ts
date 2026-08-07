@@ -1,7 +1,9 @@
 import { clamp, lerp, TAU } from '../core/math';
 import { P, rgba } from './palette';
 import { shadowSprite, type SpriteSet } from './sprites';
-import { biomeAt, biomeAtTile, groundTile, groundVariantAt, propSprite, poiSprite } from '../game/terrain';
+import {
+  biomeAt, biomeAtTile, groundTile, groundVariantAt, propSprite, poiSprite, GROUND_TILE,
+} from '../game/terrain';
 import type { World } from '../game/world';
 import type { Enemy } from '../game/types';
 
@@ -19,7 +21,7 @@ import type { Enemy } from '../game/types';
 const BUCKET_H = 24;
 const BUCKETS = 32;
 
-const TILE = 64;
+const TILE = GROUND_TILE;
 
 export class Renderer {
   private buckets: Enemy[][] = [];

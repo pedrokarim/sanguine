@@ -26,6 +26,20 @@ export class Director {
   private weights: number[] = [];
   private weightsMinute = -1;
 
+  /** État à conserver pour reprendre une partie interrompue. */
+  serialize(): { events: number[]; reaper: boolean } {
+    return { events: [...this.firedEvents], reaper: this.reaperSpawned };
+  }
+
+  /**
+   * Restaure les événements déjà déclenchés. Sans cela, une reprise à la 20ᵉ minute
+   * rejouerait d'un coup toutes les vagues scriptées et les quatre boss.
+   */
+  restore(data: { events: number[]; reaper: boolean }): void {
+    this.firedEvents = new Set(data.events);
+    this.reaperSpawned = data.reaper;
+  }
+
   reset(): void {
     this.accum = 0;
     this.firedEvents.clear();
