@@ -178,9 +178,43 @@ Liste complète dans `02-content-bible.md`.
 
 ## 11. Sauvegarde
 
-`localStorage`, une seule clé (`sanguine.save.v1`), écriture à chaque fin de run et à chaque achat.
-Contenu : or, niveaux du Sanctuaire, personnages débloqués, armes découvertes, records, options.
-Un bouton d'effacement existe dans les options, avec double confirmation.
+`localStorage`, une seule clé (`sanguine.save.v1`), un objet JSON versionné et fusionné avec
+la structure par défaut au chargement — ajouter un champ ne casse donc jamais une ancienne
+sauvegarde.
+
+### Ce qui persiste toujours
+Or, niveaux du Sanctuaire, personnages débloqués, codex (armes, reliques, bestiaire),
+statistiques cumulées, options. C'est la norme du genre : la méta survit à la mort, le run non.
+
+### Reprise d'une partie interrompue
+Le genre ne sauvegarde traditionnellement pas les parties en cours. **Le navigateur change ce
+calcul** : un onglet fermé par mégarde, une mise en veille ou un plantage effacent la même
+demi-heure d'engagement qu'un jeu de bureau protégerait par sa simple présence à l'écran.
+
+La sauvegarde est donc **partielle et assumée**. On enregistre ce que le joueur a *acquis* :
+
+| Enregistré | Non enregistré |
+|---|---|
+| Personnage, graine, temps, position | Ennemis vivants |
+| Niveau, XP, PV | Projectiles et zones |
+| Armes et niveaux, passifs, reliques | Gemmes et butin au sol |
+| Rerolls, résurrections, or, compteurs | Particules, décalques de sang |
+| Structures déjà activées, vagues déclenchées | — |
+
+Sérialiser quinze cents entités serait volumineux, fragile et casserait au moindre changement
+de structure. À la reprise, le director repeuple le terrain : le joueur perd la vague en cours
+et les gemmes non ramassées. C'est un prix compréhensible pour une interruption, et cela rend
+la reprise robuste **par construction** plutôt que par vigilance.
+
+### Garde-fous
+- Écriture toutes les 10 s, à chaque choix de carte ou de coffre, et sur `pagehide` /
+  `visibilitychange` — c'est-à-dire précisément au moment où l'onglet se ferme.
+- La sauvegarde est écrite **après** l'application d'un choix : recharger ne permet pas de
+  revenir sur une carte déjà prise (pas de *save-scumming*).
+- Elle est effacée à la mort, à la victoire et à l'abandon : une partie terminée ne peut
+  jamais être reprise.
+- Deux secondes d'invulnérabilité à la reprise, le joueur n'ayant pas les mains sur le clavier
+  à la première frame.
 
 ## 12. Accessibilité
 

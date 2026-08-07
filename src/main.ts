@@ -59,6 +59,10 @@ let debugEl: HTMLDivElement | null = null;
 let currentOffers: Offer[] = [];
 let currentChest: ChestResult | null = null;
 
+/** Intervalle d'auto-sauvegarde de la partie en cours, en secondes. */
+const RUN_SAVE_INTERVAL = 10;
+let runSaveTimer = 0;
+
 // ---------------------------------------------------------------------------
 // Mise à l'échelle : facteur entier, jamais d'interpolation
 // ---------------------------------------------------------------------------
@@ -188,7 +192,7 @@ function goTitle(): void {
   hud = null;
   audio.stopMusic();
   audio.setBossMode(false);
-  screens.title(goCharSelect, goSanctuary, goOptions, goCodex);
+  screens.title(goCharSelect, goSanctuary, goOptions, goCodex, load().run, () => startRun('', true));
 }
 
 function goCharSelect(): void {
@@ -222,11 +226,12 @@ function goOptions(): void {
   );
 }
 
-function startRun(charId: string): void {
-  lastCharId = charId;
+function startRun(charId: string, resume = false): void {
+  const saved = resume ? load().run : null;
+  lastCharId = saved ? saved.charId : charId;
   screens.close();
 
-  world = new World(charId);
+  world = new World(lastCharId, saved?.seed);
   world.warmup();
   director.reset();
   applyOptions();
@@ -235,12 +240,42 @@ function startRun(charId: string): void {
   hud = new Hud(uiLayer);
   hud.show();
 
+  if (saved) {
+    world.restoreRun(saved);
+    director.restore({ events: saved.events, reaper: saved.reaper });
+  } else {
+    clearRun();
+  }
+
   state = 'playing';
   audio.init();
   audio.startMusic();
+  runSaveTimer = 0;
 
   // Enregistre l'arme de départ dans le codex.
   markWeaponSeen(world.player.weaponIds[0]!);
+}
+
+/**
+ * Enregistre la partie en cours.
+ *
+ * Appelée périodiquement et à chaque événement décisif (choix de carte, coffre, perte de
+ * focus). Sauvegarder **après** l'application d'un choix, et non avant, évite le
+ * « save-scumming » : recharger ne permet pas de revenir sur une carte déjà prise.
+ */
+function saveRun(): void {
+  const w = world;
+  if (!w || w.state !== 'playing') return;
+  update((sv) => {
+    sv.run = w.serializeRun(director.serialize());
+  });
+}
+
+/** Efface la partie sauvegardée. Une partie terminée ne doit jamais pouvoir être reprise. */
+function clearRun(): void {
+  update((sv) => {
+    sv.run = null;
+  });
 }
 
 function markWeaponSeen(id: string): void {
@@ -277,6 +312,7 @@ function showLevelUp(): void {
       if (offer.kind === 'weapon-new' || offer.kind === 'weapon-up') markWeaponSeen(offer.id);
       w.pendingLevelUps--;
       screens.close();
+      saveRun();
       resumeAfterMenu();
     },
     () => {
@@ -309,6 +345,7 @@ function openChestScreen(): void {
     currentChest = null;
     w.pendingChests--;
     screens.close();
+    saveRun();
     resumeAfterMenu();
   });
 }
@@ -372,6 +409,7 @@ function endRun(victory: boolean): void {
     character: `${char.name} ${char.epithet}`,
   };
 
+  clearRun();
   markRelicsSeen(w.player.relics);
   update((s) => {
     for (const id of w.seenEnemies) if (!s.seenEnemies.includes(id)) s.seenEnemies.push(id);
@@ -408,6 +446,12 @@ const loop = new Loop({
       updateWeapons(w, dt * w.timeScale);
       director.update(w, dt * w.timeScale);
       w.update(dt);
+
+      runSaveTimer += dt;
+      if (runSaveTimer >= RUN_SAVE_INTERVAL) {
+        runSaveTimer = 0;
+        saveRun();
+      }
 
       if (w.state === 'dead') endRun(false);
       else if (w.state === 'won') endRun(true);
@@ -522,8 +566,14 @@ function updateDebug(): void {
 // Cycle de vie
 // ---------------------------------------------------------------------------
 
+// Un onglet fermé ou masqué est le cas d'usage principal de la reprise : c'est précisément
+// là qu'une partie de trente minutes se perd. `pagehide` est plus fiable que `beforeunload`,
+// notamment sur mobile où ce dernier n'est pas toujours émis.
+window.addEventListener('pagehide', saveRun);
+
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) {
+    saveRun();
     audio.suspend();
     if (state === 'playing') togglePause();
   } else if (state !== 'paused') {
