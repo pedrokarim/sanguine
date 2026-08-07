@@ -144,12 +144,41 @@ en tourniquet dans sa cellule. Le résultat est visuellement suffisant pour un c
 
 ## 7. Rendu et résolution
 
-Résolution logique fixe : **480 × 270** (16:9), mise à l'échelle en entier vers la fenêtre avec
-`imageSmoothingEnabled = false`. Cela garantit un pixel art net et rend le coût de rendu
-indépendant de la taille de l'écran.
+Le jeu est rendu dans un **canvas hors écran** à sa résolution logique, puis recopié une fois
+par frame sur le canvas visible avec un facteur **entier** et le lissage désactivé.
 
-Sur les écrans très grands, on utilise un facteur d'échelle entier maximal, avec des barres
-latérales assumées plutôt qu'un étirement flou.
+```
+scene (hors écran)          display (visible)
+  480 × 270 logique   ──×4──▶   1920 × 1080 pixels physiques
+  tout le rendu à 1:1          1 pixel mémoire = 1 pixel écran
+```
+
+### Pourquoi deux canvas
+
+Cette architecture n'est pas une élégance gratuite : elle rend le flou **structurellement
+impossible**. Deux tentatives plus simples ont échoué avant elle.
+
+| Tentative | Défaut |
+|---|---|
+| Canvas 480 × 270, taille CSS `480 × facteur` | Ignore `devicePixelRatio` : sous Windows à 125 %, la taille physique n'est plus un multiple entier de 480. Le navigateur rééchantillonne. |
+| Même chose, facteur calculé en pixels physiques | La taille CSS devient fractionnaire (« 1539.2px »). Le compositeur l'arrondit à sa façon, et le rapport redevient non entier. |
+| **Deux canvas** | Le canvas visible est dimensionné en pixels physiques et affiché à sa taille CSS exacte : **le navigateur n'a plus rien à redimensionner.** La seule mise à l'échelle est le `drawImage` final, à facteur entier et sans lissage. |
+
+Le piège commun aux deux premières : le défaut est **invisible sur un écran à 100 %**, c'est-à-dire
+sur la machine de développement. Il n'apparaît que sur les configurations à échelle
+fractionnaire — soit la majorité des machines Windows.
+
+Vérifié sur neuf configurations, y compris des tailles volontairement « sales » (1463 × 823
+à 1,25 ; 1381 × 777 à 1,35) : rapport mémoire/écran de 1,0000 partout.
+
+Le mode debug (`~`) affiche ce rapport en clair, seul moyen de diagnostiquer à distance un
+problème qui dépend de l'écran et du réglage système.
+
+### Résolution logique variable
+Le facteur restant entier, la **résolution logique** s'ajuste pour couvrir la fenêtre : sans
+cela, tout écran dont les dimensions ne sont pas un multiple exact de 480 × 270 afficherait
+des bandes noires. Elle est bornée à 1,5× la référence pour qu'un écran très large ne confère
+pas un avantage de jeu.
 
 ## 8. Déterminisme
 
