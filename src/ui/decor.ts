@@ -245,6 +245,25 @@ function cursor(body: string, outline: string, gem: string | null): string {
   return `url("${c.toDataURL()}") ${hot} ${hot}, auto`;
 }
 
+/**
+ * Applique un thème d'interface : la teinte des cadres et du fleuron.
+ *
+ * Seul `--frame-stone` change — c'est le cadre par défaut de tous les éléments. Les cadres
+ * or, sang et épique gardent leur sens (survol, danger, évolution) et ne sont donc jamais
+ * réassignés : un thème ne doit pas rendre un avertissement indistinct du reste.
+ */
+export function applyTheme(color: string, accent: string): void {
+  const root = document.documentElement.style;
+  root.setProperty('--frame-stone', url(frame(color, accent)));
+  root.setProperty('--flourish', url(flourish(color, accent)));
+  root.setProperty('--corner', url(corner(color, accent)));
+}
+
+/** Applique un curseur : teinte du corps et de la gemme. */
+export function applyCursor(color: string, accent: string): void {
+  document.documentElement.style.setProperty('--cursor', cursor(color, '#05060a', accent));
+}
+
 /** Génère tous les ornements et les publie en variables CSS. Appelé une fois au démarrage. */
 export function installDecor(): void {
   const root = document.documentElement.style;

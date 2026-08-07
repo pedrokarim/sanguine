@@ -216,16 +216,67 @@ la reprise robuste **par construction** plutôt que par vigilance.
 - Deux secondes d'invulnérabilité à la reprise, le joueur n'ayant pas les mains sur le clavier
   à la première frame.
 
-## 12. Accessibilité
+## 12. Boutique cosmétique
 
-- **Secousse de caméra réglable de 0 à 100 %**, par défaut à **40 %**. Ce n'est pas un réglage
-  cosmétique : un survivor-like enchaîne des dizaines d'impacts par seconde, et une secousse
-  mal dosée devient physiquement pénible à regarder. Trois décisions en découlent – aucune
-  secousse sur coup critique, plafond d'accumulation hors événements majeurs, et oscillation
-  sinusoïdale plutôt que bruit blanc (un mouvement continu se lit, un scintillement non).
-- **Réduction des flashs** : option qui supprime les flashs plein écran et les tremblements.
-- **Taille du HUD** : trois crans.
-- **Daltonisme** : les gemmes se distinguent par la **forme** autant que par la couleur.
-- **Pause à tout moment**, y compris pendant un boss.
-- Aucun contenu ne dépend du son.
-- Le jeu se met automatiquement en pause quand l'onglet perd le focus.
+L'or n'avait qu'un seul débouché : le Sanctuaire, c'est-à-dire de la puissance. Un joueur
+ayant tout acheté n'avait plus rien à faire de sa monnaie, et un joueur qui hésitait n'avait
+aucun arbitrage à rendre. La boutique met les deux en concurrence sur la même bourse :
+**progresser ou avoir de l'allure**.
+
+| Catégorie | Contenu | Prix |
+|---|---|---|
+| **Teintes** | 8 apparences alternatives, réparties sur les six personnages | 900 à 1 600 |
+| **Traînées** | Cendres, givre, braises, or fondu, vide | 500 à 1 500 |
+| **Interface** | Teinte des cadres : pierre, reliquaire, sang, améthyste | 800 à 1 400 |
+| **Curseurs** | Lin, or, sang, givre | 400 à 600 |
+
+**Règle absolue : aucun cosmétique n'influence le jeu.** Ni statistique, ni lisibilité. Les
+teintes de personnage restent chaudes et saturées (le joueur doit rester le point chaud de
+l'écran), les traînées sont émises à cadence fixe et uniquement en mouvement, et aucune ne
+touche aux couleurs réservées aux gemmes ou au sang.
+
+Le thème d'interface ne réassigne que le cadre **par défaut**. Les cadres or, sang et épique
+gardent leur sens — survol, danger, évolution — et ne sont jamais repeints : un thème ne doit
+pas rendre un avertissement indistinct du reste.
+
+---
+
+## 13. Accessibilité
+
+Tous les réglages s'appliquent **immédiatement**, sans validation ni redémarrage, et chaque
+curseur affiche sa valeur chiffrée : un réglage sans retour se règle à l'aveugle.
+
+### Affichage
+- **Taille de l'interface** : 70 % à 200 %, par défaut **115 %**. La valeur par défaut n'est
+  pas 100 % : la taille d'origine était lisible sur un grand écran de développement, beaucoup
+  moins sur un portable — et un réglage de confort doit partir d'une valeur confortable, pas
+  d'un minimum.
+- **Secousse de caméra** : 0 % à 100 %, par défaut 40 %. Voir `04-art-direction.md` §6 pour
+  l'historique de ce réglage.
+- **Contraste renforcé** : textes d'interface plus clairs et mieux détourés, sans toucher aux
+  couleurs de jeu qui portent du sens.
+
+### Confort visuel
+- **Réduire les flashs** : supprime les flashs plein écran et les vignettes pulsées.
+- **Réduire les animations** : coulures du logo, sprites du codex, transitions d'écran. Le
+  réglage est explicite et indépendant de `prefers-reduced-motion` : certains joueurs ne
+  l'ont pas activé au niveau du système mais le souhaitent ici.
+- **Chiffres de dégâts** : les couper réduit considérablement le bruit à l'écran en fin de
+  partie, quand plusieurs centaines de nombres se superposent.
+
+### Jeu
+- **Repère sous le joueur** : anneau permanent au sol. Dans une horde de trois cents
+  créatures, retrouver son personnage est le premier obstacle du genre.
+- **Vitesse du jeu** : 60 % à 100 %. Ce n'est pas un réglage de difficulté déguisé — le
+  contenu est identique, il se déroule simplement moins vite, ce qui rend le kiting
+  accessible à des joueurs que la cadence d'origine exclut.
+
+### Acquis par construction
+- Le jeu est **intégralement jouable sans son** : aucune information n'est exclusivement
+  sonore.
+- Les gemmes se distinguent par leur **forme** autant que par leur couleur (nombre de
+  pointes croissant), ce qui les garde lisibles en cas de daltonisme.
+- Pause à tout moment, y compris pendant un boss, et mise en pause automatique quand
+  l'onglet perd le focus.
+- Navigation complète au clavier et à la manette sur tous les écrans.
+- Une partie interrompue se reprend (voir §11).

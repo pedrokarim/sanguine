@@ -131,6 +131,18 @@ export class World {
   /** Types d'ennemis croisés pendant le run, reversés au bestiaire à la fin. */
   seenEnemies = new Set<string>();
 
+  /** Couleur de la traînée cosmétique, `null` si aucune n'est équipée. */
+  trailColor: string | null = null;
+  private trailTimer = 0;
+
+  // --- réglages d'accessibilité, appliqués depuis les options ---
+  /** Chiffres de dégâts flottants. */
+  showDamage = true;
+  /** Anneau permanent sous le joueur. */
+  highlightPlayer = false;
+  /** Vitesse de simulation, 0.6 à 1. Ne change pas le contenu, seulement la cadence. */
+  speedScale = 1;
+
   constructor(charId: string, seed?: number) {
     this.seed = seed ?? makeSeed();
     this.rng = new Rng(this.seed);
@@ -465,7 +477,7 @@ export class World {
     }
 
     if (!silent) {
-      this.particles.number(e.x, e.y - e.radius - 2, final, crit);
+      if (this.showDamage) this.particles.number(e.x, e.y - e.radius - 2, final, crit);
       this.particles.sparks(e.x, e.y, Math.atan2(kby, kbx), crit ? 6 : 3, crit ? P.gold : P.spark);
       audio.play(crit ? 'crit' : 'hit');
       // Ni secousse ni micro-gel sur un critique : à 5 % de chance et plusieurs dizaines de
@@ -757,7 +769,7 @@ export class World {
       this.slowMoTimer -= dt;
       if (this.slowMoTimer <= 0) this.timeScale = 1;
     }
-    const sdt = dt * this.timeScale;
+    const sdt = dt * this.timeScale * this.speedScale;
 
     this.time += sdt;
     if (this.announcement) {
@@ -781,6 +793,7 @@ export class World {
     this.updateProjectiles(sdt);
     this.updateZones(sdt);
     this.updatePickups(sdt);
+    this.emitTrail(sdt);
     this.particles.update(sdt);
     this.cam.update(dt);
 
@@ -796,6 +809,22 @@ export class World {
       }
     }
 
+  }
+
+  /**
+   * Traînée purement décorative laissée derrière le joueur.
+   *
+   * Émise à cadence fixe et **uniquement en mouvement** : une traînée qui s'accumule à
+   * l'arrêt forme une tache, et les particules décoratives sont les premières sacrifiées
+   * quand le pool sature — elles ne peuvent donc jamais masquer une information de jeu.
+   */
+  private emitTrail(dt: number): void {
+    if (!this.trailColor || !this.player.moving) return;
+    this.trailTimer -= dt;
+    if (this.trailTimer > 0) return;
+    this.trailTimer = 0.05;
+    this.particles.dust(this.player.x + fxRng.spread(2), this.player.y + 5, 1);
+    this.particles.ember(this.player.x + fxRng.spread(3), this.player.y + 4, this.trailColor, 1);
   }
 
   private rebuildGrid(): void {

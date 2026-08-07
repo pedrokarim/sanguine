@@ -363,6 +363,18 @@ export class Renderer {
     ctx.drawImage(sh, Math.round(x - 8), Math.round(y + 5), 16, 8);
     ctx.globalAlpha = 1;
 
+    // Repère d'accessibilité : un anneau permanent au sol. Dans une horde de trois cents
+    // créatures, retrouver son personnage est le premier obstacle du genre.
+    if (w.highlightPlayer) {
+      ctx.strokeStyle = P.gold;
+      ctx.lineWidth = 1;
+      ctx.globalAlpha = 0.85;
+      ctx.beginPath();
+      ctx.ellipse(Math.round(x), Math.round(y + 7), 10, 5, 0, 0, TAU);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+
     // Clignotement d'invulnérabilité : un créneau, pas un fondu – bien plus lisible.
     if (pl.iframes > 0 && Math.floor(pl.iframes * 14) % 2 === 0) return;
 

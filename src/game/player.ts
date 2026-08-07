@@ -3,6 +3,7 @@ import { load } from '../core/save';
 import { makeHero, type SpriteSet } from '../gfx/sprites';
 import { addMods, type Mods } from '../data/mods';
 import { characterById, NO_REGEN_CHARS, type CharacterDef } from '../data/characters';
+import { COSMETIC_BY_ID } from '../data/cosmetics';
 import { passiveById } from '../data/passives';
 import { weaponById } from '../data/weapons';
 import { RELIC_BY_ID, HALVES_HP, type RelicFlag } from '../data/relics';
@@ -96,8 +97,18 @@ export class Player {
 
   constructor(charId: string) {
     this.char = characterById(charId);
-    this.walkSprite = makeHero(`hero:${this.char.id}`, this.char.art, true);
-    this.idleSprite = makeHero(`hero:${this.char.id}`, this.char.art, false);
+
+    // Teinte cosmétique éventuelle : elle ne change que des couleurs, jamais une statistique.
+    // La clé de cache inclut l'identifiant de la teinte, sinon la première apparence générée
+    // resterait figée pour tout le reste de la session.
+    const sv = load();
+    const skinId = sv.cosmetics.equipped[`skin:${this.char.id}`];
+    const skin = skinId && sv.cosmetics.owned.includes(skinId) ? COSMETIC_BY_ID.get(skinId) : undefined;
+    const art = skin?.art ? { ...this.char.art, ...skin.art } : this.char.art;
+    const key = `hero:${this.char.id}${skin ? `:${skin.id}` : ''}`;
+
+    this.walkSprite = makeHero(key, art, true);
+    this.idleSprite = makeHero(key, art, false);
     this.addWeapon(this.char.startWeapon);
     this.recompute();
     this.hp = this.stats.maxHp;

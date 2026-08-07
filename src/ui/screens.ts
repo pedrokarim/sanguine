@@ -15,6 +15,10 @@ import { ENEMIES, BOSSES, enemyById, type EnemyAI } from '../data/enemies';
 import type { Rarity } from '../gfx/palette';
 import type { Offer, ChestResult } from '../game/upgrades';
 import { BloodLogo, BLOOD, DAWN } from './logo';
+import {
+  SKINS, TRAILS, THEMES, CURSORS, KIND_LABEL,
+  type Cosmetic, type CosmeticKind,
+} from '../data/cosmetics';
 
 /** Libellés lisibles des comportements d'IA, pour le bestiaire. */
 const AI_LABEL: Record<EnemyAI, string> = {
@@ -221,6 +225,7 @@ export class Screens {
     onSanctuary: () => void,
     onOptions: () => void,
     onCodex: () => void,
+    onShop: () => void,
     savedRun: RunSave | null,
     onResume: () => void,
   ): void {
@@ -271,13 +276,15 @@ export class Screens {
 
     const bPlay = this.button(savedRun ? 'Nouvelle partie' : 'Jouer', savedRun ? '' : 'primary');
     const bSanct = this.button('Sanctuaire');
+    const bShop = this.button('Boutique');
     const bCodex = this.button('Codex');
     const bOpt = this.button('Options');
     bPlay.addEventListener('click', () => { audio.play('confirm'); onPlay(); });
     bSanct.addEventListener('click', () => { audio.play('confirm'); onSanctuary(); });
+    bShop.addEventListener('click', () => { audio.play('confirm'); onShop(); });
     bCodex.addEventListener('click', () => { audio.play('confirm'); onCodex(); });
     bOpt.addEventListener('click', () => { audio.play('confirm'); onOptions(); });
-    list.append(bPlay, bSanct, bCodex, bOpt);
+    list.append(bPlay, bSanct, bShop, bCodex, bOpt);
     el.appendChild(list);
 
     if (sv.stats.runs > 0) {
@@ -314,7 +321,8 @@ export class Screens {
     legal.textContent = `© ${YEAR} Ascencia · v${VERSION}`;
     el.appendChild(legal);
 
-    this.navigable(bResume ? [bResume, bPlay, bSanct, bCodex, bOpt] : [bPlay, bSanct, bCodex, bOpt]);
+    const nav = [bPlay, bSanct, bShop, bCodex, bOpt];
+    this.navigable(bResume ? [bResume, ...nav] : nav);
   }
 
   // ------------------------------------------------- sélection de personnage
@@ -540,6 +548,130 @@ export class Screens {
     ok.addEventListener('click', () => { audio.play('confirm'); onDone(); });
     el.appendChild(ok);
     this.navigable([ok]);
+  }
+
+  // -------------------------------------------------------------- boutique
+
+  /**
+   * Boutique cosmétique.
+   *
+   * Elle existe parce que l'or n'avait qu'un seul débouché : le Sanctuaire, c'est-à-dire de
+   * la puissance. Un joueur ayant tout acheté n'avait plus rien à faire de sa monnaie. Les
+   * deux se disputent désormais la même bourse, ce qui crée un arbitrage : progresser ou
+   * avoir de l'allure.
+   *
+   * Aucun article n'a d'effet sur le jeu — c'est la condition pour que le choix reste libre.
+   */
+  shop(onBack: () => void, onApply: () => void): void {
+    const render = (): void => {
+      const el = this.open('shop');
+      const sv = load();
+      el.innerHTML = `<h2 class="title-font">Boutique</h2>`;
+
+      const purse = document.createElement('div');
+      purse.className = 'gold-count';
+      purse.textContent = `${abbrev(sv.gold)} or`;
+      el.appendChild(purse);
+
+      const note = document.createElement('div');
+      note.className = 'hint';
+      note.textContent = 'Rien de tout ceci n\'influence le jeu.';
+      el.appendChild(note);
+
+      const scroll = document.createElement('div');
+      scroll.className = 'codex-scroll';
+
+      const group = (kind: CosmeticKind, items: Cosmetic[]): void => {
+        const owned = items.filter((c) => c.price === 0 || sv.cosmetics.owned.includes(c.id));
+        const head = document.createElement('div');
+        head.className = 'codex-section';
+        head.innerHTML = '<span class="t"></span><span class="c"></span>';
+        head.querySelector('.t')!.textContent = KIND_LABEL[kind];
+        head.querySelector('.c')!.textContent = `${owned.length} / ${items.length}`;
+        scroll.appendChild(head);
+
+        const grid = document.createElement('div');
+        grid.className = 'codex-grid';
+
+        for (const item of items) {
+          const has = item.price === 0 || sv.cosmetics.owned.includes(item.id);
+          // Une teinte s'équipe pour son personnage, les autres articles par catégorie.
+          const slot = item.kind === 'skin' ? `skin:${item.charId}` : item.kind;
+          const on = sv.cosmetics.equipped[slot] === item.id;
+
+          const cell = document.createElement('div');
+          cell.className = `codex-cell shop-cell${has ? '' : ' locked'}${on ? ' equipped' : ''}`;
+
+          const stage = document.createElement('div');
+          stage.className = 'codex-stage';
+          stage.appendChild(this.shopPreview(item));
+          cell.appendChild(stage);
+
+          const n = document.createElement('div');
+          n.className = 'codex-name';
+          n.textContent = item.name;
+          const d = document.createElement('div');
+          d.className = 'codex-desc';
+          d.textContent = item.desc;
+          cell.append(n, d);
+
+          const btn = this.button(
+            on ? 'Équipé' : has ? 'Équiper' : `${item.price} or`,
+            on ? 'primary' : '',
+          );
+          btn.classList.add('shop-btn');
+          btn.disabled = on || (!has && sv.gold < item.price);
+          btn.addEventListener('click', () => {
+            const cur = load();
+            if (!has) {
+              if (cur.gold < item.price) { audio.play('deny'); return; }
+              update((x) => {
+                x.gold -= item.price;
+                x.cosmetics.owned.push(item.id);
+                x.cosmetics.equipped[slot] = item.id;
+              });
+              audio.play('unlock');
+            } else {
+              update((x) => { x.cosmetics.equipped[slot] = item.id; });
+              audio.play('confirm');
+            }
+            onApply();
+            render();
+          });
+          cell.appendChild(btn);
+          grid.appendChild(cell);
+        }
+        scroll.appendChild(grid);
+      };
+
+      group('skin', SKINS);
+      group('trail', TRAILS);
+      group('theme', THEMES);
+      group('cursor', CURSORS);
+
+      el.appendChild(scroll);
+      const back = this.button('Retour');
+      back.addEventListener('click', onBack);
+      el.appendChild(back);
+      this.navigable([back]);
+    };
+    render();
+  }
+
+  /** Aperçu d'un article : sprite réel pour les teintes, pastille de couleur sinon. */
+  private shopPreview(item: Cosmetic): HTMLElement {
+    if (item.kind === 'skin' && item.charId) {
+      const c = characterById(item.charId);
+      const art = { ...c.art, ...(item.art ?? {}) };
+      const set = makeHero(`shop:${item.id}`, art, false);
+      return this.spriteBlock(spriteSheet(`shop:${item.id}`, set, this.fitScale(set, 96, 54)), true, 0.9);
+    }
+    const sw = document.createElement('div');
+    sw.className = 'shop-swatch';
+    sw.style.setProperty('--c', item.color ?? 'transparent');
+    sw.style.setProperty('--a', item.accent ?? item.color ?? 'transparent');
+    if (!item.color) sw.classList.add('none');
+    return sw;
   }
 
   // ------------------------------------------------------------ sanctuaire
@@ -814,79 +946,104 @@ export class Screens {
 
   // --------------------------------------------------------------- options
 
-  options(
-    onBack: () => void,
-    onHudScale: (v: number) => void,
-    onReduceFlash: (v: boolean) => void,
-    onShake: (v: number) => void,
-  ): void {
+  options(onBack: () => void, onApply: () => void): void {
     const el = this.open('options');
     const sv = load();
     el.innerHTML = `<h2 class="title-font">Options</h2>`;
 
-    const slider = (label: string, value: number, apply: (v: number) => void): HTMLDivElement => {
+    const scroll = document.createElement('div');
+    scroll.className = 'opt-scroll';
+
+    const section = (title: string): void => {
+      const h = document.createElement('div');
+      h.className = 'codex-section';
+      h.innerHTML = '<span class="t"></span>';
+      h.querySelector('.t')!.textContent = title;
+      scroll.appendChild(h);
+    };
+
+    /** Curseur avec valeur affichée : un réglage sans retour chiffré se règle à l'aveugle. */
+    const slider = (
+      label: string, min: number, max: number, step: number,
+      get: () => number, set: (v: number) => void, fmt: (v: number) => string,
+    ): void => {
       const row = document.createElement('div');
       row.className = 'opt-row';
       const l = document.createElement('label');
       l.textContent = label;
+      const val = document.createElement('span');
+      val.className = 'opt-val';
+      val.textContent = fmt(get());
       const input = document.createElement('input');
       input.type = 'range';
-      input.min = '0';
-      input.max = '100';
-      input.value = String(Math.round(value * 100));
+      input.min = String(min);
+      input.max = String(max);
+      input.step = String(step);
+      input.value = String(get());
       input.addEventListener('input', () => {
-        const v = Number(input.value) / 100;
-        apply(v);
+        set(Number(input.value));
+        val.textContent = fmt(Number(input.value));
         save();
+        onApply();
       });
-      row.append(l, input);
-      return row;
+      row.append(l, input, val);
+      scroll.appendChild(row);
     };
 
-    el.appendChild(slider('Volume général', sv.options.master, (v) => {
-      sv.options.master = v;
-      audio.masterVol = v;
-      audio.applyVolumes();
-    }));
-    el.appendChild(slider('Effets sonores', sv.options.sfx, (v) => {
-      sv.options.sfx = v;
-      audio.sfxVol = v;
-      audio.applyVolumes();
-    }));
-    el.appendChild(slider('Musique', sv.options.music, (v) => {
-      sv.options.music = v;
-      audio.musicVol = v;
-      audio.applyVolumes();
-    }));
-    el.appendChild(slider('Taille du HUD', (sv.options.hudScale - 0.7) / 0.8, (v) => {
-      const scale = 0.7 + v * 0.8;
-      sv.options.hudScale = scale;
-      onHudScale(scale);
-    }));
+    const toggle = (label: string, hint: string, get: () => boolean, set: (v: boolean) => void): void => {
+      const row = document.createElement('div');
+      row.className = 'opt-row';
+      const wrap = document.createElement('div');
+      const l = document.createElement('label');
+      l.textContent = label;
+      const h = document.createElement('div');
+      h.className = 'opt-hint';
+      h.textContent = hint;
+      wrap.append(l, h);
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.checked = get();
+      cb.addEventListener('change', () => {
+        set(cb.checked);
+        save();
+        onApply();
+      });
+      row.append(wrap, cb);
+      scroll.appendChild(row);
+    };
 
-    // Secousse de caméra : réglable jusqu'à zéro. Un survivor-like enchaîne tant d'impacts
-    // qu'une secousse mal dosée devient physiquement pénible ; c'est un réglage de confort,
-    // pas un effet cosmétique.
-    el.appendChild(slider('Secousse de caméra', sv.options.shake, (v) => {
-      sv.options.shake = v;
-      onShake(v);
-    }));
+    const pct = (v: number): string => `${Math.round(v * 100)} %`;
 
-    const flashRow = document.createElement('div');
-    flashRow.className = 'opt-row';
-    const fl = document.createElement('label');
-    fl.textContent = 'Réduire les flashs et secousses';
-    const cb = document.createElement('input');
-    cb.type = 'checkbox';
-    cb.checked = sv.options.reduceFlash;
-    cb.addEventListener('change', () => {
-      sv.options.reduceFlash = cb.checked;
-      onReduceFlash(cb.checked);
-      save();
-    });
-    flashRow.append(fl, cb);
-    el.appendChild(flashRow);
+    section('Son');
+    slider('Volume général', 0, 1, 0.05, () => sv.options.master, (v) => { sv.options.master = v; }, pct);
+    slider('Effets sonores', 0, 1, 0.05, () => sv.options.sfx, (v) => { sv.options.sfx = v; }, pct);
+    slider('Musique', 0, 1, 0.05, () => sv.options.music, (v) => { sv.options.music = v; }, pct);
 
+    section('Affichage');
+    slider('Taille de l\'interface', 0.7, 2, 0.05, () => sv.options.hudScale, (v) => { sv.options.hudScale = v; }, pct);
+    slider('Secousse de caméra', 0, 1, 0.05, () => sv.options.shake, (v) => { sv.options.shake = v; }, pct);
+    toggle('Contraste renforcé', 'Textes plus clairs et mieux détourés.',
+      () => sv.options.highContrast, (v) => { sv.options.highContrast = v; });
+
+    section('Confort visuel');
+    toggle('Réduire les flashs', 'Supprime les flashs plein écran et les vignettes pulsées.',
+      () => sv.options.reduceFlash, (v) => { sv.options.reduceFlash = v; });
+    toggle('Réduire les animations', 'Coulures du logo, sprites du codex, transitions.',
+      () => sv.options.reduceMotion, (v) => { sv.options.reduceMotion = v; });
+    toggle('Chiffres de dégâts', 'Les couper réduit beaucoup le bruit à l\'écran.',
+      () => sv.options.showDamage, (v) => { sv.options.showDamage = v; });
+
+    section('Jeu');
+    toggle('Repère sous le joueur', 'Un anneau permanent pour ne jamais vous perdre dans la horde.',
+      () => sv.options.highlightPlayer, (v) => { sv.options.highlightPlayer = v; });
+    slider('Vitesse du jeu', 0.6, 1, 0.05, () => sv.options.gameSpeed, (v) => { sv.options.gameSpeed = v; }, pct);
+    const speedNote = document.createElement('div');
+    speedNote.className = 'opt-hint';
+    speedNote.style.margin = '-.3em 0 .6em';
+    speedNote.textContent = 'Le jeu reste identique, il se déroule simplement moins vite.';
+    scroll.appendChild(speedNote);
+
+    el.appendChild(scroll);
     const back = this.button('Retour');
     back.addEventListener('click', onBack);
     el.appendChild(back);

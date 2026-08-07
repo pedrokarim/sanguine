@@ -22,7 +22,8 @@ import { characterById, CHARACTERS } from './data/characters';
 import { Hud } from './ui/hud';
 import { Screens, type RunSummary } from './ui/screens';
 import { Backdrop } from './ui/backdrop';
-import { installDecor } from './ui/decor';
+import { installDecor, applyTheme, applyCursor } from './ui/decor';
+import { COSMETIC_BY_ID } from './data/cosmetics';
 
 /**
  * Point d'entrée et machine à états d'écrans.
@@ -33,7 +34,7 @@ import { installDecor } from './ui/decor';
 
 type State =
   | 'title' | 'charselect' | 'playing' | 'levelup' | 'chest'
-  | 'paused' | 'sanctuary' | 'codex' | 'options' | 'gameover' | 'victory';
+  | 'paused' | 'sanctuary' | 'shop' | 'codex' | 'options' | 'gameover' | 'victory';
 
 const canvas = document.getElementById('game') as HTMLCanvasElement;
 const uiLayer = document.getElementById('ui') as HTMLDivElement;
@@ -172,13 +173,39 @@ function updateCursor(dt: number): void {
 // ---------------------------------------------------------------------------
 
 function applyOptions(): void {
-  const o = load().options;
+  const sv = load();
+  const o = sv.options;
   audio.masterVol = o.master;
   audio.sfxVol = o.sfx;
   audio.musicVol = o.music;
   audio.applyVolumes();
+
   document.documentElement.style.setProperty('--hud-scale', String(o.hudScale));
-  if (world) world.cam.intensity = o.reduceFlash ? 0 : o.shake;
+  document.body.classList.toggle('reduce-motion', o.reduceMotion);
+  document.body.classList.toggle('high-contrast', o.highContrast);
+
+  if (world) {
+    world.cam.intensity = o.reduceFlash ? 0 : o.shake;
+    world.showDamage = o.showDamage;
+    world.highlightPlayer = o.highlightPlayer;
+    world.speedScale = o.gameSpeed;
+    world.trailColor = trailColor(sv);
+  }
+
+  // Thème d'interface et curseur cosmétiques.
+  const eq = sv.cosmetics.equipped;
+  const theme = COSMETIC_BY_ID.get(eq.theme ?? '');
+  if (theme?.color && theme.accent) applyTheme(theme.color, theme.accent);
+  const cur = COSMETIC_BY_ID.get(eq.cursor ?? '');
+  if (cur?.color && cur.accent) applyCursor(cur.color, cur.accent);
+}
+
+/** Couleur de traînée équipée, `null` si aucune ou non possédée. */
+function trailColor(sv: ReturnType<typeof load>): string | null {
+  const id = sv.cosmetics.equipped.trail;
+  if (!id || id === 'trail-none') return null;
+  if (!sv.cosmetics.owned.includes(id)) return null;
+  return COSMETIC_BY_ID.get(id)?.color ?? null;
 }
 
 // ---------------------------------------------------------------------------
@@ -192,7 +219,7 @@ function goTitle(): void {
   hud = null;
   audio.stopMusic();
   audio.setBossMode(false);
-  screens.title(goCharSelect, goSanctuary, goOptions, goCodex, load().run, () => startRun('', true));
+  screens.title(goCharSelect, goSanctuary, goOptions, goCodex, goShop, load().run, () => startRun('', true));
 }
 
 function goCharSelect(): void {
@@ -205,6 +232,11 @@ function goSanctuary(): void {
   screens.sanctuary(goTitle);
 }
 
+function goShop(): void {
+  state = 'shop';
+  screens.shop(goTitle, applyOptions);
+}
+
 function goCodex(): void {
   state = 'codex';
   screens.codex(goTitle);
@@ -212,18 +244,9 @@ function goCodex(): void {
 
 function goOptions(): void {
   state = 'options';
-  screens.options(
-    goTitle,
-    (scale) => {
-      document.documentElement.style.setProperty('--hud-scale', String(scale));
-    },
-    (reduce) => {
-      if (world) world.cam.intensity = reduce ? 0 : load().options.shake;
-    },
-    (shake) => {
-      if (world) world.cam.intensity = load().options.reduceFlash ? 0 : shake;
-    },
-  );
+  // `applyOptions` est rappelé à chaque changement : les réglages se voient immédiatement,
+  // sans validation ni redémarrage.
+  screens.options(goTitle, applyOptions);
 }
 
 function startRun(charId: string, resume = false): void {
