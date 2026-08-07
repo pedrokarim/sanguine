@@ -191,6 +191,24 @@ body.cursor-hidden #game { cursor: none; }
   text-shadow: 0 0 24px rgba(240, 64, 90, .55), 0 4px 0 var(--blood-dark), 0 6px 12px #000;
   animation: title-pulse 3.5s ease-in-out infinite;
 }
+
+/* Logo pixel dessiné et animé par le code (voir ui/logo.ts). La lueur est portée par un
+   `drop-shadow` plutôt qu'un `text-shadow` : le logo n'est plus du texte. */
+.blood-logo {
+  display: block;
+  /* Dimensionné par la **hauteur**, jamais par la largeur : le canvas réserve de la place
+     sous les lettres pour les coulures, si bien qu'une contrainte en largeur produit une
+     image beaucoup trop haute et fait déborder tout l'écran. */
+  height: clamp(84px, 17vh, 150px);
+  width: auto; max-width: 92vw;
+  image-rendering: pixelated;
+  filter:
+    drop-shadow(0 0 14px rgba(240, 64, 90, .45))
+    drop-shadow(0 3px 0 rgba(0, 0, 0, .55));
+}
+.screen h1:has(.blood-logo) {
+  padding: 0; animation: none; text-shadow: none;
+}
 /* Bandeau sanglant en fondu derrière le titre, généré par le code. */
 .screen h1::before {
   content: '';
@@ -633,6 +651,101 @@ body.cursor-hidden #game { cursor: none; }
 
 @media (prefers-reduced-motion: reduce) {
   .codex-sprite { animation: none }
+}
+
+/* ------------------------------------------------------- puces d'angle */
+
+/*
+ * Les compteurs de l'écran-titre ne sont pas empilés au centre : ils sont groupés par sens
+ * et posés dans les quatre coins. L'écran se remplit, le centre reste au logo et au menu.
+ */
+.stat-corner {
+  position: absolute;
+  display: flex; flex-direction: column; gap: .35em;
+  pointer-events: none;
+}
+.stat-corner.tl { top: 1.2em; left: 1.4em; align-items: flex-start }
+.stat-corner.tr { top: 1.2em; right: 1.4em; align-items: flex-end }
+.stat-corner.bl { bottom: 2.6em; left: 1.4em; align-items: flex-start }
+.stat-corner.br { bottom: 2.6em; right: 1.4em; align-items: flex-end }
+
+.stat-chip {
+  display: flex; align-items: center; gap: .5em;
+  padding: .3em .65em .3em .45em;
+  background-color: rgba(11, 13, 20, .62);
+  border: 8px solid transparent;
+  border-image: var(--frame-stone) 8 / 8px / 0 round;
+  image-rendering: pixelated;
+  opacity: .88;
+  transition: opacity .15s;
+}
+.stat-chip:hover { opacity: 1 }
+.stat-chip > * { image-rendering: auto }
+.chip-text { display: flex; align-items: baseline; gap: .4em; line-height: 1 }
+.chip-value {
+  font-size: 1em; font-weight: 700; color: var(--gold);
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, .9);
+}
+.chip-label {
+  font-size: .62em; letter-spacing: .14em; text-transform: uppercase; color: var(--mist);
+}
+
+@media (max-width: 720px) {
+  .stat-corner { gap: .25em }
+  .stat-corner.tl, .stat-corner.tr { top: .5em }
+  .stat-corner.bl, .stat-corner.br { bottom: 2em }
+  .stat-chip { padding: .2em .45em .2em .3em }
+}
+
+/* ----------------------------------------------------- tuiles chiffrées */
+
+.stat-strip {
+  display: flex; flex-wrap: wrap; justify-content: center; gap: .45em;
+  margin-top: .6em;
+}
+
+.stat-tile {
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
+  min-width: 5.6em; padding: .55em .7em .5em;
+  background-color: rgba(11, 13, 20, .82);
+  background-image: var(--grain);
+  border: 8px solid transparent;
+  border-image: var(--frame-stone) 8 / 8px / 0 round;
+  image-rendering: pixelated;
+  transition: transform .12s, box-shadow .12s;
+}
+.stat-tile > * { image-rendering: auto }
+.stat-tile:hover {
+  transform: translateY(-2px);
+  border-image: var(--frame-gold) 8 / 8px / 0 round;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, .7);
+}
+
+/* Hauteur fixe et sprite ancré en bas : une gemme de 6 px et un héros de 15 px doivent
+   s'aligner sur la même ligne de base, sinon le bandeau ondule. */
+.stat-icon {
+  display: flex; align-items: flex-end; justify-content: center;
+  height: 2.4em; margin-bottom: .3em;
+}
+.stat-value {
+  font-size: 1.15em; font-weight: 700; color: var(--gold);
+  letter-spacing: .04em; font-variant-numeric: tabular-nums;
+  text-shadow: 0 2px 0 rgba(0, 0, 0, .85);
+  line-height: 1.1;
+}
+.stat-label {
+  font-size: .64em; letter-spacing: .16em; text-transform: uppercase; color: var(--mist);
+}
+
+/* Icône du Sanctuaire, alignée à gauche de chaque ligne. */
+.sanct-icon {
+  flex: none; width: 2em; display: flex; align-items: center; justify-content: center;
+}
+
+@media (max-width: 720px) {
+  .stat-tile { min-width: 4.6em; padding: .45em .5em .4em }
+  .stat-icon { height: 2em }
 }
 
 /* ------------------------------------------------------------- fin de run */
