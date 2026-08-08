@@ -142,7 +142,18 @@ function resize(): void {
   // Surface visible bornée : un écran très large ne doit pas offrir un avantage de jeu.
   const maxW = Math.round(BASE_W * 1.5);
   const maxH = Math.round(BASE_H * 1.5);
-  const lw = Math.min(maxW, Math.max(BASE_W, Math.floor(physW / blitScale)));
+  /*
+   * Le plafond de surface est une règle de **jeu** : il empêche un grand écran de voir
+   * venir de plus loin. Un fond de menu n'a rien à voir avec cela, et le lui appliquer
+   * ne fait que barrer l'écran de bandes noires — mesuré à 62 % de la hauteur sur un
+   * téléphone tenu droit, avec la ligne de coupure en travers du menu. Hors partie, la
+   * scène couvre donc toute la fenêtre, au même facteur entier : la netteté n'est pas
+   * négociée pour autant.
+   */
+  const horsPartie = world === null;
+  const lw = horsPartie
+    ? Math.max(BASE_W, Math.floor(physW / blitScale))
+    : Math.min(maxW, Math.max(BASE_W, Math.floor(physW / blitScale)));
 
   /*
    * En portrait, plafonner la hauteur à 1,5 × la base laissait la moitié de l'écran en
@@ -154,7 +165,9 @@ function resize(): void {
    */
   const budget = maxW * maxH;
   const hautMax = Math.max(maxH, Math.floor(budget / lw));
-  const lh = Math.min(hautMax, Math.max(BASE_H, Math.floor(physH / blitScale)));
+  const lh = horsPartie
+    ? Math.max(BASE_H, Math.floor(physH / blitScale))
+    : Math.min(hautMax, Math.max(BASE_H, Math.floor(physH / blitScale)));
 
   VIEW.w = lw;
   VIEW.h = lh;
@@ -288,6 +301,8 @@ function trailColor(sv: ReturnType<typeof load>): string | null {
 function goTitle(): void {
   state = 'title';
   world = null;
+  // La scène de menu n'obéit plus au plafond de surface : il faut la redimensionner.
+  resize();
   hud?.destroy();
   hud = null;
   audio.stopMusic();
@@ -339,6 +354,8 @@ function startRun(charId: string, resume = false): void {
   screens.close();
 
   world = new World(lastCharId, saved?.seed);
+  // Retour au cadrage borné du jeu, avant que la caméra ne s'accorde à la vue.
+  resize();
   world.warmup();
   director.reset();
   applyOptions();

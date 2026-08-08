@@ -259,11 +259,25 @@ export class Screens {
     const lastChar = sv.unlockedChars[sv.unlockedChars.length - 1] ?? 'ysolde';
 
     // Logo en pixel art dont le sang coule, dessiné et animé par le code.
+    /*
+     * Le contenu centré vit dans son propre bloc, distinct de l'écran.
+     *
+     * La mention légale était posée en absolu contre le bas, et le menu centré passait
+     * dessous dès qu'il grandissait — d'une entrée de plus, ou d'un joueur qui pousse la
+     * taille de l'interface à 200 % dans les options. Réserver une bande chiffrée en bas
+     * ne fait que déplacer le problème d'un cran. Ici le corps prend la place restante et
+     * défile s'il le faut, le pied se range dessous : plus rien ne se superpose, à aucune
+     * échelle, et il n'y a plus de hauteur magique à tenir à jour.
+     */
+    const corps = document.createElement('div');
+    corps.className = 'title-corps';
+    el.appendChild(corps);
+
     const logo = new BloodLogo('SANGUINE');
     const h1 = document.createElement('h1');
     h1.className = 'title-font';
     h1.appendChild(logo.canvas);
-    el.appendChild(h1);
+    corps.appendChild(h1);
     logo.start();
     // L'animation doit s'arrêter avec l'écran, sinon une boucle rAF survit au menu.
     const prevCleanup = this.cleanup;
@@ -277,7 +291,7 @@ export class Screens {
     const tag = document.createElement('p');
     tag.className = 'tagline';
     tag.textContent = '« Tenez jusqu’à l’aube. Elle ne viendra pas. »';
-    el.append(fl, tag);
+    corps.append(fl, tag);
 
     const list = document.createElement('div');
     list.className = 'menu-list';
@@ -289,12 +303,16 @@ export class Screens {
       const c = characterById(savedRun.charId);
       bResume = this.button(`Reprendre · ${formatTime(savedRun.time)} · niv ${savedRun.level}`, 'primary');
       bResume.addEventListener('click', () => { audio.play('confirm'); onResume(); });
-      list.appendChild(bResume);
       const who = document.createElement('div');
       who.className = 'hint';
-      who.style.marginTop = '-.2em';
       who.textContent = `${c.name} ${c.epithet}`;
-      list.appendChild(who);
+      // Le bouton et sa légende forment un bloc : sur écran bas de plafond le menu passe
+      // sur deux colonnes, et sans cet emballage la légende atterrirait dans la colonne
+      // d'à côté, à hauteur de « Nouvelle partie ».
+      const bloc = document.createElement('div');
+      bloc.className = 'menu-resume';
+      bloc.append(bResume, who);
+      list.appendChild(bloc);
     }
 
     const bPlay = this.button(savedRun ? 'Nouvelle partie' : 'Jouer', savedRun ? '' : 'primary');
@@ -312,7 +330,7 @@ export class Screens {
     bProg.addEventListener('click', () => { audio.play('confirm'); onProgress(); });
     bOpt.addEventListener('click', () => { audio.play('confirm'); onOptions(); });
     list.append(bPlay, bSanct, bShop, bArchive, bCodex, bProg, bOpt);
-    el.appendChild(list);
+    corps.appendChild(list);
 
     if (sv.stats.runs > 0) {
       // Les compteurs ne sont pas empilés au centre mais **groupés par sens** dans les
@@ -342,22 +360,49 @@ export class Screens {
       stats.textContent = isTouch()
         ? 'Glissez le doigt pour vous déplacer. Les armes tirent seules.'
         : 'ZQSD ou WASD pour se déplacer. Les armes tirent seules.';
-      el.appendChild(stats);
+      corps.appendChild(stats);
     }
+
+    // Pied de l'écran-titre. Dans le flux, sous le corps : il se plaque en bas tant qu'il
+    // reste de la place, et se range à la suite du menu quand il n'y en a plus.
+    const pied = document.createElement('div');
+    pied.className = 'title-pied';
+    el.appendChild(pied);
 
     // Marque de collection complète : une phrase, en bas, sans fanfare — c'est le ton.
     if (sv.fragments.length >= TOTAL) {
       const mark = document.createElement('div');
       mark.className = 'title-mark';
       mark.textContent = 'Quarante-deux relevés. Le formulaire est complet.';
-      el.appendChild(mark);
+      pied.appendChild(mark);
     }
 
     // Mention de copyright, comme sur un écran-titre de jeu : discrète, en bas, permanente.
     const legal = document.createElement('div');
     legal.className = 'copyright';
     legal.textContent = `© ${YEAR} Ascencia · v${VERSION}`;
-    el.appendChild(legal);
+    pied.appendChild(legal);
+
+    /*
+     * Les puces des quatre coins sont un ornement chiffré ; le menu est la fonction. Dès
+     * que le corps ne tient plus et se met à défiler — interface poussée à 200 % dans les
+     * options, fenêtre écrasée —, elles s'effacent au profit des boutons.
+     *
+     * Cela se constate, cela ne se déclare pas : aucune requête média ne sait exprimer
+     * « le contenu ne tient pas », puisque la réponse dépend à la fois de la taille de la
+     * fenêtre, de l'échelle choisie par le joueur et du nombre d'entrées du menu.
+     */
+    const jauger = (): void => {
+      el.classList.toggle('serre', corps.scrollHeight > corps.clientHeight + 1);
+    };
+    jauger();
+    const guetteur = new ResizeObserver(jauger);
+    guetteur.observe(corps);
+    const nettoyagePrecedent = this.cleanup;
+    this.cleanup = (): void => {
+      nettoyagePrecedent?.();
+      guetteur.disconnect();
+    };
 
     const nav = [bPlay, bSanct, bShop, bArchive, bCodex, bProg, bOpt];
     this.navigable(bResume ? [bResume, ...nav] : nav);
