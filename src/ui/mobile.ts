@@ -34,8 +34,11 @@ export function isTouch(): boolean {
 }
 
 /**
- * Téléphone plutôt que tablette. Ne sert qu'à ajuster la densité de l'interface — jamais à
- * décider s'il faut proposer une rotation, voir `doitProposer`.
+ * Téléphone plutôt que tablette.
+ *
+ * Ne sert qu'à formuler le libellé de l'écran de rotation — « votre téléphone » ou « votre
+ * écran ». Rien d'autre n'en dépend, et surtout pas la décision de proposer une rotation :
+ * celle-ci se prend sur l'écran réellement perdu, voir `doitProposer`.
  */
 export function isPhone(): boolean {
   return isTouch() && Math.min(window.innerWidth, window.innerHeight) < 500;
@@ -171,7 +174,6 @@ export class Mobile {
   installer(): void {
     if (!isTouch()) return;
     document.body.classList.add('is-touch');
-    if (isPhone()) document.body.classList.add('is-phone');
 
     // `orientationchange` n'est pas fiable partout et arrive parfois avant que les
     // dimensions ne soient à jour ; `resize` couvre les deux cas.
