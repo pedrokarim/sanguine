@@ -261,21 +261,53 @@ const PLANS: Record<BodyArt['plan'], (p: Pix, a: BodyArt, t: number) => void> = 
 // Fabrique publique
 // ---------------------------------------------------------------------------
 
+/**
+ * Facteur d'agrandissement de tous les corps.
+ *
+ * Les tailles restent écrites à leur valeur d'origine dans `data/enemies.ts` — elles y sont
+ * lisibles et comparables — et c'est ici qu'on les multiplie. Un seul chiffre à changer
+ * pour reculer, ce qui compte quand on touche à l'apparence de tout le jeu d'un coup.
+ *
+ * Les plans dessinent déjà en proportions de la grille ; seule l'épaisseur des membres est
+ * absolue, et `Pix.unit` s'en charge.
+ */
+export const CORPS_ECHELLE = 1.5;
+
+/**
+ * Grille agrandie pour les objets — butin, projectiles, reliques, fioles.
+ *
+ * Contrairement aux plans corporels, ces dessins sont écrits en coordonnées absolues. On ne
+ * peut donc pas se contenter d'agrandir la grille : c'est `Pix.cs` qui convertit les
+ * coordonnées au passage, si bien qu'une ellipse de rayon 4 est réellement recalculée à
+ * rayon 6 — plus ronde, et pas seulement plus grosse.
+ *
+ * Le facteur est le même que pour les corps : à échelles différentes, une gemme paraîtrait
+ * posée dans un autre jeu que la goule qui la lâche.
+ */
+function pixObjet(w: number, h: number): Pix {
+  const S = CORPS_ECHELLE;
+  const p = new Pix(Math.round(w * S), Math.round(h * S));
+  p.cs = S;
+  p.unit = S;
+  return p;
+}
+
 export function makeBody(key: string, art: BodyArt): SpriteSet {
   const hit = cache.get(key);
   if (hit) return hit;
 
   const n = art.frames ?? 4;
+  const S = CORPS_ECHELLE;
   const pixFrames: Pix[] = [];
   for (let i = 0; i < n; i++) {
-    const p = new Pix(art.w, art.h);
+    const p = new Pix(Math.round(art.w * S), Math.round(art.h * S));
+    p.unit = S;
     PLANS[art.plan](p, art, i / n);
     if (art.crown) {
       const cx = p.w / 2 - 0.5;
-      for (let k = -2; k <= 2; k++) p.set(cx + k, 1, 5);
-      p.set(cx - 2, 0, 5);
-      p.set(cx, 0, 5);
-      p.set(cx + 2, 0, 5);
+      const k0 = Math.round(2 * S);
+      for (let k = -k0; k <= k0; k++) p.set(cx + k, Math.round(S), 5);
+      for (const k of [-k0, 0, k0]) p.set(cx + k, 0, 5);
     }
     p.outline(0);
     pixFrames.push(p);
@@ -344,7 +376,29 @@ export interface HeroArt {
   hat: 'hood' | 'wide' | 'none' | 'veil' | 'crown';
 }
 
+/**
+ * Style de héros en vigueur.
+ *
+ * Les deux générateurs coexistent le temps de trancher : le détaillé est servi par défaut,
+ * et `F8` bascule en jeu. Comparer de mémoire, d'une session à l'autre, ne permet pas de
+ * décider — il faut pouvoir alterner sous les yeux.
+ */
+let styleDetaille = true;
+
+export function setHeroDetaille(v: boolean): void {
+  styleDetaille = v;
+}
+
+export function getHeroDetaille(): boolean {
+  return styleDetaille;
+}
+
+/** Aiguillage : les six points d'appel du jeu n'ont pas à connaître les deux variantes. */
 export function makeHero(key: string, art: HeroArt, moving: boolean): SpriteSet {
+  return styleDetaille ? makeHeroDetaille(key, art, moving) : makeHeroClassique(key, art, moving);
+}
+
+function makeHeroClassique(key: string, art: HeroArt, moving: boolean): SpriteSet {
   const ck = `${key}:${moving ? 'walk' : 'idle'}`;
   const hit = cache.get(ck);
   if (hit) return hit;
@@ -422,6 +476,131 @@ export function makeHero(key: string, art: HeroArt, moving: boolean): SpriteSet 
   return set;
 }
 
+/**
+ * Héros détaillé — variante à l'essai.
+ *
+ * Même personnage que `makeHero`, à 19 × 23 au lieu de 13 × 15, et sur neuf teintes au lieu
+ * de six. Ce que la définition supplémentaire achète : une capuche qui laisse voir un
+ * visage, un plastron distinct de la chemise, une ceinture, des bottes, et des plis de cape.
+ *
+ * Trois contraintes qu'il fallait tenir pour que ce soit remplaçable sans rien casser :
+ *
+ *   - **les cosmétiques continuent de fonctionner.** `HeroArt` ne fournit que quatre
+ *     couleurs ; les neuf teintes en sont dérivées par éclaircissement et assombrissement,
+ *     jamais posées en dur. Une teinte de boutique repeint donc toujours le personnage ;
+ *   - **la collision ne bouge pas.** Le rayon de contact du joueur est fixé à 5 dans le
+ *     monde, indépendamment du sprite : agrandir le dessin ne change rien à la difficulté ;
+ *   - **les cinq coiffes existent toujours**, sinon quatre personnages sur six perdraient
+ *     ce qui les distingue au premier coup d'œil.
+ *
+ * Le héros devient nettement plus grand que les ennemis courants, qui font 11 à 16 pixels.
+ * C'est assumé : dans ce genre, un protagoniste un peu plus imposant se suit mieux du regard
+ * au milieu de quatre cents silhouettes.
+ */
+export function makeHeroDetaille(key: string, art: HeroArt, moving: boolean): SpriteSet {
+  const ck = `detail:${key}:${moving ? 'walk' : 'idle'}`;
+  const hit = cache.get(ck);
+  if (hit) return hit;
+
+  const W = 19;
+  const H = 23;
+  const n = moving ? 6 : 4;
+
+  // Neuf marches, toutes dérivées des quatre couleurs du cosmétique.
+  const cols = [
+    shade(art.cloak, -0.72),  // 0 contour
+    shade(art.cloak, -0.42),  // 1 cape, ombre
+    art.cloak,                // 2 cape
+    shade(art.cloak, 0.28),   // 3 cape, lumière
+    shade(art.cloth, -0.35),  // 4 vêtement, ombre
+    art.cloth,                // 5 vêtement
+    shade(art.skin, -0.3),    // 6 peau, ombre
+    art.skin,                 // 7 peau
+    art.accent,               // 8 accent
+  ];
+
+  const pixFrames: Pix[] = [];
+  for (let i = 0; i < n; i++) {
+    const t = i / n;
+    const p = new Pix(W, H);
+    const cx = W / 2 - 0.5;
+    const swing = moving ? Math.sin(t * TAU) : 0;
+    const bob = moving ? Math.abs(Math.cos(t * TAU)) * 1.1 : Math.sin(t * TAU) * 0.6;
+
+    const hipY = 15.5 - bob;
+    const shY = 9.5 - bob;
+    const headCy = 5.2 - bob;
+
+    // --- jambes et bottes -------------------------------------------------
+    p.limb(cx - 2, hipY, cx - 2 + swing * 2.6, H - 3, 2.4, 4);
+    p.limb(cx + 2, hipY, cx + 2 - swing * 2.6, H - 3, 2.4, 4);
+    p.rect(Math.round(cx - 3.4 + swing * 2.6), H - 3, 3, 2, 1);
+    p.rect(Math.round(cx + 1.4 - swing * 2.6), H - 3, 3, 2, 1);
+
+    // --- cape, derrière le corps -----------------------------------------
+    p.ellipse(cx - swing * 1.1, shY + 4.2, 6.4, 5.6, 1);
+    p.ellipse(cx - swing * 1.8, shY + 6.6, 5.0, 3.6, 1);
+    // Plis : deux creux verticaux d'écart inégal.
+    p.limb(cx - 2.6 - swing, shY + 3, cx - 3.2 - swing, shY + 8, 1, 0);
+    p.limb(cx + 2.2 - swing, shY + 3, cx + 2.8 - swing, shY + 8, 1, 0);
+
+    // --- buste ------------------------------------------------------------
+    p.ellipse(cx, shY + 2.2, 3.6, 4.0, 5);          // chemise
+    p.ellipse(cx, shY + 1.6, 3.4, 2.8, 4);          // plastron, plus sombre
+    p.rect(Math.round(cx - 3.2), Math.round(shY + 4.4), 7, 1, 8);   // ceinture
+    p.set(cx, Math.round(shY + 4.4), 3);            // boucle
+
+    // --- bras -------------------------------------------------------------
+    p.limb(cx - 3.6, shY + 0.6, cx - 4.4 - swing * 1.8, shY + 5.0, 2, 4);
+    p.limb(cx + 3.6, shY + 0.6, cx + 4.4 + swing * 1.8, shY + 5.0, 2, 4);
+    p.ellipse(cx - 4.4 - swing * 1.8, shY + 5.2, 1.3, 1.3, 6);      // mains
+    p.ellipse(cx + 4.4 + swing * 1.8, shY + 5.2, 1.3, 1.3, 6);
+
+    // --- tête -------------------------------------------------------------
+    p.ellipse(cx, headCy, 3.4, 3.6, 7);
+    p.ellipse(cx, headCy + 1.6, 2.8, 1.8, 6);       // mâchoire dans l'ombre
+
+    switch (art.hat) {
+      case 'hood':
+        // La capuche est posée par-dessus puis creusée : c'est elle qui doit mordre sur le
+        // visage, et non l'inverse.
+        p.ellipse(cx, headCy - 0.9, 4.3, 4.0, 2);
+        p.ellipse(cx, headCy + 0.7, 2.7, 2.4, 7);
+        p.ellipse(cx, headCy + 2.2, 3.4, 1.4, 1);   // retombée sur les épaules
+        break;
+      case 'wide':
+        p.ellipse(cx, headCy - 1.8, 6.8, 1.6, 2);
+        p.ellipse(cx, headCy - 1.4, 6.8, 1.0, 1);
+        p.ellipse(cx, headCy - 3.2, 3.2, 2.0, 2);
+        break;
+      case 'veil':
+        p.ellipse(cx, headCy - 0.5, 4.4, 4.1, 8);
+        p.ellipse(cx, headCy + 1.1, 2.6, 2.2, 7);
+        p.ellipse(cx, headCy + 3.0, 3.6, 1.6, 8);
+        break;
+      case 'crown':
+        for (let k = -3; k <= 3; k++) p.set(cx + k, headCy - 3.6, 8);
+        for (const k of [-3, 0, 3]) { p.set(cx + k, headCy - 4.6, 8); p.set(cx + k, headCy - 5.3, 3); }
+        break;
+      case 'none':
+        break;
+    }
+
+    // Traits : deux yeux et l'arête du nez. Un trait de plus ferait grimace.
+    p.set(cx - 1.4, headCy + 0.4, 0);
+    p.set(cx + 1.4, headCy + 0.4, 0);
+    p.set(cx, headCy + 1.1, 6);
+
+    p.shadeVertical(2, 3, 1);
+    p.outline(0);
+    pixFrames.push(p);
+  }
+
+  const set = build(pixFrames, cols);
+  cache.set(ck, set);
+  return set;
+}
+
 // ---------------------------------------------------------------------------
 // Butin et objets
 // ---------------------------------------------------------------------------
@@ -440,7 +619,7 @@ export function makeGem(rank: 0 | 1 | 2 | 3): SpriteSet {
 
   for (let i = 0; i < 8; i++) {
     const t = i / 8;
-    const p = new Pix(size + 4, size + 4);
+    const p = pixObjet(size + 4, size + 4);
     const cx = p.w / 2 - 0.5;
     const cy = p.h / 2 - 0.5 + Math.sin(t * TAU) * 0.8;
     const r = size / 2;
@@ -477,7 +656,7 @@ export function makeCoin(): SpriteSet {
   const frames: Pix[] = [];
   for (let i = 0; i < 6; i++) {
     const t = i / 6;
-    const p = new Pix(8, 8);
+    const p = pixObjet(8, 8);
     const rx = Math.max(0.6, Math.abs(Math.cos(t * PI)) * 3);
     p.ellipse(3.5, 3.5, rx, 3, 2);
     p.ellipse(3.5, 2.6, rx * 0.6, 1.4, 3);
@@ -500,7 +679,7 @@ export function makeHeart(): SpriteSet {
   const frames: Pix[] = [];
   for (let i = 0; i < 6; i++) {
     const s = beat[i]!;
-    const p = new Pix(10, 10);
+    const p = pixObjet(10, 10);
     const cx = 4.5;
     const cy = 4.6;
     p.ellipse(cx - 1.7 * s, cy - 1.2 * s, 2.1 * s, 2.0 * s, 2);
@@ -535,7 +714,7 @@ export function makeChest(): SpriteSet {
   const frames: Pix[] = [];
   for (let i = 0; i < 8; i++) {
     const open = Math.min(1, i / 5);
-    const p = new Pix(16, 15);
+    const p = pixObjet(16, 15);
     p.rect(2, 7, 12, 6, 2); // caisse
     p.rect(2, 9, 12, 1, 3); // ferrure
     const lidY = 6 - open * 4;
@@ -568,7 +747,7 @@ export function makeRelic(rarity: Rarity): SpriteSet {
   const frames: Pix[] = [];
   for (let i = 0; i < 8; i++) {
     const t = i / 8;
-    const p = new Pix(12, 14);
+    const p = pixObjet(12, 14);
     const cx = 5.5;
     const cy = 7.5 + Math.sin(t * TAU) * 0.9;
     const rx = 3.4 * Math.abs(Math.cos(t * PI * 0.5)) + 1.2;
@@ -601,7 +780,7 @@ export function makeItem(kind: 'magnet' | 'bomb' | 'hourglass' | 'scroll' | 'cen
     case 'magnet':
       cols = [shade(P.steel, -0.75), P.bloodDark, P.blood, P.steel, '#ffffff'];
       for (let i = 0; i < N; i++) {
-        const p = new Pix(12, 12);
+        const p = pixObjet(12, 12);
         const t = i / N;
         p.limb(3, 9, 3, 4, 2.4, 2);
         p.limb(8, 9, 8, 4, 2.4, 2);
@@ -619,7 +798,7 @@ export function makeItem(kind: 'magnet' | 'bomb' | 'hourglass' | 'scroll' | 'cen
       cols = [shade(P.stone, -0.8), P.stone, P.stoneHi, P.fire, '#fff3c4'];
       for (let i = 0; i < N; i++) {
         const t = i / N;
-        const p = new Pix(12, 12);
+        const p = pixObjet(12, 12);
         p.ellipse(5.5, 7.5, 4, 4, 2);
         p.ellipse(4.2, 6.2, 1.4, 1.2, 1);
         p.line(6, 3.6, 7.5 + Math.sin(t * TAU) * 1.2, 1.4, 1);
@@ -633,7 +812,7 @@ export function makeItem(kind: 'magnet' | 'bomb' | 'hourglass' | 'scroll' | 'cen
       cols = [shade(P.ice, -0.8), shade(P.leather, -0.2), P.leather, P.ice, '#ffffff'];
       for (let i = 0; i < N; i++) {
         const t = i / N;
-        const p = new Pix(10, 12);
+        const p = pixObjet(10, 12);
         p.rect(1, 1, 8, 1, 2);
         p.rect(1, 10, 8, 1, 2);
         for (let y = 2; y <= 5; y++) p.rect(1 + (y - 2), y, 8 - (y - 2) * 2, 1, 3);
@@ -649,7 +828,7 @@ export function makeItem(kind: 'magnet' | 'bomb' | 'hourglass' | 'scroll' | 'cen
       cols = [shade(P.linen, -0.75), shade(P.linen, -0.3), P.linen, P.leather, P.blood];
       for (let i = 0; i < N; i++) {
         const t = i / N;
-        const p = new Pix(12, 10);
+        const p = pixObjet(12, 10);
         const w = 6 + Math.sin(t * TAU) * 1.2;
         p.rect(6 - w / 2, 2, w, 6, 2);
         p.ellipse(6 - w / 2, 5, 1.2, 3.2, 3);
@@ -664,7 +843,7 @@ export function makeItem(kind: 'magnet' | 'bomb' | 'hourglass' | 'scroll' | 'cen
       cols = [shade(P.gold, -0.75), shade(P.gold, -0.3), P.gold, '#fff3c4', '#ffffff'];
       for (let i = 0; i < N; i++) {
         const t = i / N;
-        const p = new Pix(12, 13);
+        const p = pixObjet(12, 13);
         const sw = Math.sin(t * TAU) * 1.6;
         p.line(6, 0, 6 + sw, 4, 1);
         p.ellipse(6 + sw, 7, 3.4, 3.2, 2);
@@ -719,21 +898,21 @@ export function makeProjectile(kind: ProjKind, color?: string): SpriteSet {
     let p: Pix;
     switch (kind) {
       case 'stake':
-        p = new Pix(10, 6);
+        p = pixObjet(10, 6);
         p.limb(1, 3, 6, 3, 2, 2);
         p.line(6, 2, 9, 3, 3);
         p.line(6, 4, 9, 3, 3);
         p.set(1, 3, 1);
         break;
       case 'cross':
-        p = new Pix(11, 11);
+        p = pixObjet(11, 11);
         p.rect(4, 1, 3, 9, 2);
         p.rect(1, 3, 9, 3, 2);
         p.rect(5, 2, 1, 7, 3);
         p.rect(2, 4, 7, 1, 3);
         break;
       case 'orb':
-        p = new Pix(10, 10);
+        p = pixObjet(10, 10);
         p.ellipse(4.5, 4.5, 3.4 + wob * 0.35, 3.4 + wob * 0.35, 2);
         p.ellipse(3.4, 3.4, 1.5, 1.4, 3);
         p.ellipse(4.5, 4.5, 4.2 + wob * 0.4, 4.2 + wob * 0.4, -1);
@@ -741,47 +920,47 @@ export function makeProjectile(kind: ProjKind, color?: string): SpriteSet {
         p.ellipse(3.4, 3.4, 1.4, 1.3, 4);
         break;
       case 'flask':
-        p = new Pix(9, 10);
+        p = pixObjet(9, 10);
         p.ellipse(4, 6.5, 3, 3, 2);
         p.rect(3, 1, 2, 3, 1);
         p.rect(2.5, 0, 3, 1, 3);
         p.ellipse(3, 5.5, 1.2, 1.0, 4);
         break;
       case 'shard':
-        p = new Pix(7, 7);
+        p = pixObjet(7, 7);
         p.line(3, 0, 3, 6, 2);
         p.line(2, 2, 4, 4, 2);
         p.line(4, 2, 2, 4, 2);
         p.set(3, 3, 4);
         break;
       case 'bolt':
-        p = new Pix(9, 5);
+        p = pixObjet(9, 5);
         p.limb(0, 2, 5, 2, 1.6, 2);
         p.line(5, 1, 8, 2, 3);
         p.line(5, 3, 8, 2, 3);
         break;
       case 'dagger':
-        p = new Pix(11, 7);
+        p = pixObjet(11, 7);
         p.limb(1, 3, 4, 3, 2, 1);
         p.rect(3, 1, 1, 5, 3);
         p.limb(4, 3, 10, 3, 1.8, 2);
         p.set(10, 3, 4);
         break;
       case 'thorn':
-        p = new Pix(8, 12);
+        p = pixObjet(8, 12);
         p.limb(3.5, 11, 3.5, 3, 2.4, 2);
         p.line(3.5, 3, 2, 6, 3);
         p.line(3.5, 3, 5, 6, 3);
         p.set(3.5, 1.5, 4);
         break;
       case 'ember':
-        p = new Pix(9, 9);
+        p = pixObjet(9, 9);
         p.ellipse(4, 5.5, 3.2 - wob * 0.3, 2.6, 2);
         p.ellipse(4, 4 - wob * 0.6, 2.0, 2.2, 3);
         p.ellipse(4, 2.6 - wob * 0.8, 1.0, 1.2, 4);
         break;
       case 'flail':
-        p = new Pix(10, 10);
+        p = pixObjet(10, 10);
         p.ellipse(5.5, 5.5, 3.4, 3.4, 2);
         for (let k = 0; k < 6; k++) {
           const a = (k / 6) * TAU + t * 0.6;
@@ -790,7 +969,7 @@ export function makeProjectile(kind: ProjKind, color?: string): SpriteSet {
         p.ellipse(4.4, 4.4, 1.2, 1.1, 3);
         break;
       case 'familiar': {
-        p = new Pix(12, 10);
+        p = pixObjet(12, 10);
         const flap = Math.sin(t * TAU);
         for (const s of [-1, 1]) {
           p.limb(5.5 + s * 1, 5, 5.5 + s * 4.5, 5 - flap * 2.4, 1.4, 2);
@@ -802,14 +981,14 @@ export function makeProjectile(kind: ProjKind, color?: string): SpriteSet {
         break;
       }
       case 'wave': {
-        p = new Pix(16, 16);
+        p = pixObjet(16, 16);
         const r = 5 + t * 2.4;
         p.ring(7.5, 7.5, r, r, 2);
         p.ring(7.5, 7.5, r - 1.4, r - 1.4, 3);
         break;
       }
       case 'lightning': {
-        p = new Pix(11, 22);
+        p = pixObjet(11, 22);
         let x = 5.5;
         for (let y = 0; y < 22; y += 2) {
           const nx = x + Math.sin(y * 0.9 + t * 4) * 2.2;
@@ -820,7 +999,7 @@ export function makeProjectile(kind: ProjKind, color?: string): SpriteSet {
         break;
       }
       case 'scythe': {
-        p = new Pix(22, 22);
+        p = pixObjet(22, 22);
         const cx = 11;
         const cy = 11;
         for (let k = 0; k <= 22; k++) {
@@ -851,7 +1030,7 @@ export function makePassiveSprite(icon: PassiveIcon, color: string): SpriteSet {
   if (hit) return hit;
 
   const cols = [shade(color, -0.72), shade(color, -0.3), color, shade(color, 0.45), '#ffffff'];
-  const p = new Pix(13, 13);
+  const p = pixObjet(13, 13);
   const c = 6;
 
   switch (icon) {
@@ -952,7 +1131,7 @@ export function makeFragment(kind: 'parchemin' | 'sceau' | 'hieroglyphe' | 'pier
 
   for (let i = 0; i < 6; i++) {
     const t = i / 6;
-    const p = new Pix(14, 16);
+    const p = pixObjet(14, 16);
     const cx = 6.5;
     // Léger flottement : une pièce enfouie qui « respire » se repère bien mieux au sol.
     const lift = Math.sin(t * TAU) * 0.7;
