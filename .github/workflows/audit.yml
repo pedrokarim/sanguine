@@ -109,12 +109,19 @@ jobs:
         run: |
           # Le jeu revendique de fonctionner hors ligne. On le vérifie sur l'artefact
           # réellement produit, pas sur les sources : c'est le fichier livré qui compte.
-          if grep -ohE "https?://[^\"' )]+" dist/*.js dist/*.css dist/index.html \
+          #
+          # Les balises <meta> sont exclues. Les cartes de partage exigent des URL absolues,
+          # les réseaux ne résolvant pas les chemins relatifs. Ce que ce contrôle protège,
+          # c'est que le jeu ne **charge** rien de l'extérieur : une méta n'est lue que par
+          # un robot d'indexation, jamais par le navigateur qui joue.
+          sansMeta=$(grep -v '<meta ' dist/index.html)
+          if { printf '%s' "$sansMeta"; cat dist/*.js dist/*.css; } \
+             | grep -ohE "https?://[^\"' )]+" \
              | grep -vE "^http://www\.w3\.org/" | sort -u | grep .; then
             echo "::error::Le bundle référence une URL externe."
             exit 1
           fi
-          echo "OK — aucune URL externe."
+          echo "OK — aucune URL externe hors métadonnées."
 
       - name: "Ni eval, ni Function, ni javascript:"
         run: |
