@@ -15,6 +15,8 @@ RUN pnpm install --frozen-lockfile
 
 COPY . .
 RUN pnpm build
+# La planche des sprites, construite à part pour ne pas casser l'autonomie de dist/.
+RUN pnpm planche
 
 # ---------------------------------------------------------------------------
 # Étape 2 — service
@@ -26,6 +28,7 @@ FROM nginx:1.27-alpine AS runtime
 COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
 COPY docker/security-headers.conf /etc/nginx/snippets/security-headers.conf
 COPY --from=build /app/dist /usr/share/nginx/html
+COPY --from=build /app/dist-planche /usr/share/nginx/html
 
 EXPOSE 80
 

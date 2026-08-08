@@ -1,5 +1,6 @@
 node_modules
 dist
+dist-planche
 .git
 .github
 docs
