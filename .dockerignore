@@ -7,3 +7,12 @@ docs
 !README.md
 .vscode
 .idea
+
+# La bible narrative ne doit jamais quitter le poste de travail. Elle n'atteignait déjà pas
+# l'image finale — seul dist/ y est copié — mais elle entrait dans le contexte de build.
+lore/
+
+# Inutiles au build de l'image.
+site
+tools
+.github

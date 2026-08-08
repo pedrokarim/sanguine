@@ -59,6 +59,10 @@ body.plain-font .codex-name { letter-spacing: .06em }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
+/* Le message « JavaScript requis » portait un attribut style= en dur. Sorti d'ici, la
+   politique de sécurité du contenu peut interdire tout style inline sans exception. */
+.noscript-msg { color: var(--gold); font-family: var(--font-ui); padding: 2rem }
+
 html, body {
   width: 100%;
   height: 100%;

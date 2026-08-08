@@ -8,3 +8,13 @@ dist/
 
 # Bible narrative — jamais publiée (spoilers)
 lore/
+
+# Rien de tel n'existe aujourd'hui — le jeu n'a aucune variable d'environnement. C'est
+# précisément pour cela qu'il faut la règle : le jour où un fichier de ce genre apparaît,
+# personne ne pensera à l'ajouter avant un `git add -A`.
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+id_rsa*

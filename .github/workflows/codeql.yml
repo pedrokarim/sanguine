@@ -1,0 +1,37 @@
+# Analyse statique CodeQL — NE DÉPLOIE RIEN.
+#
+# Complète l'audit de dépendances : celui-ci cherche des paquets vulnérables, CodeQL
+# cherche des défauts dans le code écrit ici. Les deux ratent ce que l'autre trouve.
+name: CodeQL
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: '41 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  analyse:
+    name: Analyse JavaScript et TypeScript
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write   # publier les alertes dans l'onglet Sécurité
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - uses: github/codeql-action/init@c4dd10e44af883a891fe31ced449bcb4a6728b9b # v3
+        with:
+          languages: javascript-typescript
+          # Ajoute les requêtes de qualité aux requêtes de sécurité : sur un projet sans
+          # tests unitaires, elles rattrapent une partie de ce qui manque.
+          queries: security-and-quality
+
+      - uses: github/codeql-action/analyze@c4dd10e44af883a891fe31ced449bcb4a6728b9b # v3
+        with:
+          category: /language:javascript-typescript
