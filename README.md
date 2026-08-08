@@ -45,6 +45,8 @@ Une partie dure **30 minutes**. Le temps est le seul véritable adversaire.
 | **Un choix à chaque niveau** – trois cartes tirées par catégorie, la horde figée derrière | **24 reliques**, dont quatre maudites : puissantes, mais elles se paient |
 | ![Codex](docs/screenshots/07-codex.png) | ![Bestiaire](docs/screenshots/08-bestiaire.png) |
 | **Codex de 77 entrées** à sprites animés, silhouettées tant qu’elles ne sont pas découvertes | **Bestiaire** – dix-huit créatures, leurs statistiques et leur comportement |
+| ![Ruines](docs/screenshots/15-ruines.png) | ![Village abandonné](docs/screenshots/16-village.png) |
+| **Des ruines qui arrêtent** – six bâtiments de 84 à 216 px, avec collision. Toute ruine a au moins deux ouvertures | **Villages abandonnés** – des maisons le long d’une rue dallée, la pression majorée et un coffre au centre |
 | ![Sanctuaire](docs/screenshots/09-sanctuaire.png) | ![Fin de partie](docs/screenshots/06-fin.png) |
 | **Sanctuaire** – l’or survit à la mort et achète des améliorations permanentes | **Bilan de fin**, graine comprise pour rejouer exactement le même run |
 
