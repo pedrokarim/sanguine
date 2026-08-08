@@ -248,7 +248,7 @@ export class Mobile {
     texte.className = 'rotate-text';
     texte.textContent =
       'Le domaine est plus large que haut. En paysage, vous voyez venir ce qui vous '
-      + 'entoure — et l’écran entier sert au jeu.';
+      + 'entoure – et l’écran entier sert au jeu.';
     el.appendChild(texte);
 
     const actions = document.createElement('div');

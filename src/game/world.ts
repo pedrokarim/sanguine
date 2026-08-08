@@ -1753,7 +1753,7 @@ export class World {
     this.terrain.restoreUsed(d.poisUsed);
     this.terrain.update(pl.x, pl.y, 0);
     this.cam.snapTo(pl.x, pl.y);
-    this.announce('REPRISE', 'la horde s\'est dispersée');
+    this.announce('REPRISE', 'la horde s’est dispersée');
   }
 
   private onLevelUp(): void {

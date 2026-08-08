@@ -59,7 +59,7 @@ export const SKINS: Cosmetic[] = [
   }),
   C({
     id: 'skin-anselme-heretique', kind: 'skin', charId: 'anselme', price: 900,
-    name: 'Anselme · Hérétique', desc: "L'ordre l'a défroqué. Il prie quand même.",
+    name: 'Anselme · Hérétique', desc: "L’ordre l’a défroqué. Il prie quand même.",
     art: { cloak: '#2a2035', cloth: '#7a5f8f', accent: '#a855f7' },
   }),
   C({

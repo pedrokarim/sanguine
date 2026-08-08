@@ -78,7 +78,7 @@ export const WEAPONS: WeaponDef[] = [
   W({
     id: 'stake',
     name: 'Pieu',
-    desc: "Projette un pieu vers l'ennemi le plus proche.",
+    desc: "Projette un pieu vers l’ennemi le plus proche.",
     behavior: 'projectile',
     damage: 10, cooldown: 1.1, speed: 230, area: 3, count: 1, pierce: 1, duration: 2.4, knockback: 26,
     color: P.linen, sprite: 'stake', sfx: 'shoot',
@@ -240,7 +240,7 @@ export const WEAPONS: WeaponDef[] = [
   W({
     id: 'ricochet',
     name: 'Dague Ricochet',
-    desc: "Rebondit d'un ennemi à l'autre.",
+    desc: "Rebondit d’un ennemi à l’autre.",
     behavior: 'bounce',
     damage: 13, cooldown: 1.5, speed: 250, area: 3.5, count: 1, pierce: 5, duration: 3.0, knockback: 16,
     color: P.spark, sprite: 'dagger', sfx: 'shoot',
@@ -295,7 +295,7 @@ export const WEAPONS: WeaponDef[] = [
   W({
     id: 'aioli',
     name: 'Aïoli',
-    desc: "L'aura double de rayon et empoisonne durablement.",
+    desc: "L’aura double de rayon et empoisonne durablement.",
     behavior: 'aura',
     damage: 11, cooldown: 0.32, speed: 0, area: 58, count: 1, pierce: 99, duration: 0, knockback: 48,
     color: P.poison, sprite: 'orb', sfx: 'swing',
@@ -325,7 +325,7 @@ export const WEAPONS: WeaponDef[] = [
   W({
     id: 'harvest',
     name: 'Moisson',
-    desc: "L'arc devient un cercle complet. Chaque quinzaine de morts vous soigne.",
+    desc: "L’arc devient un cercle complet. Chaque quinzaine de morts vous soigne.",
     behavior: 'melee',
     damage: 42, cooldown: 0.9, speed: 0, area: 62, count: 1, pierce: 99, duration: 0.26, knockback: 60,
     color: P.bloodHi, sprite: 'scythe', sfx: 'swing',
@@ -345,7 +345,7 @@ export const WEAPONS: WeaponDef[] = [
   W({
     id: 'kaleidoscope',
     name: 'Kaléidoscope',
-    desc: "Les éclats rebondissent sur les bords de l'écran.",
+    desc: "Les éclats rebondissent sur les bords de l’écran.",
     behavior: 'nova',
     damage: 17, cooldown: 1.2, speed: 200, area: 4, count: 14, pierce: 3, duration: 3.2, knockback: 20,
     color: P.ice, sprite: 'shard', sfx: 'nova',
@@ -385,7 +385,7 @@ export const WEAPONS: WeaponDef[] = [
   W({
     id: 'furnace',
     name: 'Fournaise',
-    desc: 'Les braises s\'étendent jusqu\'à recouvrir le sol.',
+    desc: 'Les braises s’étendent jusqu’à recouvrir le sol.',
     behavior: 'ground',
     damage: 20, cooldown: 0.9, speed: 70, area: 30, count: 3, pierce: 99, duration: 7.0, knockback: 0,
     color: P.fire, sprite: 'ember', sfx: 'fire',
@@ -405,7 +405,7 @@ export const WEAPONS: WeaponDef[] = [
   W({
     id: 'irongarden',
     name: 'Jardin de Fer',
-    desc: "Les ronces déferlent en vagues concentriques jusqu'aux bords.",
+    desc: "Les ronces déferlent en vagues concentriques jusqu’aux bords.",
     behavior: 'spikes',
     damage: 40, cooldown: 1.5, speed: 0, area: 96, count: 14, pierce: 99, duration: 0.5, knockback: 44,
     color: P.steel, sprite: 'thorn', sfx: 'swing',
@@ -415,7 +415,7 @@ export const WEAPONS: WeaponDef[] = [
   W({
     id: 'packcall',
     name: 'Appel de la Meute',
-    desc: "L'onde invoque des loups spectraux qui combattent à vos côtés.",
+    desc: "L’onde invoque des loups spectraux qui combattent à vos côtés.",
     behavior: 'shockwave',
     damage: 26, cooldown: 1.6, speed: 230, area: 46, count: 2, pierce: 99, duration: 0.7, knockback: 170,
     color: P.copper, sprite: 'wave', sfx: 'nova',
