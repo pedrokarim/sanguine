@@ -288,22 +288,21 @@ const PLANS: Record<BodyArt['plan'], (p: Pix, a: BodyArt, t: number) => void> = 
 export const CORPS_ECHELLE = 1.5;
 
 /**
- * Grille agrandie pour les objets — butin, projectiles, reliques, fioles.
+ * Grille des objets — butin, projectiles, reliques, fioles.
  *
- * Contrairement aux plans corporels, ces dessins sont écrits en coordonnées absolues. On ne
- * peut donc pas se contenter d'agrandir la grille : c'est `Pix.cs` qui convertit les
- * coordonnées au passage, si bien qu'une ellipse de rayon 4 est réellement recalculée à
- * rayon 6 — plus ronde, et pas seulement plus grosse.
+ * **Taille native, sans mise à l'échelle**, et c'est une décision prise après échec.
  *
- * Le facteur est le même que pour les corps : à échelles différentes, une gemme paraîtrait
- * posée dans un autre jeu que la goule qui la lâche.
+ * Une version précédente agrandissait leurs coordonnées d'un facteur 1,5 pour les mettre au
+ * diapason des créatures. Sur des plans corporels, qui dessinent en proportions, cela marche.
+ * Sur ces objets-ci, tracés pixel par pixel à leur taille définitive, l'arrondi a détruit les
+ * formes : la croix est devenue un L brisé, le sablier un carré, le cœur un triangle. Une
+ * forme de douze pixels ne survit pas à une multiplication non entière.
+ *
+ * Un objet plus petit que la créature qui le lâche se remarque à peine. Un objet
+ * méconnaissable se remarque tout de suite.
  */
 function pixObjet(w: number, h: number): Pix {
-  const S = CORPS_ECHELLE;
-  const p = new Pix(Math.round(w * S), Math.round(h * S));
-  p.cs = S;
-  p.unit = S;
-  return p;
+  return new Pix(w, h);
 }
 
 export function makeBody(key: string, art: BodyArt): SpriteSet {
@@ -643,31 +642,44 @@ export function makeGem(rank: 0 | 1 | 2 | 3): SpriteSet {
 
   const colors = [P.xp1, P.xp2, P.xp3, P.xp4];
   const base = colors[rank]!;
-  const size = 5 + rank * 2;
-  const cols = [shade(base, -0.65), shade(base, -0.3), base, shade(base, 0.45), '#ffffff'];
+  const size = 8 + rank * 3;
+  const cols = [
+    shade(base, -0.68), shade(base, -0.32), base,
+    shade(base, 0.4), shade(base, 0.7), '#ffffff',
+  ];
   const frames: Pix[] = [];
 
   for (let i = 0; i < 8; i++) {
     const t = i / 8;
-    const p = pixObjet(size + 4, size + 4);
+    const p = pixObjet(size + 6, size + 6);
     const cx = p.w / 2 - 0.5;
-    const cy = p.h / 2 - 0.5 + Math.sin(t * TAU) * 0.8;
+    const cy = p.h / 2 - 0.5 + Math.sin(t * TAU) * 0.9;
     const r = size / 2;
 
-    // Le rang détermine le nombre de pointes : lisible même en niveaux de gris.
+    /*
+     * Le rang se lit au nombre de pointes, et non à la seule couleur : un joueur daltonien
+     * doit pouvoir trier ses gemmes. Le taillage est marqué par une arête verticale claire
+     * à gauche et sombre à droite, ce qui donne le relief que la seule silhouette ne donne
+     * pas.
+     */
     const spikes = 4 + rank;
     for (let y = -r - 1; y <= r + 1; y++) {
       for (let x = -r - 1; x <= r + 1; x++) {
         const ang = Math.atan2(y, x);
         const rad = Math.hypot(x, y);
-        const edge = r * (0.72 + 0.28 * Math.abs(Math.cos(ang * (spikes / 2))));
-        if (rad <= edge) p.set(cx + x, cy + y, y < 0 ? 3 : 2);
+        const edge = r * (0.7 + 0.3 * Math.abs(Math.cos(ang * (spikes / 2))));
+        if (rad > edge) continue;
+        // Trois plans : lumière en haut à gauche, teinte propre, ombre en bas à droite.
+        const n = (x + y) / (r * 2);
+        p.set(cx + x, cy + y, n < -0.28 ? 3 : n > 0.3 ? 1 : 2);
       }
     }
-    p.set(cx - r * 0.3, cy - r * 0.4, 4); // éclat
-    // Scintillement qui tourne autour de la gemme
+    for (let k = -r; k <= r; k++) p.set(cx, cy + k * 0.9, 3);   // arête centrale
+    p.ellipse(cx - r * 0.34, cy - r * 0.42, r * 0.24, r * 0.2, 4);
+    p.set(cx - r * 0.34, cy - r * 0.42, 5);
+    // Scintillement qui tourne autour de la pierre.
     const sa = t * TAU * 2;
-    p.set(cx + Math.cos(sa) * (r + 1.6), cy + Math.sin(sa) * (r + 1.6), 4);
+    p.set(cx + Math.cos(sa) * (r + 2.2), cy + Math.sin(sa) * (r + 2.2), 4);
     p.outline(0);
     frames.push(p);
   }
@@ -677,20 +689,35 @@ export function makeGem(rank: 0 | 1 | 2 | 3): SpriteSet {
   return set;
 }
 
-/** Pièce d'or : rotation complète sur 6 frames (largeur qui se pince). */
 export function makeCoin(): SpriteSet {
   const key = 'coin';
   const hit = cache.get(key);
   if (hit) return hit;
-  const cols = [shade(P.gold, -0.7), shade(P.gold, -0.35), P.gold, shade(P.gold, 0.4), '#ffffff'];
+  const cols = [
+    shade(P.gold, -0.72), shade(P.gold, -0.36), P.gold,
+    shade(P.gold, 0.38), shade(P.gold, 0.7), '#ffffff',
+  ];
   const frames: Pix[] = [];
-  for (let i = 0; i < 6; i++) {
-    const t = i / 6;
-    const p = pixObjet(8, 8);
-    const rx = Math.max(0.6, Math.abs(Math.cos(t * PI)) * 3);
-    p.ellipse(3.5, 3.5, rx, 3, 2);
-    p.ellipse(3.5, 2.6, rx * 0.6, 1.4, 3);
-    if (rx > 1.6) p.set(3.5, 3.5, 1);
+  for (let i = 0; i < 8; i++) {
+    const t = i / 8;
+    const p = pixObjet(14, 14);
+    const cx = 6.5;
+    const cy = 6.5;
+    // La pièce tourne : sa largeur suit un cosinus, sa hauteur ne bouge pas.
+    const rx = Math.max(0.7, Math.abs(Math.cos(t * TAU)) * 5.6);
+    p.ellipse(cx, cy, rx, 5.6, 2);
+    if (rx > 2.2) {
+      // De face : bord frappé, motif au centre, reflet en haut à gauche.
+      p.ellipse(cx, cy, rx - 1, 4.6, 3);
+      p.ellipse(cx, cy, rx - 2.2, 3.2, 2);
+      p.ellipse(cx - rx * 0.35, cy - 2, rx * 0.3, 1.2, 4);
+      p.rect(cx - 1, cy - 2, 2, 5, 4);        // le motif frappé
+      p.rect(cx - 2, cy - 1, 4, 1, 4);
+      p.set(cx - rx * 0.4, cy - 3, 5);
+    } else {
+      // De tranche : une simple barre, mais éclairée en haut pour garder le volume.
+      p.ellipse(cx, cy - 1.6, rx, 1.6, 4);
+    }
     p.outline(0);
     frames.push(p);
   }
@@ -699,27 +726,39 @@ export function makeCoin(): SpriteSet {
   return set;
 }
 
-/** Cœur : battement à deux temps (systole/diastole), pas une simple pulsation sinusoïdale. */
 export function makeHeart(): SpriteSet {
   const key = 'heart';
   const hit = cache.get(key);
   if (hit) return hit;
-  const cols = [shade(P.blood, -0.7), P.bloodDark, P.blood, P.bloodHi, '#ffd0d8'];
-  const beat = [1.0, 1.18, 1.02, 1.12, 0.98, 1.0];
+  const cols = [
+    shade(P.blood, -0.72), P.bloodDark, P.blood,
+    P.bloodHi, shade(P.bloodHi, 0.45), '#ffd0d8',
+  ];
+  const beat = [1.0, 1.16, 1.03, 1.1, 0.99, 1.0];
   const frames: Pix[] = [];
   for (let i = 0; i < 6; i++) {
-    const s = beat[i]!;
-    const p = pixObjet(10, 10);
-    const cx = 4.5;
-    const cy = 4.6;
-    p.ellipse(cx - 1.7 * s, cy - 1.2 * s, 2.1 * s, 2.0 * s, 2);
-    p.ellipse(cx + 1.7 * s, cy - 1.2 * s, 2.1 * s, 2.0 * s, 2);
-    for (let y = 0; y < 5; y++) {
-      const hw = (3.4 - y * 0.75) * s;
-      for (let x = -hw; x <= hw; x++) p.set(cx + x, cy + y * s, 2);
+    const s2 = beat[i]!;
+    const p = pixObjet(16, 16);
+    const cx = 7.5;
+    const cy = 6.4;
+    /*
+     * La pointe est tracée ligne à ligne plutôt qu'avec une ellipse tronquée : c'est le V
+     * franc du bas qui fait lire « cœur ». Sur la version précédente, en 10 × 10, la pointe
+     * et les lobes se confondaient et l'objet passait pour un triangle.
+     */
+    p.ellipse(cx - 2.6 * s2, cy - 0.8 * s2, 3.3 * s2, 3.1 * s2, 2);
+    p.ellipse(cx + 2.6 * s2, cy - 0.8 * s2, 3.3 * s2, 3.1 * s2, 2);
+    for (let y = 0; y < 8; y++) {
+      const hw = (5.6 - y * 0.72) * s2;
+      if (hw <= 0) break;
+      p.rect(cx - hw, cy + 1 + y, hw * 2 + 1, 1, 2);
     }
-    p.ellipse(cx - 1.6, cy - 1.8, 1.0, 0.8, 4);
-    p.shadeVertical(2, 3, 1);
+    // Volume : ombre sur le lobe droit et le long de la pointe, lumière sur le gauche.
+    p.ellipse(cx + 3.2 * s2, cy, 2.0 * s2, 1.9 * s2, 1);
+    for (let y = 3; y < 9; y++) p.rect(cx + 0.5, cy + y, Math.max(1, 3 - y * 0.4), 1, 1);
+    p.ellipse(cx - 2.8, cy - 1.6, 1.5, 1.3, 3);
+    p.ellipse(cx - 3.0, cy - 2.1, 0.9, 0.7, 4);
+    p.set(cx - 3, cy - 2, 5);
     p.outline(0);
     frames.push(p);
   }
@@ -728,37 +767,48 @@ export function makeHeart(): SpriteSet {
   return set;
 }
 
-/** Coffre : 8 frames, fermé → couvercle qui bascule → rayons. */
 export function makeChest(): SpriteSet {
   const key = 'chest';
   const hit = cache.get(key);
   if (hit) return hit;
   const cols = [
-    shade(P.leather, -0.7),
-    shade(P.leather, -0.25),
-    P.leather,
-    P.gold,
-    '#fff3c4',
-    '#ffffff',
+    shade(P.leather, -0.72), shade(P.leather, -0.3), P.leather,
+    P.gold, '#fff3c4', '#ffffff',
   ];
   const frames: Pix[] = [];
   for (let i = 0; i < 8; i++) {
     const open = Math.min(1, i / 5);
-    const p = pixObjet(16, 15);
-    p.rect(2, 7, 12, 6, 2); // caisse
-    p.rect(2, 9, 12, 1, 3); // ferrure
-    const lidY = 6 - open * 4;
-    const lidH = 4 * (1 - open * 0.55);
-    p.ellipse(8, lidY, 6, Math.max(1, lidH / 2), 2);
-    p.rect(2, lidY, 12, 1, 3);
+    const p = pixObjet(24, 22);
+    // Caisse : planches verticales, cerclage en haut et en bas.
+    p.rect(3, 10, 18, 10, 2);
+    p.rect(3, 10, 18, 1, 1);
+    p.rect(3, 19, 18, 1, 1);
+    for (const x of [7, 12, 17]) p.rect(x, 11, 1, 8, 1);
+    p.rect(3, 14, 18, 1, 3);                    // ferrure médiane
+    // Serrure, au centre : c'est elle qui dit « coffre » plutôt que « caisse ».
+    p.rect(11, 13, 3, 4, 3);
+    p.set(12, 15, 0);
+    p.set(12, 16, 0);
+
+    // Couvercle bombé, qui pivote vers l'arrière en s'ouvrant.
+    const lidY = 9 - open * 6;
+    const lidH = 5 * (1 - open * 0.5);
+    for (let y = 0; y <= lidH; y++) {
+      const hw = Math.round(9 * Math.sqrt(Math.max(0, 1 - (y / (lidH + 0.6)) ** 2)));
+      p.rect(12 - hw, lidY - y, hw * 2, 1, y > lidH * 0.6 ? 3 : 2);
+    }
+    p.rect(3, lidY, 18, 1, 1);
+    p.rect(3, lidY - 1, 18, 1, 3);
+
     if (open > 0.15) {
-      p.rect(3, 7, 10, Math.round(open * 3), 4); // lumière intérieure
-      for (let k = 0; k < 4 && open > 0.5; k++) {
-        const a = -PI / 2 + (k - 1.5) * 0.55;
-        p.line(8, 6, 8 + Math.cos(a) * 7 * open, 6 + Math.sin(a) * 7 * open, 5);
+      // Lueur intérieure, puis rayons quand le couvercle est franchement levé.
+      p.rect(5, 10, 14, Math.round(open * 4), 4);
+      p.rect(6, 10, 12, Math.max(1, Math.round(open * 2)), 5);
+      for (let k = 0; k < 5 && open > 0.5; k++) {
+        const a = -PI / 2 + (k - 2) * 0.42;
+        p.line(12, 10, 12 + Math.cos(a) * 11 * open, 10 + Math.sin(a) * 11 * open, 5);
       }
     }
-    p.set(8, 10, 3);
     p.outline(0);
     frames.push(p);
   }
@@ -767,7 +817,6 @@ export function makeChest(): SpriteSet {
   return set;
 }
 
-/** Relique : silhouette d'amulette, teintée par rareté, en rotation lente. */
 export function makeRelic(rarity: Rarity): SpriteSet {
   const key = `relic:${rarity}`;
   const hit = cache.get(key);
@@ -1059,86 +1108,249 @@ export function makePassiveSprite(icon: PassiveIcon, color: string): SpriteSet {
   const hit = cache.get(key);
   if (hit) return hit;
 
-  const cols = [shade(color, -0.72), shade(color, -0.3), color, shade(color, 0.45), '#ffffff'];
-  const p = pixObjet(13, 13);
-  const c = 6;
+  /*
+   * Icônes des passifs, redessinées en 20 × 20.
+   *
+   * Elles tenaient en 13 × 13, où une plume n'était qu'un trait oblique et un calice qu'une
+   * ellipse sur un bâton. À cette taille il n'y a pas de place pour dire ce qu'est l'objet ;
+   * on ne peut qu'en suggérer la masse.
+   *
+   * Une tentative d'agrandissement par mise à l'échelle des coordonnées avait tout cassé :
+   * une forme tracée pixel par pixel ne survit pas à une multiplication non entière, et le
+   * sablier était devenu un carré. Elles sont donc **redessinées**, pas agrandies.
+   *
+   * Six teintes, toutes dérivées de la couleur du passif : la table reste à une couleur par
+   * entrée. L'ombre est en bas à droite, la lumière en haut à gauche, sans exception — c'est
+   * cette constance qui fait que douze objets d'origines différentes ont l'air d'une série.
+   */
+  const cols = [
+    shade(color, -0.75), // 0 contour
+    shade(color, -0.38), // 1 ombre
+    color,               // 2 teinte propre
+    shade(color, 0.3),   // 3 lumière
+    shade(color, 0.62),  // 4 reflet
+    '#ffffff',           // 5 éclat
+  ];
+  const p = pixObjet(20, 20);
 
   switch (icon) {
-    case 'gem':
-      p.ellipse(c, c, 4, 4.6, 2);
-      p.line(c - 3, c - 1, c + 3, c - 1, 3);
-      p.set(c - 1, c - 2, 4);
-      break;
-    case 'boot':
-      p.rect(3, 3, 3, 6, 2);
-      p.rect(3, 8, 7, 2, 3);
-      p.set(4, 4, 4);
-      break;
-    case 'heart':
-      p.ellipse(c - 2, c - 1, 2.2, 2, 2);
-      p.ellipse(c + 2, c - 1, 2.2, 2, 2);
-      for (let y = 0; y < 5; y++) p.rect(c - (3.6 - y * 0.8), c + y, (3.6 - y * 0.8) * 2, 1, 2);
-      p.set(c - 2, c - 2, 4);
-      break;
-    case 'glass':
-      p.rect(2, 1, 9, 1, 3);
-      p.rect(2, 11, 9, 1, 3);
-      for (let y = 2; y <= 5; y++) p.rect(2 + (y - 2), y, 9 - (y - 2) * 2, 1, 2);
-      for (let y = 7; y <= 10; y++) p.rect(2 + (10 - y), y, 9 - (10 - y) * 2, 1, 2);
-      p.set(c, 9, 4);
-      break;
-    case 'lens':
-      p.ring(c - 1, c - 1, 4, 4, 2);
-      p.ellipse(c - 1, c - 1, 2.4, 2.4, 3);
-      p.line(c + 2, c + 2, 11, 11, 2);
-      p.set(c - 2, c - 2, 4);
-      break;
-    case 'flask':
-      p.rect(c - 1, 1, 3, 3, 3);
-      p.ellipse(c, 8, 4, 4, 2);
-      p.ellipse(c - 1, 7, 1.4, 1.2, 4);
-      break;
-    case 'feather':
-      p.limb(3, 11, 9, 2, 1.6, 3);
-      for (let k = 0; k < 5; k++) p.line(4 + k, 10 - k * 1.7, 7 + k * 0.6, 8 - k * 1.6, 2);
-      p.set(9, 2, 4);
-      break;
-    case 'book':
-      p.rect(1, 3, 11, 8, 2);
-      p.rect(c, 3, 1, 8, 1);
-      p.rect(2, 4, 4, 1, 3);
-      p.rect(7, 4, 4, 1, 3);
-      p.set(c, 7, 4);
-      break;
-    case 'magnet':
-      p.limb(3, 10, 3, 5, 2.2, 2);
-      p.limb(9, 10, 9, 5, 2.2, 2);
-      p.ellipse(6, 5, 3.6, 3.2, 2);
-      p.ellipse(6, 6, 1.8, 1.8, -1);
-      p.rect(2, 9, 3, 2, 3);
-      p.rect(8, 9, 3, 2, 3);
-      break;
-    case 'shield':
-      p.ellipse(c, c - 1, 4.4, 4, 2);
-      p.rect(c - 4, c + 1, 9, 2, 2);
-      p.line(c - 3, c + 2, c, c + 5, 2);
-      p.line(c + 3, c + 2, c, c + 5, 2);
-      p.set(c, c - 2, 4);
-      break;
-    case 'clover':
-      for (const [dx, dy] of [[-2, -2], [2, -2], [-2, 2], [2, 2]] as const) {
-        p.ellipse(c + dx, c + dy - 1, 2.2, 2.2, 2);
+    case 'gem': {
+      /*
+       * Gemme taillée en brillant : table plate en haut, couronne évasée, pavillon en
+       * pointe. Les arêtes de facettes comptent plus que la silhouette — sans elles on
+       * obtient une pastille bombée, qui se lit comme un galet et non comme une pierre.
+       */
+      p.rect(6, 3, 8, 1, 2);                       // table
+      for (let y = 4; y <= 6; y++) {               // couronne, qui s'évase
+        const hw = 4 + (y - 3) * 1.2;
+        p.rect(10 - hw, y, hw * 2, 1, 2);
       }
-      p.line(c, c + 2, c + 1, 11, 1);
-      p.set(c - 2, c - 3, 4);
+      for (let y = 7; y <= 16; y++) {              // pavillon, qui se referme
+        const hw = 7.6 - (y - 7) * 0.78;
+        p.rect(10 - hw, y, hw * 2 + 1, 1, 2);
+      }
+      // Facettes : deux arêtes claires à gauche, deux sombres à droite. C'est le contraste
+      // entre ces plans, pas le contour, qui donne le tranchant du taillage.
+      p.rect(6, 3, 8, 1, 4);
+      p.line(6, 4, 3, 7, 3);
+      p.line(14, 4, 17, 7, 1);
+      p.line(3, 7, 9, 16, 3);
+      p.line(17, 7, 11, 16, 1);
+      p.line(6, 4, 8, 16, 3);
+      p.line(14, 4, 12, 16, 1);
+      p.rect(4, 7, 13, 1, 1);                      // ceinture, la ligne la plus large
+      p.rect(6, 4, 3, 1, 4);
+      p.set(7, 5, 5);
       break;
-    case 'cup':
-      p.ellipse(c, 5, 4, 3, 2);
-      p.ellipse(c, 4, 3, 2, 3);
-      p.limb(c, 7, c, 10, 1.8, 2);
-      p.rect(c - 3, 10, 7, 1, 2);
-      p.set(c - 1, 3, 4);
+    }
+    case 'boot': {
+      // Botte de marche : tige, cou-de-pied, semelle qui dépasse vers l'avant.
+      p.rect(5, 3, 6, 9, 2);            // tige
+      p.rect(5, 3, 6, 1, 3);            // ouverture
+      p.rect(5, 11, 11, 4, 2);          // pied
+      p.rect(4, 15, 13, 2, 1);          // semelle
+      p.rect(4, 16, 13, 1, 0);
+      p.rect(5, 6, 6, 1, 1);            // pli du cuir
+      p.rect(11, 12, 5, 1, 3);
+      p.rect(6, 4, 2, 5, 3);            // lumière sur la tige
+      p.set(6, 4, 4);
       break;
+    }
+
+    case 'heart': {
+      // Cœur : deux lobes et une pointe. La pointe est tracée ligne à ligne pour que le V
+      // reste net — une ellipse tronquée donne une base molle.
+      p.ellipse(7, 7, 3.6, 3.4, 2);
+      p.ellipse(13, 7, 3.6, 3.4, 2);
+      for (let y = 0; y < 8; y++) {
+        const hw = 6.4 - y * 0.82;
+        p.rect(10 - hw, 8 + y, hw * 2 + 1, 1, 2);
+      }
+      // Volume : ombre sur le lobe droit et sous la pointe, lumière sur le gauche.
+      p.ellipse(14, 8, 2.4, 2.2, 1);
+      for (let y = 11; y < 16; y++) p.rect(10, y, 3 - (y - 11) * 0.5, 1, 1);
+      p.ellipse(6, 6, 1.8, 1.6, 3);
+      p.ellipse(6, 5, 1.0, 0.8, 4);
+      p.set(6, 5, 5);
+      break;
+    }
+
+    case 'glass': {
+      // Sablier : deux montants, deux cônes qui se touchent, le sable en bas.
+      p.rect(3, 2, 14, 2, 1);
+      p.rect(3, 16, 14, 2, 1);
+      p.rect(4, 4, 1, 12, 1);
+      p.rect(15, 4, 1, 12, 1);
+      for (let y = 4; y <= 9; y++) {
+        const hw = 5 - (y - 4) * 0.8;
+        p.rect(10 - hw, y, hw * 2, 1, 2);
+      }
+      for (let y = 10; y <= 15; y++) {
+        const hw = 0.6 + (y - 10) * 0.8;
+        p.rect(10 - hw, y, hw * 2, 1, 2);
+      }
+      // Le sable : tas en bas, filet au centre, vide en haut. C'est ce qui dit « il coule ».
+      for (let y = 12; y <= 15; y++) {
+        const hw = (y - 11) * 1.1;
+        p.rect(10 - hw, y, hw * 2, 1, 4);
+      }
+      p.rect(9, 9, 1, 4, 4);
+      p.rect(5, 4, 4, 1, 3);
+      p.set(5, 3, 5);
+      break;
+    }
+
+    case 'lens': {
+      // Longue-vue : un tube en perspective, pas un cercle avec un manche.
+      p.rect(3, 6, 6, 7, 2);            // corps
+      p.rect(9, 7, 5, 5, 2);            // fût
+      p.rect(14, 8, 4, 3, 1);           // oculaire
+      p.rect(3, 6, 6, 1, 3);
+      p.rect(3, 12, 6, 1, 1);
+      p.rect(9, 7, 5, 1, 3);
+      p.ellipse(3, 9.5, 1.6, 3.4, 3);   // lentille
+      p.ellipse(3, 9.5, 0.9, 2.2, 4);
+      p.set(3, 8, 5);
+      p.rect(8, 6, 1, 7, 1);            // bagues
+      p.rect(13, 7, 1, 5, 1);
+      break;
+    }
+
+    case 'flask': {
+      // Fiole : col étroit, panse ronde, bouchon, niveau de liquide net.
+      p.rect(8, 2, 4, 2, 1);            // bouchon
+      p.rect(8, 4, 4, 4, 3);            // col
+      p.ellipse(10, 13, 6, 5.4, 2);     // panse
+      for (let y = 11; y <= 17; y++) {  // liquide, arrêté à une ligne franche
+        const hw = Math.round(Math.sqrt(Math.max(0, 1 - ((y - 13) / 5.4) ** 2)) * 6);
+        if (hw > 0) p.rect(10 - hw, y, hw * 2, 1, 1);
+      }
+      p.rect(5, 11, 10, 1, 4);          // surface
+      p.ellipse(7, 11, 1.4, 1.8, 3);    // reflet vertical sur le verre
+      p.set(7, 10, 5);
+      break;
+    }
+
+    case 'feather': {
+      // Plume : un rachis courbe, et des barbes de part et d'autre, plus courtes vers la
+      // pointe. Sans les deux côtés, on ne lit qu'une branche.
+      const rachis = (t: number): [number, number] => [4 + t * 11, 17 - t * 15];
+      for (let k = 0; k <= 26; k++) {
+        const t = k / 26;
+        const [x, y] = rachis(t);
+        // Barbes : longueur maximale au milieu, nulle aux deux bouts.
+        const l = Math.sin(t * Math.PI) * 5.2 * (1 - t * 0.3);
+        for (let i = 1; i <= l; i++) {
+          p.set(x - i * 0.85, y - i * 0.24, i > l - 1.6 ? 1 : 2);
+          p.set(x + i * 0.62, y + i * 0.5, i > l - 1.6 ? 1 : 3);
+        }
+      }
+      for (let k = 0; k <= 26; k++) {
+        const [x, y] = rachis(k / 26);
+        p.set(x, y, 4);                 // le rachis, clair, par-dessus les barbes
+      }
+      p.set(...rachis(1), 5);
+      break;
+    }
+
+    case 'book': {
+      // Grimoire vu de trois quarts : plat, tranche de pages, dos épais.
+      p.rect(2, 4, 15, 13, 2);          // plat
+      p.rect(2, 4, 15, 1, 3);
+      p.rect(2, 16, 15, 1, 1);
+      p.rect(13, 5, 4, 11, 4);          // tranche des pages
+      for (let y = 6; y < 16; y += 2) p.rect(13, y, 4, 1, 3);
+      p.rect(2, 4, 3, 13, 1);           // dos
+      p.rect(3, 7, 1, 7, 3);            // nerfs
+      p.rect(6, 8, 6, 1, 3);            // fermoir
+      p.rect(6, 11, 6, 1, 3);
+      p.set(6, 5, 5);
+      break;
+    }
+
+    case 'magnet': {
+      // Aimant en fer à cheval, ouvert vers le bas, avec ses deux pôles marqués.
+      p.ellipse(10, 9, 7, 7, 2);
+      p.ellipse(10, 9, 3.4, 3.4, -1);
+      p.rect(3, 9, 14, 9, -1);          // on ouvre le bas
+      p.rect(3, 9, 4, 7, 2);            // branche gauche
+      p.rect(13, 9, 4, 7, 2);           // branche droite
+      p.rect(3, 15, 4, 3, 4);           // pôles
+      p.rect(13, 15, 4, 3, 1);
+      p.rect(3, 3, 4, 2, 3);            // lumière sur l'arceau
+      p.ellipse(7, 4, 2.2, 1.4, 3);
+      p.set(7, 3, 5);
+      break;
+    }
+
+    case 'shield': {
+      // Écusson : épaules droites, flancs qui se resserrent, pointe basse.
+      p.rect(3, 3, 15, 6, 2);
+      for (let y = 9; y <= 17; y++) {
+        const hw = 7.5 - (y - 9) * 0.85;
+        p.rect(10 - hw, y, hw * 2 + 1, 1, 2);
+      }
+      p.rect(3, 3, 15, 1, 3);
+      for (let y = 4; y <= 16; y++) p.set(11 + (y - 4) * 0.35, y, 1);   // flanc d'ombre
+      p.rect(5, 5, 4, 1, 3);
+      p.limb(10, 6, 10, 14, 1.6, 4);    // nervure centrale
+      p.set(5, 4, 5);
+      break;
+    }
+
+    case 'clover': {
+      // Trèfle à quatre feuilles : quatre cœurs disposés en croix, plus la tige.
+      for (const [dx, dy] of [[-4, -4], [4, -4], [-4, 3], [4, 3]] as const) {
+        const cx = 10 + dx;
+        const cy = 8 + dy;
+        p.ellipse(cx - 1.6, cy, 2.4, 2.4, 2);
+        p.ellipse(cx + 1.6, cy, 2.4, 2.4, 2);
+        p.ellipse(cx, cy + 1.4, 2.6, 2.4, 2);
+        p.ellipse(cx - 1.8, cy - 1, 1.1, 1.0, 3);
+      }
+      p.ellipse(10, 8, 1.6, 1.6, 1);    // cœur du trèfle
+      for (let k = 0; k < 7; k++) p.set(10 + k * 0.28, 12 + k, 1);   // tige
+      p.set(5, 3, 5);
+      break;
+    }
+
+    case 'cup': {
+      // Calice : coupe évasée, nœud, pied. Les trois éléments doivent se distinguer.
+      for (let y = 3; y <= 10; y++) {
+        const hw = 6.2 - (y - 3) * 0.62;
+        p.rect(10 - hw, y, hw * 2 + 1, 1, 2);
+      }
+      p.rect(4, 3, 13, 1, 4);           // lèvre
+      p.rect(5, 4, 11, 2, 1);           // le vin, sous la lèvre
+      for (let y = 4; y <= 9; y++) p.set(13 - (y - 4) * 0.5, y, 1);   // ombre de la coupe
+      p.ellipse(10, 11.5, 2.2, 1.4, 2); // nœud
+      p.rect(9, 12, 3, 4, 2);           // tige
+      p.rect(9, 12, 1, 4, 3);
+      p.ellipse(10, 17, 5.4, 1.8, 2);   // pied
+      p.rect(5, 17, 11, 1, 3);
+      p.set(6, 4, 5);
+      break;
+    }
   }
 
   p.outline(0);
