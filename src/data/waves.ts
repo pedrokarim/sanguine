@@ -53,6 +53,15 @@ export function hpScale(m: number, level = 1): number {
 /** Part de PV gagnée par niveau de joueur au-delà du huitième. Réglé à la mesure. */
 export const LEVEL_HP = 0.05;
 
+/**
+ * Au-delà de ce nombre d'ennemis vivants, les murs cessent de bloquer les terrestres.
+ *
+ * Garde-fou de performance, réglé par la mesure. Le jeu tient 60 images par seconde avec 750
+ * ennemis ; il faut que la collision ne puisse jamais être la cause d'une chute, même dans
+ * le pire cas d'une Déferlante contre une nef à huit colonnes.
+ */
+export const MURS_MAX_ENNEMIS = 420;
+
 /** Multiplicateur de dégâts appliqué aux ennemis à la minute `m`. */
 export function damageScale(m: number): number {
   return 1 + m * 0.05;

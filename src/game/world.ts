@@ -11,7 +11,7 @@ import {
 } from '../gfx/sprites';
 import { enemyById, type EnemyDef, type BossDef } from '../data/enemies';
 import { RELICS, RARITY_WEIGHT, RARITY_LABEL, type RelicDef } from '../data/relics';
-import { DROP_TABLE, hpScale, damageScale } from '../data/waves';
+import { DROP_TABLE, hpScale, damageScale, MURS_MAX_ENNEMIS } from '../data/waves';
 import type { RunSave } from '../core/save';
 import { Player } from './player';
 import { xpForLevel } from '../data/waves';
@@ -595,6 +595,64 @@ export class World {
     }
   }
 
+  /**
+   * Murs actifs autour du joueur, à plat : x, y, largeur, hauteur, quatre nombres par mur.
+   *
+   * Rebâti quatre fois par seconde plutôt qu'à chaque image. Les ruines sont statiques et le
+   * joueur ne franchit pas 460 pixels en un quart de seconde : recalculer plus souvent
+   * serait du gaspillage pur.
+   */
+  private murs: number[] = [];
+  private readonly tamponJoueur = { x: 0, y: 0, radius: 5 };
+  private mursTimer = 0;
+
+  private updateMurs(dt: number): void {
+    this.mursTimer -= dt;
+    if (this.mursTimer > 0) return;
+    this.mursTimer = 0.25;
+
+    this.murs.length = 0;
+    for (const r of this.terrain.ruinesNear(this.player.x, this.player.y, 460)) {
+      for (const [mx, my, mw, mh] of r.def.murs) {
+        this.murs.push(r.x + mx, r.y + my, mw, mh);
+      }
+    }
+  }
+
+  /**
+   * Repousse une entité hors des murs, selon l'axe de **moindre pénétration**.
+   *
+   * C'est ce choix d'axe qui fait qu'on longe un mur au lieu de s'y coller : sortir par le
+   * côté le plus proche transforme une collision frontale en glissement.
+   *
+   * Retourne vrai si l'entité a été déplacée.
+   */
+  private resoudreMurs(o: { x: number; y: number; radius: number }): boolean {
+    const m = this.murs;
+    let bouge = false;
+    for (let i = 0; i < m.length; i += 4) {
+      const mx = m[i]!;
+      const my = m[i + 1]!;
+      const mw = m[i + 2]!;
+      const mh = m[i + 3]!;
+      const r = o.radius;
+      // Rectangle dilaté du rayon de l'entité : le test redevient point contre rectangle.
+      if (o.x < mx - r || o.x > mx + mw + r || o.y < my - r || o.y > my + mh + r) continue;
+
+      const gauche = o.x - (mx - r);
+      const droite = mx + mw + r - o.x;
+      const haut = o.y - (my - r);
+      const bas = my + mh + r - o.y;
+      const min = Math.min(gauche, droite, haut, bas);
+      if (min === gauche) o.x = mx - r;
+      else if (min === droite) o.x = mx + mw + r;
+      else if (min === haut) o.y = my - r;
+      else o.y = my + mh + r;
+      bouge = true;
+    }
+    return bouge;
+  }
+
   private dropLoot(e: Enemy): void {
     const pl = this.player;
     const luck = pl.stats.luck;
@@ -871,7 +929,24 @@ export class World {
     }
 
     this.rebuildGrid();
+    this.updateMurs(sdt);
     this.updateDecor(sdt);
+    // Le joueur est repoussé après son déplacement, jamais avant : sinon il traverserait
+    // d'une image sur l'autre à grande vitesse.
+    /*
+     * Le joueur est repoussé après son déplacement, jamais avant : sinon il traverserait
+     * d'une image sur l'autre à grande vitesse.
+     *
+     * On passe par un objet tampon parce que `Player` ne porte pas de rayon — le sien est
+     * fixé à 5 dans tout le jeu, indépendamment de la taille de son sprite.
+     */
+    this.tamponJoueur.x = this.player.x;
+    this.tamponJoueur.y = this.player.y;
+    if (this.resoudreMurs(this.tamponJoueur)) {
+      this.player.x = this.tamponJoueur.x;
+      this.player.y = this.tamponJoueur.y;
+    }
+
     this.updateEnemies(sdt);
     this.updateProjectiles(sdt);
     this.updateZones(sdt);
@@ -1022,6 +1097,7 @@ export class World {
 
   private updateEnemies(dt: number): void {
     const pl = this.player;
+    const vivants = this.aliveEnemies;
     const frozen = this.freezeTimer > 0;
     const now = this.time;
 
@@ -1080,7 +1156,23 @@ export class World {
       // séparation : un brasero repoussé par la horde traverserait la carte.
       if (e.def.ai === 'static') { e.vx = 0; e.vy = 0; continue; }
 
+      const vole = e.def.art.plan === 'flying' || e.def.ai === 'phase';
+
       if (e.def.ai !== 'phase' && !e.boss) this.separate(e, dt);
+
+      /*
+       * Les murs, pour les seuls ennemis terrestres.
+       *
+       * Les volants passent au-dessus — ce qui allège la charge et donne enfin une raison
+       * d'exister aux chauves-souris et aux corbeaux.
+       *
+       * Au-delà d'un seuil d'ennemis vivants, plus personne n'est bloqué. Un ralentissement
+       * se voit ; un ennemi qui traverse un mur au plus fort d'une déferlante, non. Le
+       * compromis est assumé et va dans le sens de la lisibilité.
+       */
+      if (!vole && this.murs.length > 0 && vivants < MURS_MAX_ENNEMIS) {
+        this.resoudreMurs(e);
+      }
 
       // Contact avec le joueur
       const touchDist = e.radius + 5;

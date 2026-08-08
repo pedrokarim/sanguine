@@ -65,6 +65,70 @@ export type TreeKind = 'pine' | 'oak' | 'willow' | 'burnt';
  * `nu` est le sol de bruit d'origine, et reste majoritaire : un motif partout n'est plus un
  * motif.
  */
+/**
+ * Ruines : des bâtiments, pas des bornes.
+ *
+ * De 80 à 220 pixels, elles arrêtent le joueur et les ennemis terrestres. Elles
+ * transforment le terrain en géographie : on contourne, on s'y adosse, on s'y fait piéger.
+ *
+ * La collision est décrite par une **liste de rectangles alignés sur les axes**, jamais par
+ * la silhouette du sprite. Trois à six par ruine suffisent, le test reste trivial, et
+ * surtout on garde la main sur les ouvertures.
+ *
+ * Règle absolue : **toute ruine a au moins deux ouvertures**. Un joueur ne doit jamais
+ * pouvoir être coincé entre un mur et la horde sans issue — ce serait une mort qu'il n'a pas
+ * commise.
+ */
+export type RuineType = 'mur' | 'angle' | 'nef' | 'tour' | 'ferme' | 'pontons';
+
+export interface RuineDef {
+  type: RuineType;
+  w: number;
+  h: number;
+  /** Rectangles bloquants, en coordonnées locales depuis le coin haut-gauche. */
+  murs: [number, number, number, number][];
+  /** Biomes où elle peut paraître. Vide = partout. */
+  biomes: string[];
+}
+
+export const RUINE_DEFS: RuineDef[] = [
+  {
+    type: 'mur', w: 120, h: 44, biomes: [],
+    // Une brèche au milieu : le mur se traverse, mais il faut viser.
+    murs: [[0, 26, 46, 14], [74, 26, 46, 14]],
+  },
+  {
+    type: 'angle', w: 92, h: 92, biomes: ['moor', 'graveyard'],
+    // Deux murs en L, chacun percé — les deux ouvertures sont sur des côtés différents.
+    murs: [[0, 70, 34, 18], [56, 70, 36, 18], [0, 0, 16, 40], [0, 58, 16, 30]],
+  },
+  {
+    type: 'nef', w: 216, h: 120, biomes: ['graveyard'],
+    // Deux rangées de colonnes : on circule entre elles, jamais à travers.
+    murs: [
+      [14, 40, 18, 18], [64, 40, 18, 18], [134, 40, 18, 18], [184, 40, 18, 18],
+      [14, 92, 18, 18], [64, 92, 18, 18], [134, 92, 18, 18], [184, 92, 18, 18],
+    ],
+  },
+  {
+    type: 'tour', w: 84, h: 112, biomes: ['thicket', 'graveyard'],
+    // Cylindre éventré : la face avant est ouverte, on peut entrer.
+    murs: [[6, 40, 20, 66], [58, 40, 20, 66], [6, 40, 72, 14]],
+  },
+  {
+    type: 'ferme', w: 160, h: 104, biomes: ['ashes', 'moor'],
+    // Quatre murs bas, deux portes.
+    murs: [[0, 30, 58, 16], [98, 30, 62, 16], [0, 46, 16, 58], [144, 46, 16, 58], [0, 88, 62, 16], [104, 88, 56, 16]],
+  },
+  {
+    type: 'pontons', w: 176, h: 72, biomes: ['mire'],
+    // Pilotis épars : ils gênent sans enfermer, ce qui convient à un marais.
+    murs: [[10, 20, 12, 12], [56, 34, 12, 12], [104, 18, 12, 12], [148, 40, 12, 12], [30, 52, 12, 12]],
+  },
+];
+
+export const RUINE_BY_TYPE = new Map(RUINE_DEFS.map((r) => [r.type, r]));
+
 export type SolMotif = 'nu' | 'dallage' | 'pave' | 'labour' | 'vase' | 'cendre' | 'fouille';
 
 export interface Tree {
@@ -231,6 +295,12 @@ function cellSeed(cx: number, cy: number, salt: number): number {
 // Décor
 // ---------------------------------------------------------------------------
 
+export interface Ruine {
+  x: number;
+  y: number;
+  def: RuineDef;
+}
+
 export interface Prop {
   x: number;
   y: number;
@@ -265,6 +335,14 @@ const GROVE_RADIUS = 250;
 
 /** Cellule du décor destructible. Large : ces objets doivent se croiser rarement. */
 const DESTR_CELL = 260;
+
+/**
+ * Cellule des ruines.
+ *
+ * Très large : une ruine est un événement de terrain, pas un meuble. À 1 100 pixels et une
+ * chance sur trois, on en croise une toutes les deux ou trois minutes de marche.
+ */
+const RUINE_CELL = 1100;
 
 // ---------------------------------------------------------------------------
 // Sprites du terrain
@@ -807,6 +885,74 @@ export function treeSprite(
   return c;
 }
 
+const ruineCache = new Map<string, HTMLCanvasElement>();
+
+/**
+ * Sprite d'une ruine.
+ *
+ * Dessiné directement sur un canvas plutôt qu'avec `Pix` : à 216 × 120, une grille indexée
+ * coûterait 26 000 entrées par ruine pour un résultat identique. La pierre est un aplat
+ * texturé, pas un sprite à palette.
+ *
+ * Les blocs bloquants sont dessinés **à l'aplomb de leur rectangle de collision** : ce que
+ * le joueur voit est exactement ce qui l'arrête. Un décor qui ment sur sa collision est pire
+ * que pas de collision du tout.
+ */
+export function ruineSprite(def: RuineDef, biome: Biome): HTMLCanvasElement {
+  const key = `${def.type}:${biome.id}`;
+  const hit = ruineCache.get(key);
+  if (hit) return hit;
+
+  const c = document.createElement('canvas');
+  c.width = def.w;
+  c.height = def.h;
+  const ctx = c.getContext('2d')!;
+  const rng = new Rng(cellSeed(def.type.length * 17, 3, 0x2b91));
+
+  const pierre = mix(biome.ground[1], '#5a5f6e', 0.5);
+  const clair = shade(pierre, 0.28);
+  const sombre = shade(pierre, -0.42);
+  const noir = shade(pierre, -0.72);
+
+  for (const [x, y, w, h] of def.murs) {
+    // Base sombre, face éclairée en haut, arête froide à droite — même convention que les
+    // créatures, sinon les ruines paraissent venir d'un autre jeu.
+    ctx.fillStyle = sombre;
+    ctx.fillRect(x, y, w, h);
+    ctx.fillStyle = pierre;
+    ctx.fillRect(x, y, w, Math.max(2, h - 4));
+    ctx.fillStyle = clair;
+    ctx.fillRect(x, y, w, 2);
+
+    // Appareil de pierre : des joints, décalés d'un rang à l'autre.
+    ctx.fillStyle = noir;
+    for (let ry = y + 5; ry < y + h; ry += 6) {
+      ctx.fillRect(x, ry, w, 1);
+      const dec = ((ry - y) / 6) % 2 === 0 ? 0 : 7;
+      for (let rx = x + dec; rx < x + w; rx += 14) ctx.fillRect(rx, ry, 1, 5);
+    }
+
+    // Arêtes rongées : quelques pierres manquantes sur le dessus.
+    ctx.clearRect(x, y, w, 1);
+    ctx.fillStyle = clair;
+    for (let rx = x; rx < x + w; rx += 3) {
+      if (rng.next() < 0.72) ctx.fillRect(rx, y + 1, 3, 1);
+    }
+    for (let k = 0; k < w / 12; k++) {
+      if (rng.next() < 0.5) ctx.clearRect(x + rng.int(0, w - 4), y, rng.int(2, 5), rng.int(1, 3));
+    }
+  }
+
+  // Gravats au pied : ils lient la ruine au sol et masquent la coupe franche du rectangle.
+  ctx.fillStyle = rgba(noir, 0.55);
+  for (let k = 0; k < def.w / 5; k++) {
+    ctx.fillRect(rng.int(0, def.w), def.h - rng.int(1, 7), rng.int(2, 6), rng.int(1, 3));
+  }
+
+  ruineCache.set(key, c);
+  return c;
+}
+
 export function propSprite(kind: PropKind, variant: number, biome: Biome): HTMLCanvasElement {
   const key = `${kind}:${variant}:${biome.id}`;
   const hit = propCache.get(key);
@@ -1165,6 +1311,48 @@ export class Terrain {
       }
     }
     return out;
+  }
+
+  private ruines = new Map<string, Ruine | null>();
+
+  private ruineAt(cx: number, cy: number): Ruine | null {
+    const key = `${cx},${cy}`;
+    const hit = this.ruines.get(key);
+    if (hit !== undefined) return hit;
+
+    const rng = new Rng(cellSeed(cx, cy, this.seed ^ 0x4e2b8d17));
+    let out: Ruine | null = null;
+    if (rng.next() < 0.34) {
+      const x = cx * RUINE_CELL + rng.range(120, RUINE_CELL - 320);
+      const y = cy * RUINE_CELL + rng.range(120, RUINE_CELL - 320);
+      const biome = biomeAt(x, y);
+      const possibles = RUINE_DEFS.filter(
+        (d) => d.biomes.length === 0 || d.biomes.includes(biome.id),
+      );
+      if (possibles.length > 0) {
+        const def = possibles[rng.int(0, possibles.length - 1)]!;
+        out = { x, y, def };
+      }
+    }
+    this.ruines.set(key, out);
+    return out;
+  }
+
+  private ruineBuf: Ruine[] = [];
+  /** Ruines proches. Tampon réutilisé, ne pas conserver. */
+  ruinesNear(x: number, y: number, radius: number): Ruine[] {
+    this.ruineBuf.length = 0;
+    const c0x = Math.floor((x - radius) / RUINE_CELL);
+    const c1x = Math.floor((x + radius) / RUINE_CELL);
+    const c0y = Math.floor((y - radius) / RUINE_CELL);
+    const c1y = Math.floor((y + radius) / RUINE_CELL);
+    for (let cy = c0y; cy <= c1y; cy++) {
+      for (let cx = c0x; cx <= c1x; cx++) {
+        const r = this.ruineAt(cx, cy);
+        if (r) this.ruineBuf.push(r);
+      }
+    }
+    return this.ruineBuf;
   }
 
   private propsAt(cx: number, cy: number): Prop[] {
