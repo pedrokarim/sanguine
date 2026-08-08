@@ -102,6 +102,7 @@ AZERTY et QWERTY fonctionnent simultanément : les touches sont lues par **code 
 | `F1` | +10 niveaux · `F2` +1 minute · `F3` soins complets |
 | `F4` | Tue tout à l’écran · `F5` +10 000 or |
 | `F6` | Fait tomber une relique · `F7` fait tomber un coffre |
+| `F8` | Bascule entre le héros détaillé et l'ancien, pour comparer |
 
 La console expose `window.sanguine` : `.snapshot()`, `.world`, `.startRun(id)`, `.exportSprites()`.
 

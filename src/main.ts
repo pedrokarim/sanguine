@@ -8,6 +8,7 @@ import { audio } from './audio/audio';
 import { Renderer } from './gfx/renderer';
 import {
   spriteSheet, makeProjectile, makeBody, makeRelic, makeHero, makePassiveSprite,
+  setHeroDetaille, getHeroDetaille,
   makeGem, makeCoin, makeHeart, makeChest, type SpriteSet,
 } from './gfx/sprites';
 import { WEAPONS } from './data/weapons';
@@ -612,6 +613,14 @@ function handleGlobalKeys(): void {
   if (input.wasPressed('KeyM') && hud) {
     audio.play('select');
     hud.minimap.toggle();
+  }
+
+  // Bascule entre le héros détaillé et le classique, pour trancher en comparant.
+  if (input.wasPressed('F8')) {
+    setHeroDetaille(!getHeroDetaille());
+    world?.player.refreshSprites();
+    if (world) world.announce(getHeroDetaille() ? 'Héros détaillé' : 'Héros classique', '19×23 / 13×15');
+    audio.play('select');
   }
 
   if (input.wasPressed('KeyF')) {

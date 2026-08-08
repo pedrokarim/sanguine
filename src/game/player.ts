@@ -62,8 +62,8 @@ export class Player {
   flags: Partial<Record<RelicFlag, number>> = {};
 
   char: CharacterDef;
-  walkSprite: SpriteSet;
-  idleSprite: SpriteSet;
+  walkSprite!: SpriteSet;
+  idleSprite!: SpriteSet;
 
   /** Invulnérabilité restante. */
   iframes = 0;
@@ -94,6 +94,14 @@ export class Player {
   damageDealt = 0;
 
   private srcCounter = 100;
+  private spriteKey = '';
+  private spriteArt!: Parameters<typeof makeHero>[1];
+
+  /** Reconstruit les planches du héros — après un changement de style, par exemple. */
+  refreshSprites(): void {
+    this.walkSprite = makeHero(this.spriteKey, this.spriteArt, true);
+    this.idleSprite = makeHero(this.spriteKey, this.spriteArt, false);
+  }
 
   constructor(charId: string) {
     this.char = characterById(charId);
@@ -111,8 +119,9 @@ export class Player {
     const art = skin?.art ? { ...this.char.art, ...skin.art } : this.char.art;
     const key = `hero:${this.char.id}${skin ? `:${skin.id}` : ''}`;
 
-    this.walkSprite = makeHero(key, art, true);
-    this.idleSprite = makeHero(key, art, false);
+    this.spriteKey = key;
+    this.spriteArt = art;
+    this.refreshSprites();
     this.addWeapon(this.char.startWeapon);
     this.recompute();
     this.hp = this.stats.maxHp;

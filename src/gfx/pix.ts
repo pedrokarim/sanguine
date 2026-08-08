@@ -12,6 +12,29 @@ import { hexToRgb } from './palette';
 export const EMPTY = -1;
 
 export class Pix {
+  /**
+   * Unité de trait, en pixels.
+   *
+   * Les plans corporels dessinent en proportions de la grille — `p.w * 0.3`, `h * 0.66` —
+   * mais les épaisseurs de membres sont des constantes absolues. Sans cette unité, agrandir
+   * un sprite donnerait un corps plus grand avec des bras restés fins, comme des pattes
+   * d'araignée. Les primitives la multiplient, ce qui fait suivre toute la construction.
+   */
+  unit = 1;
+
+  /**
+   * Facteur appliqué aux **coordonnées**, pour les dessins écrits en absolu.
+   *
+   * Les plans corporels dessinent en proportions de la grille et n'en ont pas besoin. Les
+   * objets — gemmes, fioles, projectiles — sont au contraire tracés en coordonnées fixes :
+   * agrandir leur grille sans toucher aux coordonnées les tasserait dans un coin.
+   *
+   * Avec ce facteur, une ellipse de rayon 4 devient une ellipse de rayon 6 réellement
+   * calculée à cette taille — elle est plus ronde, pas simplement plus grosse. Un pixel
+   * unique devient un bloc, ce qui préserve les détails posés à la main.
+   */
+  cs = 1;
+
   readonly w: number;
   readonly h: number;
   readonly data: Int8Array;
@@ -28,7 +51,14 @@ export class Pix {
     return p;
   }
 
+  /** Écrit sans aucune mise à l'échelle. Les primitives l'utilisent après avoir converti. */
+  private setRaw(x: number, y: number, c: number): void {
+    x = Math.round(x); y = Math.round(y);
+    if (x >= 0 && y >= 0 && x < this.w && y < this.h) this.data[y * this.w + x] = c;
+  }
+
   set(x: number, y: number, c: number): void {
+    if (this.cs !== 1) return this.bloc(x, y, c);
     const xi = Math.round(x);
     const yi = Math.round(y);
     if (xi < 0 || yi < 0 || xi >= this.w || yi >= this.h) return;
@@ -47,7 +77,24 @@ export class Pix {
     if (this.get(x, y) === EMPTY) this.set(x, y, c);
   }
 
+  /** Un pixel de la grille d'origine, devenu bloc dans une grille agrandie. */
+  private bloc(x: number, y: number, c: number): void {
+    const s = this.cs;
+    const x0 = Math.round(x * s), y0 = Math.round(y * s), n = Math.round(s);
+    for (let j = 0; j < n; j++) {
+      for (let i = 0; i < n; i++) {
+        const px = x0 + i, py = y0 + j;
+        if (px >= 0 && py >= 0 && px < this.w && py < this.h) this.data[py * this.w + px] = c;
+      }
+    }
+  }
+
   rect(x: number, y: number, w: number, h: number, c: number): void {
+    if (this.cs !== 1) {
+      const s = this.cs;
+      x = Math.round(x * s); y = Math.round(y * s);
+      w = Math.round(w * s); h = Math.round(h * s);
+    }
     const x0 = Math.round(x);
     const y0 = Math.round(y);
     for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) this.set(x0 + i, y0 + j, c);
@@ -55,6 +102,11 @@ export class Pix {
 
   ellipse(cx: number, cy: number, rx: number, ry: number, c: number): void {
     if (rx <= 0 || ry <= 0) return;
+    if (this.cs !== 1) {
+      const s = this.cs;
+      cx = cx * s + (s - 1) / 2; cy = cy * s + (s - 1) / 2;
+      rx *= s; ry *= s;
+    }
     const x0 = Math.floor(cx - rx);
     const x1 = Math.ceil(cx + rx);
     const y0 = Math.floor(cy - ry);
@@ -63,7 +115,7 @@ export class Pix {
       for (let x = x0; x <= x1; x++) {
         const dx = (x - cx) / rx;
         const dy = (y - cy) / ry;
-        if (dx * dx + dy * dy <= 1.02) this.set(x, y, c);
+        if (dx * dx + dy * dy <= 1.02) this.setRaw(x, y, c);
       }
     }
   }
@@ -78,6 +130,19 @@ export class Pix {
   }
 
   line(x0: number, y0: number, x1: number, y1: number, c: number): void {
+    if (this.cs !== 1) {
+      const s = this.cs;
+      x0 = x0 * s + (s - 1) / 2; y0 = y0 * s + (s - 1) / 2;
+      x1 = x1 * s + (s - 1) / 2; y1 = y1 * s + (s - 1) / 2;
+      // Un trait d'un pixel dans la grille d'origine doit rester visible une fois agrandi.
+      const n = Math.round(s);
+      for (let j = 0; j < n; j++) this.traitBrut(x0, y0 + j, x1, y1 + j, c, n);
+      return;
+    }
+    this.traitBrut(x0, y0, x1, y1, c, 1);
+  }
+
+  private traitBrut(x0: number, y0: number, x1: number, y1: number, c: number, ep: number): void {
     let x = Math.round(x0);
     let y = Math.round(y0);
     const ex = Math.round(x1);
@@ -88,7 +153,8 @@ export class Pix {
     const sy = y < ey ? 1 : -1;
     let err = dx + dy;
     for (let guard = 0; guard < 512; guard++) {
-      this.set(x, y, c);
+      this.setRaw(x, y, c);
+      if (ep > 1) for (let i = 1; i < ep; i++) this.setRaw(x + i, y, c);
       if (x === ex && y === ey) break;
       const e2 = 2 * err;
       if (e2 >= dy) {
@@ -105,7 +171,7 @@ export class Pix {
   /** Ligne épaisse, utilisée pour les membres. */
   limb(x0: number, y0: number, x1: number, y1: number, thickness: number, c: number): void {
     const steps = Math.max(1, Math.ceil(Math.hypot(x1 - x0, y1 - y0)));
-    const r = thickness / 2;
+    const r = (thickness * this.unit) / 2;
     for (let i = 0; i <= steps; i++) {
       const t = i / steps;
       this.ellipse(x0 + (x1 - x0) * t, y0 + (y1 - y0) * t, r, r, c);
