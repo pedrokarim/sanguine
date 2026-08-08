@@ -1,6 +1,6 @@
 import { Rng } from '../core/rng';
 import { valueNoise2, TAU, dist2 } from '../core/math';
-import { P, shade, hexToRgb } from '../gfx/palette';
+import { P, shade, hexToRgb, mix } from '../gfx/palette';
 import { Pix, toCanvas } from '../gfx/pix';
 
 /**
@@ -33,11 +33,34 @@ export interface Biome {
   props: number;
   /** Type de décor dominant. */
   propKind: PropKind;
+  /** Essences qui poussent ici. Vide = aucun arbre. */
+  trees: TreeKind[];
+  /** Densité d'arbres hors bosquet, 0..1. */
+  treeDensity: number;
   /** Texte affiché à l'entrée dans le biome. */
   flavor: string;
 }
 
 export type PropKind = 'rock' | 'grave' | 'reed' | 'stump' | 'bone';
+
+/**
+ * Familles d'arbres.
+ *
+ * Le décor n'avait qu'un seul élément arboré — la souche, haute de quatorze pixels — et un
+ * seul type de prop par biome. Traverser un biome, c'était croiser mille fois la même
+ * silhouette. Quatre familles, déclinées en variantes et en deux tailles, suffisent à ce
+ * qu'on cesse de reconnaître le motif.
+ */
+export type TreeKind = 'pine' | 'oak' | 'willow' | 'burnt';
+
+export interface Tree {
+  x: number;
+  y: number;
+  kind: TreeKind;
+  variant: number;
+  /** 0 = jeune, 1 = adulte. Deux tailles par variante, pour doubler la diversité à peu de frais. */
+  grand: boolean;
+}
 
 export const BIOMES: Biome[] = [
   {
@@ -49,6 +72,8 @@ export const BIOMES: Biome[] = [
     mightMul: 1,
     props: 0.35,
     propKind: 'rock',
+    trees: ['oak'],
+    treeDensity: 0.42,
     flavor: 'rien que de la bruyère morte',
   },
   {
@@ -60,6 +85,8 @@ export const BIOMES: Biome[] = [
     mightMul: 1,
     props: 0.7,
     propKind: 'grave',
+    trees: ['oak', 'pine'],
+    treeDensity: 0.55,
     flavor: 'on y a enterré trop de monde',
   },
   {
@@ -72,6 +99,8 @@ export const BIOMES: Biome[] = [
     mightMul: 1,
     props: 0.6,
     propKind: 'reed',
+    trees: ['willow'],
+    treeDensity: 0.6,
     flavor: 'la boue vous retient',
   },
   {
@@ -84,6 +113,8 @@ export const BIOMES: Biome[] = [
     mightMul: 1.08,
     props: 0.45,
     propKind: 'bone',
+    trees: ['burnt'],
+    treeDensity: 0.48,
     flavor: 'quelque chose a brûlé ici, longtemps',
   },
   {
@@ -95,6 +126,8 @@ export const BIOMES: Biome[] = [
     mightMul: 1,
     props: 0.85,
     propKind: 'stump',
+    trees: ['pine', 'burnt'],
+    treeDensity: 0.92,
     flavor: 'les arbres sont morts debout',
   },
 ];
@@ -188,6 +221,28 @@ export interface Prop {
 
 /** Cellule de décor, plus fine que celle des POI. */
 const PROP_CELL = 150;
+
+/**
+ * Cellule des arbres, plus large que celle des props.
+ *
+ * À 150 px, les arbres se seraient répartis aussi régulièrement que les cailloux et le semis
+ * se serait lu comme un papier peint. À 220, chaque cellule porte zéro à trois arbres et les
+ * vides existent encore.
+ *
+ * Les densités ont été relevées après coup : à 0,3 dans le Cimetière, on croisait deux arbres
+ * par écran et l'ajout ne se remarquait pas. Le boisement doit se voir pour valoir la peine.
+ */
+const TREE_CELL = 220;
+
+/**
+ * Cellule des bosquets.
+ *
+ * Un second tirage, bien plus grossier, décide qu'une zone est un bosquet : la densité y est
+ * multipliée par trois sur un disque. C'est ce qui crée des futaies denses et des clairières,
+ * là où un semis uniforme ne donne qu'une moyenne partout.
+ */
+const GROVE_CELL = 900;
+const GROVE_RADIUS = 250;
 
 // ---------------------------------------------------------------------------
 // Sprites du terrain
@@ -356,6 +411,181 @@ export function biomeAtTile(tx: number, ty: number): Biome {
 }
 
 /** Décor secondaire : rochers, tombes, roseaux, souches, ossements. */
+const treeCache = new Map<string, HTMLCanvasElement>();
+
+/** Nombre de variantes de silhouette par essence. */
+export const TREE_VARIANTS = 4;
+
+/**
+ * Sprite d'arbre.
+ *
+ * Vu de haut et à distance, un arbre se reconnaît à son **contour**, jamais à son écorce.
+ * Les quatre essences se distinguent donc par la silhouette avant la couleur : le pin est
+ * étroit et étagé, le chêne large et bas, le saule penché et retombant, le calciné nu et
+ * fendu. Un joueur doit pouvoir les trier en niveaux de gris.
+ *
+ * Le houppier est plus clair que le tronc, et son bord droit porte la même rasante froide
+ * que les créatures. La cohérence d'éclairage compte plus que la justesse botanique : c'est
+ * elle qui fait qu'un arbre et une goule ont l'air d'appartenir au même monde.
+ *
+ * Plafond à 80 px de haut. Au-delà, un arbre masque le joueur — intolérable dans un jeu où
+ * l'on esquive.
+ */
+export function treeSprite(
+  kind: TreeKind, variant: number, grand: boolean, biome: Biome,
+): HTMLCanvasElement {
+  const key = `${kind}:${variant}:${grand ? 'g' : 'p'}:${biome.id}`;
+  const hit = treeCache.get(key);
+  if (hit) return hit;
+
+  const rng = new Rng(cellSeed(variant * 31 + (grand ? 7 : 0), kind.length * 13, 91));
+  const bois = kind === 'burnt' ? '#241d1c' : '#3a2a20';
+  /*
+   * Le feuillage tire sa couleur d'une teinte propre à l'essence, mêlée au détail du sol.
+   * Prendre `ground[3]` seul donnait un houppier gris dans le Cimetière : on y lisait un
+   * rocher posé sur un tronc, pas un arbre.
+   */
+  const VERT: Record<TreeKind, string> = {
+    pine: '#2f4a35', oak: '#3d4f2c', willow: '#385238', burnt: '#3a3230',
+  };
+  const feuille = mix(VERT[kind], biome.ground[3], 0.28);
+
+  const cols = [
+    shade(bois, -0.65),      // 0 contour
+    shade(bois, -0.2),       // 1 tronc, ombre
+    bois,                    // 2 tronc
+    shade(feuille, -0.42),   // 3 houppier, ombre
+    feuille,                 // 4 houppier
+    shade(feuille, 0.3),     // 5 houppier, lumière
+    mix(shade(feuille, 0.4), P.ice, 0.45),  // 6 rasante froide
+  ];
+
+  const ech = grand ? 1 : 0.68;
+  const W = Math.round((kind === 'oak' ? 52 : kind === 'willow' ? 46 : 34) * ech);
+  const H = Math.round((kind === 'oak' ? 62 : kind === 'willow' ? 58 : 70) * ech);
+  const p = new Pix(W, H);
+  const cx = W / 2 - 0.5;
+  const pied = H - 1;
+
+  /** Tronc courbe, de la base vers la cime. `pente` incline, `ep` donne l'épaisseur au pied. */
+  const tronc = (haut: number, pente: number, ep: number): [number, number] => {
+    for (let k = 0; k <= haut; k++) {
+      const t = k / haut;
+      const x = cx + pente * t * t * W * 0.3;
+      const e = Math.max(1, ep * (1 - t * 0.55));
+      for (let i = -e; i <= e; i++) p.set(x + i, pied - k, i > e * 0.2 ? 1 : 2);
+    }
+    return [cx + pente * W * 0.3, pied - haut];
+  };
+
+  switch (kind) {
+    case 'pine': {
+      // Étages triangulaires décroissants. Les largeurs sont tirées au sort : un sapin
+      // parfaitement régulier se lit comme un pictogramme, pas comme un arbre.
+      const [tx, ty] = tronc(H * 0.9, rng.spread(0.12), 2.2 * ech);
+      const etages = 5;
+      for (let e = 0; e < etages; e++) {
+        const t = e / (etages - 1);
+        const y = ty + H * 0.08 + t * H * 0.7;
+        const demi = W * 0.46 * (0.35 + t * 0.65) * (0.82 + rng.range(0, 0.36));
+        const ep = Math.max(2, H * 0.1);
+        for (let j = 0; j <= ep; j++) {
+          const d = demi * (0.3 + (j / ep) * 0.7);
+          for (let x = -d; x <= d; x++) {
+            if (rng.next() < 0.07) continue;         // trouées dans le feuillage
+            p.set(tx + x, y + j, x < -d * 0.3 ? 5 : x > d * 0.35 ? 3 : 4);
+          }
+        }
+      }
+      break;
+    }
+
+    case 'oak': {
+      // Houppier large et bas, fait de trois masses qui se chevauchent : une seule ellipse
+      // donnerait un champignon.
+      const [tx, ty] = tronc(H * 0.52, rng.spread(0.16), 3.2 * ech);
+      // Branches maîtresses, visibles sous le feuillage.
+      for (const dir of [-1, 1]) {
+        p.limb(tx, ty + H * 0.06, tx + dir * W * 0.26, ty - H * 0.06, 2 * ech, 2);
+      }
+      /*
+       * Le houppier est fait de grappes qui se chevauchent, et son bord est rongé au hasard.
+       * Trois ellipses pleines donnaient une masse lisse qu'on lisait comme un rocher : à
+       * cette distance, c'est l'irrégularité du contour qui dit « feuillage ».
+       */
+      for (const [dx, dy, r] of [[-0.24, 0.02, 0.34], [0.26, 0.05, 0.32], [0, -0.1, 0.4]]) {
+        p.ellipse(tx + dx * W, ty + dy * H, W * r, H * r * 0.55, 4);
+      }
+      for (let k = 0; k < 22; k++) {
+        const a = rng.range(0, TAU);
+        const rr = 0.72 + rng.range(0, 0.34);
+        p.ellipse(tx + Math.cos(a) * W * 0.34 * rr, ty + Math.sin(a) * H * 0.2 * rr,
+          W * 0.1, H * 0.06, rng.next() < 0.45 ? 5 : 4);
+      }
+      // Trouées : quelques creux sombres qui laissent deviner les branches.
+      for (let k = 0; k < 7; k++) {
+        p.ellipse(tx + rng.spread(W * 0.3), ty + rng.range(0, H * 0.16),
+          W * 0.06, H * 0.04, 3);
+      }
+      p.ellipse(tx - W * 0.22, ty - H * 0.15, W * 0.16, H * 0.1, 5);
+      break;
+    }
+
+    case 'willow': {
+      // Tronc franchement penché, ramure qui retombe en rideau jusqu'au sol.
+      const pente = rng.next() < 0.5 ? -0.5 : 0.5;
+      const [tx, ty] = tronc(H * 0.5, pente, 2.8 * ech);
+      p.ellipse(tx, ty, W * 0.34, H * 0.16, 4);
+      // Les rideaux : des traits verticaux de longueurs inégales. C'est leur irrégularité
+      // qui fait le saule ; alignés, ils font une frange de rideau de douche.
+      const n = Math.round(9 * ech) + 3;
+      for (let i = 0; i < n; i++) {
+        const x = tx + (i / (n - 1) - 0.5) * W * 0.78;
+        const l = H * (0.2 + rng.range(0, 0.3));
+        for (let k = 0; k < l; k++) {
+          const xx = x + Math.sin(k * 0.22 + i) * 1.2;
+          p.set(xx, ty + H * 0.08 + k, k < l * 0.3 ? 4 : 3);
+        }
+      }
+      p.ellipse(tx - W * 0.16, ty - H * 0.04, W * 0.14, H * 0.07, 5);
+      break;
+    }
+
+    case 'burnt': {
+      // Fût nu, fendu, aux branches cassées. Aucun feuillage : c'est l'absence qui raconte.
+      const [tx] = tronc(H * 0.86, rng.spread(0.2), 2.6 * ech);
+      for (let k = 0; k < 4; k++) {
+        const t = 0.3 + k * 0.17;
+        const y = pied - H * 0.86 * t;
+        const dir = k % 2 === 0 ? -1 : 1;
+        const l = W * (0.16 + rng.range(0, 0.2));
+        p.limb(tx, y, tx + dir * l, y - H * 0.1, 1.4 * ech, 2);
+      }
+      // Fente verticale, plus claire : le bois éclaté sous l'écorce.
+      for (let k = 0; k < H * 0.4; k++) p.set(cx + rng.spread(0.6), pied - k, 1);
+      p.ellipse(cx, pied - H * 0.88, 2 * ech, 1.4 * ech, 1);
+      break;
+    }
+  }
+
+  // Ombre au pied : sans elle, l'arbre flotte au-dessus du sol.
+  p.ellipse(cx, pied, W * 0.24, 1.6 * ech, 0);
+
+  /*
+   * La rasante n'est appliquée qu'aux essences à masse pleine.
+   *
+   * Sur le saule, chaque rideau fait un pixel de large et a donc du vide des deux côtés :
+   * tous les brins s'éclairaient, et l'arbre sortait strié de cyan comme une guirlande. Une
+   * lumière de bord n'a de sens que s'il y a un volume à border.
+   */
+  if (kind === 'oak' || kind === 'pine') p.rimLight(1, 0, 6);
+  p.outline(0);
+
+  const c = toCanvas(p, cols);
+  treeCache.set(key, c);
+  return c;
+}
+
 export function propSprite(kind: PropKind, variant: number, biome: Biome): HTMLCanvasElement {
   const key = `${kind}:${variant}:${biome.id}`;
   const hit = propCache.get(key);
@@ -558,6 +788,7 @@ export class Terrain {
   private pois = new Map<string, Poi | null>();
   /** Décor généré, indexé par clé de cellule. */
   private props = new Map<string, Prop[]>();
+  private trees = new Map<string, Tree[]>();
 
   /** Biome courant du joueur, pour l'annonce d'entrée et les effets passifs. */
   currentBiome: Biome = BIOMES[0]!;
@@ -603,6 +834,85 @@ export class Terrain {
   }
 
   /** Décor d'une cellule, généré paresseusement. */
+  /**
+   * Densité d'arbres en un point, bosquets compris.
+   *
+   * On interroge les neuf cellules de bosquet voisines : un bosquet dont le centre tombe
+   * dans la cellule d'à côté doit quand même déborder ici, sinon les futaies s'arrêtent net
+   * sur une frontière invisible.
+   */
+  private groveMul(x: number, y: number): number {
+    const c0x = Math.floor((x - GROVE_RADIUS) / GROVE_CELL);
+    const c1x = Math.floor((x + GROVE_RADIUS) / GROVE_CELL);
+    const c0y = Math.floor((y - GROVE_RADIUS) / GROVE_CELL);
+    const c1y = Math.floor((y + GROVE_RADIUS) / GROVE_CELL);
+    let mul = 1;
+    for (let cy = c0y; cy <= c1y; cy++) {
+      for (let cx = c0x; cx <= c1x; cx++) {
+        const rng = new Rng(cellSeed(cx, cy, this.seed ^ 0x2f7d19a3));
+        if (rng.next() > 0.3) continue;                    // trois cellules sur dix
+        const gx = cx * GROVE_CELL + rng.range(0, GROVE_CELL);
+        const gy = cy * GROVE_CELL + rng.range(0, GROVE_CELL);
+        const d = Math.hypot(x - gx, y - gy);
+        if (d > GROVE_RADIUS) continue;
+        // Le bosquet s'estompe vers son bord : une futaie à limite franche se voit.
+        mul = Math.max(mul, 1 + 2.4 * (1 - d / GROVE_RADIUS) ** 1.4);
+      }
+    }
+    return mul;
+  }
+
+  private treesAt(cx: number, cy: number): Tree[] {
+    const key = `${cx},${cy}`;
+    const hit = this.trees.get(key);
+    if (hit) return hit;
+
+    const rng = new Rng(cellSeed(cx, cy, this.seed ^ 0x1c9e7b45));
+    const bx = cx * TREE_CELL + TREE_CELL / 2;
+    const by = cy * TREE_CELL + TREE_CELL / 2;
+    const biome = biomeAt(bx, by);
+
+    const out: Tree[] = [];
+    if (biome.trees.length > 0) {
+      const densite = Math.min(0.96, biome.treeDensity * this.groveMul(bx, by));
+      const n = rng.next() < densite ? rng.int(1, 3) : 0;
+      for (let i = 0; i < n; i++) {
+        const x = cx * TREE_CELL + rng.range(0, TREE_CELL);
+        const y = cy * TREE_CELL + rng.range(0, TREE_CELL);
+        out.push({
+          x, y,
+          kind: biome.trees[rng.int(0, biome.trees.length - 1)]!,
+          variant: rng.int(0, TREE_VARIANTS - 1),
+          grand: rng.next() < 0.55,
+        });
+      }
+    }
+    this.trees.set(key, out);
+    return out;
+  }
+
+  private treeBuf: Tree[] = [];
+  /**
+   * Arbres proches, **triés du plus haut au plus bas** sur l'écran.
+   *
+   * Sans tri, un arbre du fond se dessine par-dessus un arbre du premier plan et la
+   * profondeur s'effondre. Le tampon est réutilisé : ne pas le conserver.
+   */
+  treesNear(x: number, y: number, radius: number): Tree[] {
+    this.treeBuf.length = 0;
+    const c0x = Math.floor((x - radius) / TREE_CELL);
+    const c1x = Math.floor((x + radius) / TREE_CELL);
+    const c0y = Math.floor((y - radius) / TREE_CELL);
+    const c1y = Math.floor((y + radius) / TREE_CELL);
+    for (let cy = c0y; cy <= c1y; cy++) {
+      for (let cx = c0x; cx <= c1x; cx++) {
+        for (const t of this.treesAt(cx, cy)) this.treeBuf.push(t);
+      }
+    }
+    this.treeBuf.sort((a, b) => a.y - b.y);
+    return this.treeBuf;
+  }
+
   private propsAt(cx: number, cy: number): Prop[] {
     const key = `${cx},${cy}`;
     const hit = this.props.get(key);
