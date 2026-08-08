@@ -319,6 +319,26 @@ export class Renderer {
         ctx.drawImage(sh, Math.round(x - 8), Math.round(y + e.radius - 4), 16, 8);
         ctx.globalAlpha = 1;
 
+        /*
+         * Halo de rang, au sol.
+         *
+         * Posé **avant** le sprite, comme l'ombre : dessiné après, il recouvrait les pieds
+         * de la créature et la faisait paraître enfoncée dans une flaque.
+         *
+         * Il pulse hors phase d'un ennemi à l'autre — l'horloge d'animation, déjà décalée à
+         * l'apparition, sert de déphasage. Des halos synchrones se liraient comme un effet
+         * d'interface posé sur le jeu, pas comme des créatures.
+         */
+        if (e.rang) {
+          const [cr, cg, cb] = e.rang.teinte;
+          const pulse = 0.55 + 0.18 * Math.sin(e.anim * 1.7);
+          const rr = e.radius * 1.8;
+          ctx.fillStyle = `rgba(${cr},${cg},${cb},${(pulse * 0.7).toFixed(3)})`;
+          ctx.beginPath();
+          ctx.ellipse(Math.round(x), Math.round(y + e.radius - 1), rr, rr * 0.42, 0, 0, TAU);
+          ctx.fill();
+        }
+
         if (e.dying > 0) {
           this.drawDying(e, x, y);
           continue;
@@ -342,13 +362,33 @@ export class Renderer {
           ctx.drawImage(f, dx, dy);
         }
 
-        // Barre de vie : uniquement pour les élites, jamais pour la piétaille (bruit visuel).
-        if (e.elite && e.hp < e.maxHp) {
-          const bw = 14;
+
+        /*
+         * Cerne, par-dessus le corps. Réservé aux deux rangs supérieurs : mis aussi sur
+         * l'endurci, qui est fréquent, il ferait de la moitié de l'écran un pointillé.
+         */
+        if (e.rang && e.rang.id !== 'endurci') {
+          const [cr, cg, cb] = e.rang.teinte;
+          const pulse = 0.55 + 0.18 * Math.sin(e.anim * 1.7);
+          ctx.strokeStyle = `rgba(${cr},${cg},${cb},${pulse.toFixed(3)})`;
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.ellipse(Math.round(x), Math.round(y), f.width * 0.5 + 1.5, f.height * 0.52 + 1.5, 0, 0, TAU);
+          ctx.stroke();
+        }
+
+        /*
+         * Barre de vie. Jamais pour la piétaille — ce serait du bruit —, à l'usage pour ce
+         * qui porte un rang, et **en permanence** pour un colosse : sa barre est ce qui
+         * permet de juger, avant de s'engager, si on a de quoi l'abattre.
+         */
+        const barre = e.rang ? (e.rang.id === 'colosse' || e.hp < e.maxHp) : (e.elite && e.hp < e.maxHp);
+        if (barre) {
+          const bw = e.rang && e.rang.id === 'colosse' ? 20 : 14;
           const ratio = clamp(e.hp / e.maxHp, 0, 1);
           ctx.fillStyle = '#000000';
           ctx.fillRect(Math.round(x - bw / 2), Math.round(y - f.height / 2 - 4), bw, 3);
-          ctx.fillStyle = P.bloodHi;
+          ctx.fillStyle = e.rang ? `rgb(${e.rang.teinte[0]},${e.rang.teinte[1]},${e.rang.teinte[2]})` : P.bloodHi;
           ctx.fillRect(Math.round(x - bw / 2), Math.round(y - f.height / 2 - 4), Math.round(bw * ratio), 3);
         }
       }

@@ -2,8 +2,9 @@ import { TAU } from '../core/math';
 import { audio } from '../audio/audio';
 import { ENEMIES } from '../data/enemies';
 import {
-  spawnRate, spawnCap, eliteChance, WAVE_EVENTS, type WaveEvent,
-  RODEURS, RODEUR_DEBUT, RODEUR_ECART, RODEUR_CHANCE, RODEUR_MAX,
+  spawnRate, spawnCap, rangChances, RANG_BY_ID, WAVE_EVENTS, type WaveEvent, type Rang,
+  RODEURS, RODEUR_DEBUT, RODEUR_ECART, RODEUR_CHANCE, RODEUR_MAX, BOSS_MAX_SIMULTANES,
+  PLAFOND_DUR,
 } from '../data/waves';
 import type { World } from './world';
 
@@ -19,6 +20,15 @@ import type { World } from './world';
 /** Minute à laquelle la Faucheuse arrive si le boss final n'est pas tombé. */
 const REAPER_MINUTE = 32;
 
+/**
+ * Secondes de saturation continue avant que la Faucheuse ne soit appelée.
+ *
+ * Assez long pour qu'une Déferlante ou un pic de vague ne la déclenche pas — ces moments
+ * doivent pouvoir être encaissés —, assez court pour qu'un joueur définitivement débordé ne
+ * reste pas une minute à tourner dans une mêlée qu'il ne peut plus réduire.
+ */
+const SATURATION_LIMITE = 26;
+
 export class Director {
   private accum = 0;
   private firedEvents = new Set<number>();
@@ -26,6 +36,9 @@ export class Director {
   /** Compte à rebours avant le prochain tirage de rôdeur. */
   private rodeurTimer = RODEUR_ECART;
   private rodeurs = 0;
+  /** Temps passé au contact du plafond de population, en secondes. */
+  private saturation = 0;
+  private satAvertie = false;
   /** Poids d'apparition recalculés une fois par minute, pas à chaque spawn. */
   private weights: number[] = [];
   private weightsMinute = -1;
@@ -48,6 +61,8 @@ export class Director {
     this.accum = 0;
     this.rodeurTimer = RODEUR_ECART;
     this.rodeurs = 0;
+    this.saturation = 0;
+    this.satAvertie = false;
     this.firedEvents.clear();
     this.reaperSpawned = false;
     this.weightsMinute = -1;
@@ -61,6 +76,7 @@ export class Director {
     this.runReaper(w, m);
 
     const alive = w.aliveEnemies;
+    this.runSaturation(w, alive, dt);
     if (alive >= spawnCap(m)) return;
 
     /*
@@ -111,21 +127,41 @@ export class Director {
     const idx = w.rng.weighted(this.weights);
     if (idx < 0) return;
     const def = ENEMIES[idx]!;
-    const elite = w.rng.chance(eliteChance(m));
+    const rang = this.tirerRang(w, m);
 
     if (def.cluster && def.cluster > 1) {
-      // Les araignées arrivent en grappe serrée : une seule direction, plusieurs corps.
+      // Les araignées arrivent en grappe serrée : une seule direction, plusieurs corps.
+      // Le rang ne va qu'à la meneuse : une grappe entière de colosses ne se contourne plus.
       const a = w.rng.angle();
       for (let i = 0; i < def.cluster; i++) {
-        const e = w.spawnOffscreen(def.id, a + w.rng.spread(0.25), elite && i === 0);
+        const e = w.spawnOffscreen(def.id, a + w.rng.spread(0.25), false, i === 0 ? rang : null);
         if (e) {
           e.x += w.rng.spread(22);
           e.y += w.rng.spread(18);
         }
       }
     } else {
-      w.spawnOffscreen(def.id, undefined, elite);
+      w.spawnOffscreen(def.id, undefined, false, rang);
     }
+  }
+
+  /**
+   * Tire un rang de résistance, du plus rare au plus commun.
+   *
+   * L'ordre compte : comparer un tirage unique aux trois seuils l'un après l'autre donnerait
+   * au colosse la fréquence de l'endurci, puisque le premier seuil franchi l'emporterait.
+   */
+  private tirerRang(w: World, m: number): Rang | null {
+    const c = rangChances(m);
+    if (w.rng.chance(c.colosse)) return RANG_BY_ID.get('colosse') ?? null;
+    if (w.rng.chance(c.elite)) return RANG_BY_ID.get('elite') ?? null;
+    if (w.rng.chance(c.endurci)) return RANG_BY_ID.get('endurci') ?? null;
+    return null;
+  }
+
+  /** Boss debout à cet instant, toutes provenances confondues. */
+  private bossVivants(w: World): number {
+    return w.bossGroup.filter((b) => b.active && b.dying <= 0).length;
   }
 
   // ------------------------------------------------------------------ événements
@@ -134,8 +170,12 @@ export class Director {
     for (let i = 0; i < WAVE_EVENTS.length; i++) {
       const ev = WAVE_EVENTS[i]!;
       if (this.firedEvents.has(i) || m < ev.at) continue;
-      this.firedEvents.add(i);
-      this.runEvent(w, ev);
+      /*
+       * L'événement n'est marqué comme joué que s'il a effectivement levé quelque chose.
+       * Un palier de boss qui tombe alors que trois corps sont déjà debout serait sinon
+       * consommé sans rien produire, et le joueur ne le verrait jamais de la partie.
+       */
+      if (this.runEvent(w, ev)) this.firedEvents.add(i);
     }
   }
 
@@ -154,8 +194,12 @@ export class Director {
 
     if (w.rng.next() > RODEUR_CHANCE) return;
 
-    // Un rôdeur pendant un boss scripté ferait deux barres de vie et une bouillie sonore.
-    if (w.boss) return;
+    /*
+     * Un rôdeur peut désormais s'ajouter à un boss déjà présent, mais jamais au-delà du
+     * plafond simultané. La règle précédente — aucun rôdeur tant qu'un boss est debout —
+     * les rendait presque introuvables une fois les événements scriptés rapprochés.
+     */
+    if (this.bossVivants(w) >= BOSS_MAX_SIMULTANES) return;
 
     const eligibles = RODEURS.filter((r) => m >= r.from);
     if (eligibles.length === 0) return;
@@ -171,26 +215,47 @@ export class Director {
     w.cam.shake(0.3, true);
   }
 
-  private runEvent(w: World, ev: WaveEvent): void {
+  /** Rend `true` si l'événement a produit quelque chose ; `false` s'il doit être réessayé. */
+  private runEvent(w: World, ev: WaveEvent): boolean {
     switch (ev.kind) {
       case 'boss': {
-        const e = w.spawnOffscreen(ev.enemy);
-        if (!e) break;
+        /*
+         * Un événement peut lever plusieurs corps. Ils sont répartis sur l'anneau
+         * d'apparition à angles réguliers : levés au même endroit, ils se superposeraient
+         * et se liraient comme un seul boss aux contours confus.
+         */
+        const voulus = Math.max(1, ev.count);
+        const place = Math.max(0, BOSS_MAX_SIMULTANES - this.bossVivants(w));
+        const combien = Math.min(voulus, place);
+        if (combien === 0) return false;
+
+        const base = w.rng.angle();
+        const leves: typeof w.boss[] = [];
+        for (let i = 0; i < combien; i++) {
+          const e = w.spawnOffscreen(ev.enemy, base + (i / combien) * TAU);
+          if (e) leves.push(e);
+        }
+        if (leves.length === 0) return false;
+
         audio.play('boss');
         audio.setBossMode(true);
-        w.announce(ev.label, 'approche');
+        w.announce(ev.label, combien > 1 ? `${combien} approchent` : 'approche');
         w.slowMo(0.35, 1.0);
         w.cam.shake(0.45, true);
 
-        // Le Chœur de Cendres est trois corps liés : tous doivent tomber.
+        // Le Chœur de Cendres est trois corps liés : tous doivent tomber. Ses points de vie
+        // se divisent d'autant, sinon un Chœur triple vaudrait neuf barres de vie.
         if (ev.enemy === 'ashchoir') {
-          e.maxHp = Math.round(e.maxHp / 3);
-          e.hp = e.maxHp;
-          for (let k = 0; k < 2; k++) {
-            const extra = w.spawnEnemy('ashchoir', e.x + (k === 0 ? -40 : 40), e.y + 24);
-            if (extra) {
-              extra.maxHp = e.maxHp;
-              extra.hp = e.maxHp;
+          for (const e of leves) {
+            if (!e) continue;
+            e.maxHp = Math.round(e.maxHp / 3);
+            e.hp = e.maxHp;
+            for (let k = 0; k < 2; k++) {
+              const extra = w.spawnEnemy('ashchoir', e.x + (k === 0 ? -40 : 40), e.y + 24);
+              if (extra) {
+                extra.maxHp = e.maxHp;
+                extra.hp = e.maxHp;
+              }
             }
           }
         }
@@ -285,19 +350,71 @@ export class Director {
         break;
       }
     }
+    // Tout autre événement produit toujours quelque chose.
+    return true;
+  }
+
+  // ------------------------------------------------------------------ Faucheuse
+
+  /**
+   * Saturation de la horde.
+   *
+   * Le plafond de population protège l'appareil, et il n'est pas négociable. Mais s'y
+   * cogner en silence est la pire des sanctions : le joueur voit le flux se tarir sans
+   * comprendre pourquoi, et rien ne lui dit qu'il vient d'atteindre une limite. Un jeu ne
+   * doit pas s'arrêter, il doit répondre.
+   *
+   * Le plafond en question est `PLAFOND_DUR`, la charge maximale de l'appareil — jamais la
+   * courbe de rythme `spawnCap`, qui ne vaut que 268 à la troisième minute. La confusion
+   * entre les deux envoyait la Faucheuse exécuter un débutant en difficulté dès la
+   * troisième minute, mesuré au bot : une sanction pour avoir mal joué une ouverture.
+   *
+   * Tenir ce plafond pendant `SATURATION_LIMITE` secondes signifie une chose et une seule :
+   * la horde arrive plus vite qu'elle n'est fauchée, et l'écart ne se refermera pas. La
+   * Faucheuse vient alors le dire. Elle est invincible et tue au contact — elle n'existe
+   * que pour cela. La contrainte technique devient la règle du monde, et le joueur reçoit
+   * un adversaire là où il n'aurait eu qu'un plafond invisible.
+   *
+   * L'avertissement à mi-course n'est pas une politesse : sans lui, la sanction tomberait
+   * sur une faute qu'on ne pouvait pas voir venir. Il laisse le temps de percer, de fuir,
+   * ou de lâcher une bombe.
+   */
+  private runSaturation(w: World, alive: number, dt: number): void {
+    if (this.reaperSpawned || w.state !== 'playing') return;
+
+    if (alive >= PLAFOND_DUR * 0.96) {
+      this.saturation += dt;
+      if (!this.satAvertie && this.saturation > SATURATION_LIMITE * 0.45) {
+        this.satAvertie = true;
+        w.announce('LA HORDE DÉBORDE', 'quelque chose s\u2019approche');
+        w.cam.shake(0.25, true);
+        audio.play('boss');
+      }
+      if (this.saturation > SATURATION_LIMITE) this.leverFaucheuse(w, 'vous n\u2019avancez plus');
+    } else {
+      // On redescend deux fois plus lentement qu'on ne monte : une accalmie d'une seconde
+      // ne doit pas effacer vingt secondes d'étranglement.
+      this.saturation = Math.max(0, this.saturation - dt * 0.5);
+      if (this.saturation === 0) this.satAvertie = false;
+    }
   }
 
   // ------------------------------------------------------------------ Faucheuse
 
   private runReaper(w: World, m: number): void {
-    if (this.reaperSpawned || m < REAPER_MINUTE) return;
+    if (m < REAPER_MINUTE) return;
+    this.leverFaucheuse(w, 'le rideau tombe');
+  }
+
+  private leverFaucheuse(w: World, sous: string): void {
+    if (this.reaperSpawned) return;
     // Si le joueur a déjà gagné, la Faucheuse n'a plus de raison d'être.
     if (w.state !== 'playing') return;
     this.reaperSpawned = true;
     w.spawnOffscreen('reaper');
     audio.play('boss');
     audio.setBossMode(true);
-    w.announce('LA FAUCHEUSE', 'le rideau tombe');
+    w.announce('LA FAUCHEUSE', sous);
     w.cam.shake(0.5, true);
     w.slowMo(0.3, 1.2);
   }

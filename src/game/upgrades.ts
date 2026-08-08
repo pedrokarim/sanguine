@@ -1,10 +1,10 @@
 import { clamp } from '../core/math';
-import { makeProjectile, makePassiveSprite, makeIcon, type SpriteSet } from '../gfx/sprites';
+import { makeProjectile, makePassiveSprite, makeIcon, type SpriteSet, type PassiveIcon } from '../gfx/sprites';
 import { audio } from '../audio/audio';
 import { P } from '../gfx/palette';
 import { BASE_WEAPONS, weaponById, levelUpText, type WeaponDef } from '../data/weapons';
 import { PASSIVES, passiveById } from '../data/passives';
-import { describeMods } from '../data/mods';
+import { describeMods, SURPASSEMENTS, romain, type Surpassement } from '../data/mods';
 import { MAX_WEAPONS, MAX_PASSIVES, type Player } from './player';
 import type { World } from './world';
 
@@ -16,7 +16,8 @@ import type { World } from './world';
  * La chance déplace le curseur vers les nouveautés et débloque une quatrième carte.
  */
 
-export type OfferKind = 'weapon-new' | 'weapon-up' | 'passive-new' | 'passive-up' | 'consolation';
+export type OfferKind =
+  | 'weapon-new' | 'weapon-up' | 'passive-new' | 'passive-up' | 'consolation' | 'surpassement';
 
 export interface Offer {
   kind: OfferKind;
@@ -38,6 +39,30 @@ const WEIGHT = {
 } as const;
 
 const iconCache = new Map<string, HTMLCanvasElement>();
+
+/**
+ * Icône d'un surpassement.
+ *
+ * Elle réemploie les planches de passifs plutôt que d'en dessiner de nouvelles : un
+ * surpassement prolonge une statistique que le joueur connaît déjà par son objet, et lui
+ * montrer la même forme dit cela sans une ligne de texte. La teinte, elle, est propre au
+ * rang : on ne les confond pas avec un objet qu'on pourrait encore ramasser.
+ */
+const SURPASSEMENT_FORME: Record<string, PassiveIcon> = {
+  'sur-might': 'gem', 'sur-area': 'lens', 'sur-cooldown': 'glass',
+  'sur-hp': 'heart', 'sur-speed': 'boot', 'sur-pickup': 'magnet',
+  'sur-armor': 'shield', 'sur-crit': 'clover',
+};
+
+function surpassementIcon(id: string): HTMLCanvasElement {
+  const key = `s:${id}`;
+  let c = iconCache.get(key);
+  if (!c) {
+    c = makeIcon(makePassiveSprite(SURPASSEMENT_FORME[id] ?? 'ring', '#c9a6ff'), 20);
+    iconCache.set(key, c);
+  }
+  return c;
+}
 
 function weaponIcon(def: WeaponDef): HTMLCanvasElement {
   const key = `w:${def.id}`;
@@ -258,9 +283,56 @@ export function rollOffers(w: World, forced?: number): Offer[] {
     picked.push(offer);
   }
 
-  let v = 0;
-  while (picked.length < n) picked.push(offerConsolation(v++));
+  /*
+   * Rembourrage.
+   *
+   * Quand plus rien ne peut être amélioré — six armes au maximum, six objets au maximum —,
+   * les cartes restantes viennent d'ici. Deux règles, toutes deux tirées d'une mesure :
+   *
+   *   – **des surpassements d'abord.** Mesuré au build complet, quarante montées de niveau
+   *     d'affilée proposaient exactement la même main de trois lots de secours. Un niveau
+   *     qui n'apporte rien n'est pas une récompense, c'est une interruption.
+   *   – **jamais deux fois la même carte.** L'ancien rembourrage numérotait ses variantes
+   *     puis les repliait sur trois libellés : à quatre cartes, la quatrième doublait la
+   *     première une fois sur trois. Le tirage se fait donc sur un vivier dédupliqué.
+   */
+  if (picked.length < n) {
+    const vivier: Offer[] = [
+      ...SURPASSEMENTS.map((su) => offerSurpassement(pl, su)),
+      ...[0, 1, 2].map((i) => offerConsolation(i)),
+    ].filter((o) => !seen.has(o.id));
+
+    let garde = 0;
+    while (picked.length < n && vivier.length > 0 && garde++ < 40) {
+      const i = w.rng.int(0, vivier.length - 1);
+      const o = vivier.splice(i, 1)[0]!;
+      seen.add(o.id);
+      picked.push(o);
+    }
+  }
   return picked;
+}
+
+/**
+ * Une carte de surpassement.
+ *
+ * Le compte déjà acquis est affiché en chiffres romains : « Rage tenace VII » dit d'un coup
+ * d'œil qu'on est loin dans la partie, là où « Rage tenace » répété sept fois donnerait
+ * l'impression d'un bégaiement de l'interface.
+ */
+function offerSurpassement(pl: Player, su: Surpassement): Offer {
+  const deja = pl.surpassements.get(su.id) ?? 0;
+  return {
+    kind: 'surpassement',
+    id: su.id,
+    name: deja > 0 ? `${su.nom} ${romain(deja + 1)}` : su.nom,
+    kindLabel: 'Surpassement',
+    desc: describeMods(su.mods),
+    levelLabel: deja > 0 ? `Déjà ${deja}` : 'Nouveau',
+    icon: surpassementIcon(su.id),
+    isNew: deja === 0,
+    apply: (world) => world.player.addSurpassement(su.id),
+  };
 }
 
 // ---------------------------------------------------------------------------

@@ -11,7 +11,7 @@ import {
 } from '../gfx/sprites';
 import { enemyById, type EnemyDef, type BossDef } from '../data/enemies';
 import { RELICS, RARITY_WEIGHT, RARITY_LABEL, type RelicDef } from '../data/relics';
-import { DROP_TABLE, hpScale, damageScale, MURS_MAX_ENNEMIS } from '../data/waves';
+import { DROP_TABLE, hpScale, damageScale, MURS_MAX_ENNEMIS, type Rang } from '../data/waves';
 import type { RunSave } from '../core/save';
 import { Player } from './player';
 import { xpForLevel } from '../data/waves';
@@ -294,7 +294,7 @@ export class World {
 
   // ------------------------------------------------------------------ spawns
 
-  spawnEnemy(defId: string, x: number, y: number, elite = false): Enemy | null {
+  spawnEnemy(defId: string, x: number, y: number, elite = false, rang: Rang | null = null): Enemy | null {
     const def = enemyById(defId);
     const e = this.allocEnemy();
     if (!e) return null;
@@ -317,12 +317,24 @@ export class World {
     e.ky = 0;
     e.def = def;
     e.boss = isBoss;
-    e.elite = elite && !isBoss;
-    e.maxHp = Math.max(1, Math.round(def.hp * (isBoss ? 1 : hpMul) * (e.elite ? 6 : 1)));
+    /*
+     * Le rang porte la résistance, `elite` porte la récompense.
+     *
+     * On les garde distincts : un endurci est plus dur qu'un ennemi ordinaire sans mériter
+     * un coffre, tandis qu'un colosse mérite les deux. Les fondre en un seul indicateur
+     * obligerait à choisir entre « rien ne change » et « la moindre créature un peu dure
+     * lâche un coffre », et les deux sont mauvais.
+     */
+    e.rang = isBoss ? null : rang;
+    e.elite = !isBoss && (elite || rang?.id === 'elite' || rang?.id === 'colosse');
+    const rangHp = e.rang ? e.rang.hp : (e.elite ? 6 : 1);
+    e.maxHp = Math.max(1, Math.round(def.hp * (isBoss ? 1 : hpMul) * rangHp));
     e.hp = e.maxHp;
     e.damage = def.damage * damageScale(m);
-    e.speed = def.speed;
-    e.radius = def.radius * (e.elite ? 1.4 : 1);
+    // Ce qui encaisse avance moins vite : sans cela, un colosse serait une punition qu'on
+    // ne peut ni tuer ni distancer.
+    e.speed = def.speed * (e.rang ? e.rang.vitesse : 1);
+    e.radius = def.radius * (e.rang ? e.rang.taille : (e.elite ? 1.4 : 1));
     e.sprite = this.enemySprite(def);
     e.anim = fxRng.next() * 4;
     e.flash = 0;
@@ -350,7 +362,7 @@ export class World {
   }
 
   /** Fait apparaître un ennemi sur un anneau hors écran autour du joueur. */
-  spawnOffscreen(defId: string, angle?: number, elite = false): Enemy | null {
+  spawnOffscreen(defId: string, angle?: number, elite = false, rang: Rang | null = null): Enemy | null {
     const a = angle ?? this.rng.angle();
     // Juste au-delà du coin de l'écran, quelle que soit la taille réelle de la vue.
     const r = Math.hypot(this.cam.viewW, this.cam.viewH) * 0.55 + this.rng.range(0, 60);
@@ -359,6 +371,7 @@ export class World {
       this.player.x + Math.cos(a) * r,
       this.player.y + Math.sin(a) * r * 0.75,
       elite,
+      rang,
     );
   }
 
@@ -901,7 +914,15 @@ export class World {
 
   private onBossKilled(e: Enemy): void {
     this.bossGroup = this.bossGroup.filter((b) => b !== e && b.active && b.dying <= 0);
-    if (this.bossGroup.length > 0) return; // Chœur de Cendres : les trois corps doivent tomber
+    if (this.bossGroup.length > 0) {
+      // Chœur de Cendres, ou plusieurs boss levés ensemble : tous doivent tomber. La barre
+      // se reporte sur un survivant, sinon elle resterait figée sur un corps déjà à terre.
+      if (this.boss === e) {
+        this.boss = this.bossGroup[0]!;
+        this.bossName = this.boss.def.name;
+      }
+      return;
+    }
 
     this.boss = null;
     audio.play('bossDie');
@@ -1439,6 +1460,18 @@ export class World {
       }
 
       case 'reaper':
+        /*
+         * La Faucheuse règle son pas sur celui du joueur, en permanence.
+         *
+         * Sa vitesse fixe de 105 la rendait triviale à semer : le joueur part à 100, et une
+         * paire de bottes montée le porte au-delà de 160. Mesuré, deux parties sur quatre
+         * dépassaient la trente-neuvième minute sans jamais qu'elle rattrape quoi que ce
+         * soit — un rideau qui ne tombe pas n'est pas un rideau.
+         *
+         * Le calcul est refait à chaque pas, et non à l'apparition : sinon un ramassage de
+         * vitesse pris après son arrivée suffirait encore à lui échapper.
+         */
+        e.speed = Math.max(e.def.speed, this.player.stats.moveSpeed * 1.22);
         if (fxRng.chance(dt * 20)) this.particles.ember(e.x, e.y, P.bloodHi, 1);
         break;
     }

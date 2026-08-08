@@ -44,11 +44,19 @@ function frame(color: string, accent: string, monture: Monture = 'simple'): HTML
   // --- coin haut-gauche, dessiné dans un canvas temporaire puis dupliqué ---
   const [corner, cx] = canvas(S, S);
   cx.fillStyle = color;
-  cx.fillRect(0, 0, 7, 1); // trait extérieur horizontal
-  cx.fillRect(0, 0, 1, 7); // trait extérieur vertical
+  /*
+   * Les traits vont jusqu'au **bord de la découpe**, pas un pixel avant.
+   *
+   * Ils s'arrêtaient à 7 pour une tranche de 8 : il restait donc un pixel vide à chaque
+   * jonction entre un coin et le bord voisin, soit huit interruptions par cadre. Relevé sur
+   * l'image produite, la rangée du haut donnait `#######.########.#######` — et un joueur y
+   * a vu, à juste titre, des ornements coupés.
+   */
+  cx.fillRect(0, 0, S, 1); // trait extérieur horizontal
+  cx.fillRect(0, 0, 1, S); // trait extérieur vertical
   cx.fillStyle = shade(color, -0.35);
-  cx.fillRect(2, 2, 5, 1); // trait intérieur
-  cx.fillRect(2, 2, 1, 5);
+  cx.fillRect(2, 2, S - 2, 1); // trait intérieur
+  cx.fillRect(2, 2, 1, S - 2);
   cx.fillStyle = accent;
   cx.fillRect(0, 0, 2, 2); // losange d'angle
   cx.fillRect(4, 0, 1, 1);
@@ -117,10 +125,19 @@ function frame(color: string, accent: string, monture: Monture = 'simple'): HTML
   put(edge, S, 0, 1, 1);
   put(edge, S, S * 2, 1, -1);
 
-  // Bords verticaux : le bord haut pivoté d'un quart de tour.
+  /*
+   * Bords verticaux : le bord haut pivoté d'un quart de tour — dans le bon sens.
+   *
+   * Il tournait de +90°, ce qui envoie la rangée extérieure de la source sur la colonne 7 de
+   * la destination, c'est-à-dire du côté **intérieur** du cadre, où le contenu la recouvre.
+   * Les montants gauche et droit de tous les cadres du jeu étaient donc simplement absents :
+   * relevé sur l'image produite, la colonne de gauche donnait `#######..........#######`,
+   * dix pixels vides entre les deux coins. Une rotation de −90° remet la rangée extérieure
+   * en colonne 0, où elle doit être.
+   */
   const [vedge, vx] = canvas(S, S);
-  vx.translate(S, 0);
-  vx.rotate(Math.PI / 2);
+  vx.translate(0, S);
+  vx.rotate(-Math.PI / 2);
   vx.drawImage(edge, 0, 0);
   put(vedge, 0, S, 1, 1);
   put(vedge, S * 2, S, -1, 1);
