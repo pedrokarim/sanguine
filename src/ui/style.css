@@ -1230,5 +1230,11 @@ html.planche, html.planche body {
 /* Fond teinté de la rareté, très discret : assez pour détacher l'objet, assez peu pour ne
    pas concurrencer sa propre couleur. */
 .rar-rare    { background-color: rgba(91, 157, 245, .07) }
+/* Les pastilles de relique du HUD portent aussi leur monture : c'est le seul endroit où la
+   rareté d'un objet possédé se lit en cours de partie. */
+.relic-chip.common { border: 8px solid transparent; border-image: var(--frame-commune) 8 / 8px / 0 round }
+.relic-chip.rare   { border: 8px solid transparent; border-image: var(--frame-rare) 8 / 8px / 0 round }
+.relic-chip.epic   { border: 8px solid transparent; border-image: var(--frame-epique) 8 / 8px / 0 round }
+.relic-chip.cursed { border: 8px solid transparent; border-image: var(--frame-maudite) 8 / 8px / 0 round }
 .rar-epique  { background-color: rgba(168, 85, 247, .08) }
 .rar-maudite { background-color: rgba(196, 38, 57, .09) }
