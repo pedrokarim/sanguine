@@ -102,7 +102,11 @@ export class Player {
     // La clé de cache inclut l'identifiant de la teinte, sinon la première apparence générée
     // resterait figée pour tout le reste de la session.
     const sv = load();
-    const skinId = sv.cosmetics.equipped[`skin:${this.char.id}`];
+    // La teinte universelle prime sur la teinte propre au personnage : c'est la
+    // contrepartie de la collection complète, elle doit se voir quel que soit le choix.
+    const uniId = sv.cosmetics.equipped['skin:*'];
+    const perId = sv.cosmetics.equipped[`skin:${this.char.id}`];
+    const skinId = uniId && sv.cosmetics.owned.includes(uniId) ? uniId : perId;
     const skin = skinId && sv.cosmetics.owned.includes(skinId) ? COSMETIC_BY_ID.get(skinId) : undefined;
     const art = skin?.art ? { ...this.char.art, ...skin.art } : this.char.art;
     const key = `hero:${this.char.id}${skin ? `:${skin.id}` : ''}`;
