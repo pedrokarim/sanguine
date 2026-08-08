@@ -12,7 +12,7 @@
 ![Vite](https://img.shields.io/badge/Vite-6-646cff?logo=vite&logoColor=white)
 ![Dépendances runtime](https://img.shields.io/badge/dépendances%20runtime-0-4ee88a)
 ![Assets binaires](https://img.shields.io/badge/assets%20binaires-0-4ee88a)
-![Bundle](https://img.shields.io/badge/bundle-60%20ko%20gzip-4ea9e8)
+![Bundle](https://img.shields.io/badge/bundle-72%20ko%20gzip-4ea9e8)
 ![Docker](https://img.shields.io/badge/Docker-prêt-2496ed?logo=docker&logoColor=white)
 
 </div>
@@ -28,7 +28,7 @@ Une partie dure **30 minutes**. Le temps est le seul véritable adversaire.
 
 > **Aucune dépendance runtime. Aucun fichier binaire.**
 > Sprites, animations, décor, biomes, illustration des menus, ornements d'interface, logo,
-> curseur et sons sont **générés par le code** au démarrage. Le jeu entier tient en 60 ko
+> curseur et sons sont **générés par le code** au démarrage. Le jeu entier tient en 72 ko
 > compressés et fonctionne hors ligne.
 
 ![Une partie à la quinzième minute](docs/screenshots/03-jeu.png)
@@ -79,10 +79,9 @@ Une partie dure **30 minutes**. Le temps est le seul véritable adversaire.
 | Pause | `Échap` / `P` | Start | – |
 | Valider | `Entrée` / `Espace` / clic | A | Tap |
 | Minimap | `M` | – | – |
+| Plein écran | `F` | – | – |
 
 La minimap sert aussi de détecteur : elle pulse en direction de ce qui est enfoui à proximité.
-
-| Plein écran | `F` | – | – |
 
 **Il n'y a pas de touche d'attaque.** C'est le genre qui veut ça.
 
@@ -151,7 +150,8 @@ src/
 La résolution logique s'adapte à la fenêtre en conservant le facteur entier : pas de bandes
 noires, et un pixel art net y compris sous une mise à l'échelle Windows à 125 % ou 150 %.
 
-Mesuré sous charge : **60 fps constants** avec 344 ennemis (`update` 0,9 ms, `render` 2,4 ms).
+Mesuré à la densité de la 28ᵉ minute, Déferlante active : **60 fps constants** avec 460 ennemis
+et 2 200 objets au sol (`update` ~1 ms, `render` 5 à 12 ms), tas mémoire stable sur la durée.
 
 ---
 
