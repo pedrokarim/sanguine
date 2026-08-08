@@ -938,6 +938,66 @@ export function makePassiveSprite(icon: PassiveIcon, color: string): SpriteSet {
   return set;
 }
 
+/** Pièce de collection à demi enfouie : parchemin, sceau, hiéroglyphe ou pierre gravée. */
+export function makeFragment(kind: 'parchemin' | 'sceau' | 'hieroglyphe' | 'pierre'): SpriteSet {
+  const key = `frag:${kind}`;
+  const hit = cache.get(key);
+  if (hit) return hit;
+
+  const base = kind === 'parchemin' ? P.linen
+    : kind === 'sceau' ? P.gold
+      : kind === 'hieroglyphe' ? P.ice : P.steel;
+  const cols = [shade(base, -0.75), shade(base, -0.35), base, shade(base, 0.4), P.spark];
+  const frames: Pix[] = [];
+
+  for (let i = 0; i < 6; i++) {
+    const t = i / 6;
+    const p = new Pix(14, 16);
+    const cx = 6.5;
+    // Léger flottement : une pièce enfouie qui « respire » se repère bien mieux au sol.
+    const lift = Math.sin(t * TAU) * 0.7;
+
+    switch (kind) {
+      case 'parchemin':
+        p.rect(3, 4 + lift, 8, 9, 2);
+        p.ellipse(3, 8.5 + lift, 1.3, 4.6, 3);
+        p.ellipse(11, 8.5 + lift, 1.3, 4.6, 3);
+        for (let k = 0; k < 4; k++) p.rect(4.5, 6 + k * 2 + lift, 5, 1, 1);
+        break;
+      case 'sceau':
+        p.ellipse(cx, 8 + lift, 4.4, 4.4, 2);
+        p.ring(cx, 8 + lift, 3, 3, 1);
+        p.set(cx, 8 + lift, 4);
+        p.rect(cx - 1, 12 + lift, 3, 3, 1);
+        break;
+      case 'hieroglyphe':
+        p.rect(2, 3 + lift, 11, 11, 2);
+        p.shadeVertical(2, 3, 1);
+        for (let r = 0; r < 3; r++) {
+          for (let c = 0; c < 3; c++) {
+            if ((r + c + i) % 2 === 0) p.set(4 + c * 3, 5 + r * 3 + lift, 1);
+          }
+        }
+        break;
+      case 'pierre':
+        // À demi enfouie : seule la face gravée dépasse du sol.
+        p.rect(3, 5 + lift, 9, 10, 2);
+        p.ellipse(cx, 5 + lift, 4.5, 1.8, 2);
+        p.shadeVertical(2, 3, 1);
+        p.rect(5, 8 + lift, 5, 1, 1);
+        p.rect(5, 10 + lift, 3, 1, 1);
+        p.rect(5, 12 + lift, 4, 1, 1);
+        break;
+    }
+    p.outline(0);
+    frames.push(p);
+  }
+
+  const set = build(frames, cols);
+  cache.set(key, set);
+  return set;
+}
+
 /** Disque plein utilisé pour les auras, flaques et zones – teinté au rendu. */
 export function makeDisc(radius: number, color: string, soft = true): HTMLCanvasElement {
   const d = radius * 2 + 2;

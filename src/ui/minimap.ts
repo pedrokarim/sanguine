@@ -219,6 +219,37 @@ export class Minimap {
       Math.round(w.cam.viewH * SCALE),
     );
 
+    // --- résonance : la seule façon de trouver ce qui est enfoui ---
+    //
+    // On ne montre jamais la position exacte tant que le joueur est loin : un point sur la
+    // carte transformerait la fouille en trajet. Il voit une direction et une intensité, et
+    // c'est à lui de chercher — d'où le nom, et d'où le bonus de la sourcière.
+    const res = w.nearestCache();
+    if (res && res.d < w.resonanceRange) {
+      const near = clamp(1 - res.d / w.resonanceRange, 0, 1);
+      const beat = 0.35 + Math.sin(this.pulse * (2 + near * 9)) * 0.45 * near + near * 0.3;
+      const a = Math.atan2(res.y - pl.y, res.x - pl.x);
+
+      if (res.d > 400) {
+        // Loin : un arc sur le bord, dans la bonne direction.
+        ctx.globalAlpha = clamp(beat, 0, 1);
+        ctx.strokeStyle = P.spark;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(half, half, half - 5, a - 0.34, a + 0.34);
+        ctx.stroke();
+      } else {
+        // Proche : un point, net seulement dans les tout derniers mètres.
+        const x = clamp(px(res.x), 3, SIZE - 3);
+        const y = clamp(py(res.y), 3, SIZE - 3);
+        ctx.globalAlpha = clamp(beat, 0, 1);
+        ctx.fillStyle = P.spark;
+        const r = res.d < 120 ? 2 : 3;
+        ctx.fillRect((x | 0) - r, (y | 0) - r, r * 2, r * 2);
+      }
+      ctx.globalAlpha = 1;
+    }
+
     // --- joueur, toujours au centre ---
     ctx.fillStyle = '#05060a';
     ctx.fillRect(half - 2, half - 2, 4, 4);

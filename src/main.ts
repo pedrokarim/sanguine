@@ -34,7 +34,8 @@ import { COSMETIC_BY_ID } from './data/cosmetics';
 
 type State =
   | 'title' | 'charselect' | 'playing' | 'levelup' | 'chest'
-  | 'paused' | 'sanctuary' | 'shop' | 'codex' | 'options' | 'gameover' | 'victory';
+  | 'paused' | 'sanctuary' | 'shop' | 'codex' | 'archive' | 'reading'
+  | 'options' | 'gameover' | 'victory';
 
 /**
  * Deux canvas, et c'est la clé de la netteté.
@@ -264,7 +265,7 @@ function goTitle(): void {
   hud = null;
   audio.stopMusic();
   audio.setBossMode(false);
-  screens.title(goCharSelect, goSanctuary, goOptions, goCodex, goShop, load().run, () => startRun('', true));
+  screens.title(goCharSelect, goSanctuary, goOptions, goCodex, goShop, goArchive, load().run, () => startRun('', true));
 }
 
 function goCharSelect(): void {
@@ -280,6 +281,11 @@ function goSanctuary(): void {
 function goShop(): void {
   state = 'shop';
   screens.shop(goTitle, applyOptions);
+}
+
+function goArchive(): void {
+  state = 'archive';
+  screens.archive(goTitle);
 }
 
 function goCodex(): void {
@@ -319,6 +325,8 @@ function startRun(charId: string, resume = false): void {
   audio.init();
   audio.startMusic();
   runSaveTimer = 0;
+
+  world.setKnownFragments(load().fragments);
 
   // Enregistre l'arme de départ dans le codex.
   markWeaponSeen(world.player.weaponIds[0]!);
@@ -519,6 +527,20 @@ const loop = new Loop({
       if (runSaveTimer >= RUN_SAVE_INTERVAL) {
         runSaveTimer = 0;
         saveRun();
+      }
+
+      // Une pièce ramassée se lit tout de suite : c'est la récompense, la faire attendre
+      // la fin du run la viderait de son effet.
+      if (w.pendingFragment) {
+        const f = w.pendingFragment;
+        w.pendingFragment = null;
+        update((sv) => { if (!sv.fragments.includes(f.n)) sv.fragments.push(f.n); });
+        state = 'reading';
+        // La vue de lecture se referme d'elle-même ; on reprend alors la partie là où elle
+        // s'est figée.
+        screens.readFragment(f, () => {
+          state = 'playing';
+        });
       }
 
       if (w.state === 'dead') endRun(false);

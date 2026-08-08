@@ -5,3 +5,6 @@ dist/
 .DS_Store
 .vscode/
 .idea/
+
+# Bible narrative — jamais publiée (spoilers)
+lore/

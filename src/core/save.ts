@@ -105,6 +105,8 @@ export interface SaveData {
   stats: Stats;
   options: Options;
   cosmetics: CosmeticsSave;
+  /** Numéros des fragments découverts. */
+  fragments: number[];
 }
 
 function fresh(): SaveData {
@@ -124,6 +126,7 @@ function fresh(): SaveData {
       reduceFlash: false, reduceMotion: false, highlightPlayer: false,
       showDamage: true, highContrast: false, plainFont: false, gameSpeed: 1,
     },
+    fragments: [],
     cosmetics: {
       owned: [],
       equipped: { trail: 'trail-none', theme: 'theme-stone', cursor: 'cursor-linen' },
@@ -153,6 +156,7 @@ function merge(loaded: unknown): SaveData {
     seenEnemies: Array.isArray(l.seenEnemies) ? l.seenEnemies : [],
     stats: { ...base.stats, ...(l.stats ?? {}) },
     options: { ...base.options, ...(l.options ?? {}) },
+    fragments: Array.isArray(l.fragments) ? l.fragments : [],
     cosmetics: {
       owned: Array.isArray(l.cosmetics?.owned) ? l.cosmetics.owned : [],
       equipped: { ...base.cosmetics.equipped, ...(l.cosmetics?.equipped ?? {}) },

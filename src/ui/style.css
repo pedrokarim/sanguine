@@ -829,6 +829,43 @@ body.reduce-motion .icon-sprite.anim { animation: none }
   .stat-icon { height: 2em }
 }
 
+/* ----------------------------------------------------------------- archive */
+
+.archive-hint {
+  max-width: 44ch; text-align: center; margin: .2em 0 .4em;
+  font-family: var(--font-display); font-style: italic; font-size: 1.02em;
+  color: var(--steel); line-height: 1.5;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, .9);
+}
+.archive-grid { grid-template-columns: repeat(auto-fill, minmax(8em, 1fr)) }
+.archive-cell { cursor: pointer }
+.archive-cell.locked { cursor: default; opacity: .45 }
+.archive-cell:not(.locked):hover { border-image: var(--frame-gold) 8 / 8px / 0 round }
+.archive-cell .codex-tag { color: var(--gold); letter-spacing: .2em }
+
+.archive-epilogue {
+  margin: 1.4em auto .4em; padding: .8em 1.6em; max-width: 22em; text-align: center;
+  font-family: var(--font-display); font-size: 1.15em; letter-spacing: .1em;
+  color: var(--gold); cursor: pointer;
+  border: 8px solid transparent; border-image: var(--frame-gold) 8 / 8px / 0 round;
+  background-color: rgba(11, 13, 20, .8); image-rendering: pixelated;
+}
+.archive-epilogue:hover { filter: drop-shadow(0 0 10px rgba(242, 196, 107, .5)) }
+
+/* Vue de lecture : elle se superpose sans détruire l'écran dessous, pour revenir à
+   l'Archive exactement là où on l'avait laissée. */
+.screen.reading {
+  background: radial-gradient(ellipse at center, rgba(5, 6, 10, .9), rgba(2, 2, 5, .98));
+  z-index: 60;
+}
+.reading-icon { margin-bottom: .2em }
+.reading-panel {
+  max-width: 52ch; padding: 1.6em 2em;
+  font-family: var(--font-display); font-size: 1.12em; line-height: 1.75;
+  color: #dfe4f2; text-align: left;
+}
+.reading-panel p + p { margin-top: 1em }
+
 /* ---------------------------------------------------------------- boutique */
 
 .shop-cell { position: relative; padding-bottom: 3.2em }
