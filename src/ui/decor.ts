@@ -28,7 +28,16 @@ const url = (c: HTMLCanvasElement): string => `url("${c.toDataURL()}")`;
  * ponctuée d'un cran. Le motif est dessiné une fois puis retourné aux trois autres coins,
  * ce qui garantit une symétrie parfaite.
  */
-function frame(color: string, accent: string): HTMLCanvasElement {
+/**
+ * Traitements de monture.
+ *
+ * Les quatre cadres du jeu ne différaient que par leur couleur. Une rareté doit se lire à la
+ * **monture** avant même la couleur du texte : c'est ce qui rend le tri instantané, et ce qui
+ * reste vrai pour un joueur daltonien.
+ */
+export type Monture = 'simple' | 'double' | 'volute' | 'ronce';
+
+function frame(color: string, accent: string, monture: Monture = 'simple'): HTMLCanvasElement {
   const S = 8;
   const [c, ctx] = canvas(S * 3, S * 3);
 
@@ -44,6 +53,42 @@ function frame(color: string, accent: string): HTMLCanvasElement {
   cx.fillRect(0, 0, 2, 2); // losange d'angle
   cx.fillRect(4, 0, 1, 1);
   cx.fillRect(0, 4, 1, 1);
+
+  /*
+   * Le coin porte la marque de rareté. Elle se joue sur trois ou quatre pixels : à la taille
+   * d'un cadre 9-slice, une ornementation plus riche se réduit à une bouillie.
+   */
+  switch (monture) {
+    case 'double':
+      // Équerre redoublée : un second retour vers l'intérieur.
+      cx.fillStyle = color;
+      cx.fillRect(4, 4, 3, 1);
+      cx.fillRect(4, 4, 1, 3);
+      break;
+    case 'volute':
+      // Volute : trois pixels qui s'enroulent vers le centre.
+      cx.fillStyle = accent;
+      cx.fillRect(3, 1, 1, 1);
+      cx.fillRect(4, 2, 1, 1);
+      cx.fillRect(1, 3, 1, 1);
+      cx.fillRect(2, 4, 1, 1);
+      cx.fillStyle = color;
+      cx.fillRect(5, 5, 2, 2);
+      break;
+    case 'ronce':
+      // Ronce : des épines qui débordent du cadre, irrégulières.
+      cx.fillStyle = accent;
+      cx.fillRect(3, 0, 1, 1);
+      cx.fillRect(6, 1, 1, 1);
+      cx.fillRect(0, 3, 1, 1);
+      cx.fillRect(1, 6, 1, 1);
+      cx.fillStyle = shade(color, -0.2);
+      cx.fillRect(2, 5, 1, 2);
+      cx.fillRect(5, 2, 2, 1);
+      break;
+    case 'simple':
+      break;
+  }
 
   // --- bord haut ---
   // Deux filets continus et un seul cran discret : un motif plus marqué se répète tous les
@@ -271,6 +316,18 @@ export function installDecor(): void {
   root.setProperty('--frame-stone', url(frame(P.mist, P.stoneHi)));
   root.setProperty('--frame-blood', url(frame(P.blood, P.bloodHi)));
   root.setProperty('--frame-epic', url(frame('#a855f7', '#d8b4fe')));
+
+  /*
+   * Montures de rareté.
+   *
+   * Elles s'appliquent aux vignettes du Codex, aux cases de la boutique, aux cartes
+   * d'amélioration et à l'Archive. Chacune porte un traitement d'angle distinct — équerre
+   * simple, équerre redoublée, volute, ronce — pour que la rareté se lise à la forme.
+   */
+  root.setProperty('--frame-commune', url(frame(P.mist, P.steel, 'simple')));
+  root.setProperty('--frame-rare', url(frame('#5b9df5', '#a8c5d6', 'double')));
+  root.setProperty('--frame-epique', url(frame('#a855f7', '#d8b4fe', 'volute')));
+  root.setProperty('--frame-maudite', url(frame(P.blood, P.bloodHi, 'ronce')));
   root.setProperty('--flourish', url(flourish(P.gold, shade(P.gold, 0.5))));
   root.setProperty('--corner', url(corner(P.gold, shade(P.gold, 0.5))));
   root.setProperty('--title-band', url(titleBand()));

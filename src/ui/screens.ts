@@ -41,6 +41,19 @@ const AI_LABEL: Record<EnemyAI, string> = {
 };
 
 /** La CSS nomme les raretés en anglais court ; la table évite d'éparpiller la correspondance. */
+/**
+ * Monture par rareté.
+ *
+ * Appliquée seulement aux objets **découverts** : une vignette encore silhouettée ne doit pas
+ * révéler la rareté de ce qu'elle cache.
+ */
+const MONTURE: Record<Rarity, string> = {
+  common: 'rar-commune',
+  rare: 'rar-rare',
+  epic: 'rar-epique',
+  cursed: 'rar-maudite',
+};
+
 const RARITY_CSS: Record<Rarity, string> = {
   common: 'common',
   rare: 'rare',
@@ -1019,9 +1032,11 @@ export class Screens {
     tag: string,
     tagColor: string,
     speed?: number,
+    /** Monture de rareté. Absente, la vignette garde le cadre de pierre par défaut. */
+    monture?: string,
   ): HTMLDivElement {
     const cell = document.createElement('div');
-    cell.className = `codex-cell${discovered ? '' : ' locked'}`;
+    cell.className = `codex-cell${discovered ? '' : ' locked'}${monture ? ` ${monture}` : ''}`;
 
     const stage = document.createElement('div');
     stage.className = 'codex-stage';
@@ -1121,6 +1136,7 @@ export class Screens {
       gRelics.appendChild(this.codexCell(
         sheetOf(`codex:r:${r.rarity}`, makeRelic(r.rarity)),
         seen, r.name, r.desc, RARITY_LABEL[r.rarity], `var(--rar-${RARITY_CSS[r.rarity]})`, 1.1,
+        seen ? MONTURE[r.rarity] : undefined,
       ));
     }
 
