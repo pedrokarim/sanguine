@@ -30,10 +30,28 @@ export function spawnCap(m: number): number {
   return Math.min(160 + m * 36, 1100);
 }
 
-/** Multiplicateur de PV appliqué aux ennemis à la minute `m`. */
-export function hpScale(m: number): number {
-  return 1 + m * 0.16 + Math.pow(m / 9, 2);
+/**
+ * Multiplicateur de PV appliqué aux ennemis.
+ *
+ * L'horloge seule ne suffisait pas. La puissance du joueur croît par paliers — niveaux
+ * d'arme, passifs, reliques, évolutions — et bien plus vite qu'une courbe de temps. Mesuré
+ * avant correction : avec un build solide de douze minutes, on pouvait poser la manette et
+ * rester **immobile indéfiniment**, jusqu'à la vingt-neuvième minute, sans perdre un point
+ * de vie. Rien n'atteignait le joueur, parce que tout mourait avant.
+ *
+ * Le second terme reprend le principe de Vampire Survivors, où les PV d'un ennemi sont
+ * multipliés par le niveau du joueur au moment de son apparition : plus vous devenez fort,
+ * plus ce qui vient l'est aussi. Les huit premiers niveaux en sont exemptés — le début de
+ * partie sert à se mettre en jambes, pas à être puni d'avoir ramassé trois gemmes.
+ */
+export function hpScale(m: number, level = 1): number {
+  const temps = 1 + m * 0.16 + Math.pow(m / 9, 2);
+  const puissance = 1 + Math.max(0, level - 8) * LEVEL_HP;
+  return temps * puissance;
 }
+
+/** Part de PV gagnée par niveau de joueur au-delà du huitième. Réglé à la mesure. */
+export const LEVEL_HP = 0.05;
 
 /** Multiplicateur de dégâts appliqué aux ennemis à la minute `m`. */
 export function damageScale(m: number): number {
@@ -66,6 +84,42 @@ export interface WaveEvent {
   mult?: number;
   duration?: number;
 }
+
+/**
+ * Boss errants.
+ *
+ * Les quatre boss scriptés tombent toujours aux mêmes minutes : au troisième run, on sait
+ * ce qui arrive et quand. Ceux-ci apparaissent au hasard, rarement, et rompent la routine
+ * d'une partie qui, autrement, se déroule à l'identique.
+ *
+ * `from` empêche de croiser un boss de la vingtième minute à la sixième : la rareté doit
+ * surprendre, pas exécuter.
+ */
+export interface Rodeur {
+  enemy: string;
+  label: string;
+  from: number;
+}
+
+export const RODEURS: Rodeur[] = [
+  { enemy: 'matron', label: 'Une Matrone', from: 7 },
+  { enemy: 'exsanguine', label: 'Un Chevalier Exsangue', from: 12 },
+  { enemy: 'ashchoir', label: 'Un Chœur de Cendres', from: 17 },
+];
+
+/**
+ * Première minute où un rôdeur peut paraître.
+ *
+ * Seuls de vrais boss rôdent. Un ennemi ordinaire gonflé en points de vie n'aurait ni barre,
+ * ni musique, ni récompense à sa chute : le joueur y verrait un sac à PV, pas un événement.
+ */
+export const RODEUR_DEBUT = 7;
+/** Écart minimal entre deux rôdeurs, en secondes. */
+export const RODEUR_ECART = 75;
+/** Probabilité, à chaque tirage, qu'un rôdeur se présente. */
+export const RODEUR_CHANCE = 0.34;
+/** Plafond par partie : au-delà, ce n'est plus une surprise mais une routine. */
+export const RODEUR_MAX = 5;
 
 export const WAVE_EVENTS: WaveEvent[] = [
   { at: 3, kind: 'ring', enemy: 'bat', count: 60, label: 'Nuée' },

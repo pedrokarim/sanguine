@@ -144,11 +144,54 @@ clignotement. Sans cela, entrer dans une masse d’ennemis tue instantanément.
 
 ### Mise à l’échelle
 ```
-hp     = base × (1 + minute × 0.16 + (minute/9)^2)
+hp     = base × (1 + minute × 0.16 + (minute/9)^2) × (1 + max(0, niveau − 8) × 0.05)
 damage = base × (1 + minute × 0.05)
 vitesse: inchangée (sinon le kiting devient impossible)
 ```
 La vitesse **ne monte jamais**. C’est la règle qui garde le jeu jouable à 28 minutes.
+
+Le second facteur des PV suit le **niveau du joueur**, et pas seulement l’horloge. L’horloge
+seule ne suffisait pas : la puissance monte par paliers – niveaux d’arme, passifs, reliques,
+évolutions – bien plus vite qu’une courbe de temps. Mesuré avant correction, avec un build
+solide de douze minutes, on tenait **74 secondes sans bouger d’un pixel**. Le principe est
+repris de Vampire Survivors, où les PV d’un ennemi sont multipliés par le niveau du joueur au
+moment de son apparition.
+
+Les huit premiers niveaux en sont exemptés : le début de partie sert à se mettre en jambes.
+Le niveau est lu **à l’apparition** et n’est plus mis à jour ensuite – un ennemi déjà sur le
+terrain ne durcit pas parce que le joueur vient de monter d’un niveau.
+
+Mesuré après correction, même build, médiane sur trois parties :
+
+| Minute | Immobile, avant | Immobile, après | En fuite, après |
+|---|---|---|---|
+| 8 | survit 180 s | survit 180 s | survit 180 s |
+| 12 | 74 s | **18 s** | survit 180 s |
+| 16 | 12 s | 9 s | 30 s |
+| 20 | 7 s | 5 s | 13 s |
+
+La passivité est punie dès la douzième minute, sans que jouer correctement le soit.
+
+### Boss errants
+
+Les quatre boss scriptés tombent toujours aux mêmes minutes : au troisième run, on sait ce
+qui arrive et quand. Trois **rôdeurs** s’y ajoutent au hasard – une Matrone à partir de la
+7ᵉ minute, un Chevalier Exsangue à partir de la 12ᵉ, un Chœur de Cendres à partir de la 17ᵉ.
+
+| Réglage | Valeur |
+|---|---|
+| Écart minimal entre deux tirages | 75 s |
+| Probabilité par tirage | 34 % |
+| Plafond par partie | 5 |
+
+Le tirage se fait sur le générateur de la partie : deux parties de même graine voient les
+mêmes rôdeurs aux mêmes instants, la rejouabilité à la graine n’est pas sacrifiée. Aucun
+rôdeur ne paraît pendant un boss scripté – deux barres de vie simultanées et deux musiques
+superposées ne se lisent pas.
+
+Ce sont de **vrais boss**, pas des ennemis gonflés en points de vie : ils ont leur barre,
+leur musique, et laissent à leur chute trois coffres et une relique garantie. Un sac à PV
+sans récompense se lirait comme une punition, pas comme un événement.
 
 ## 9. Objets au sol
 

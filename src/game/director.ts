@@ -3,6 +3,7 @@ import { audio } from '../audio/audio';
 import { ENEMIES } from '../data/enemies';
 import {
   spawnRate, spawnCap, eliteChance, WAVE_EVENTS, type WaveEvent,
+  RODEURS, RODEUR_DEBUT, RODEUR_ECART, RODEUR_CHANCE, RODEUR_MAX,
 } from '../data/waves';
 import type { World } from './world';
 
@@ -22,6 +23,9 @@ export class Director {
   private accum = 0;
   private firedEvents = new Set<number>();
   private reaperSpawned = false;
+  /** Compte à rebours avant le prochain tirage de rôdeur. */
+  private rodeurTimer = RODEUR_ECART;
+  private rodeurs = 0;
   /** Poids d'apparition recalculés une fois par minute, pas à chaque spawn. */
   private weights: number[] = [];
   private weightsMinute = -1;
@@ -42,6 +46,8 @@ export class Director {
 
   reset(): void {
     this.accum = 0;
+    this.rodeurTimer = RODEUR_ECART;
+    this.rodeurs = 0;
     this.firedEvents.clear();
     this.reaperSpawned = false;
     this.weightsMinute = -1;
@@ -51,6 +57,7 @@ export class Director {
     const m = w.minute;
 
     this.runEvents(w, m);
+    this.runRodeurs(w, m, dt);
     this.runReaper(w, m);
 
     const alive = w.aliveEnemies;
@@ -123,6 +130,38 @@ export class Director {
       this.firedEvents.add(i);
       this.runEvent(w, ev);
     }
+  }
+
+  /**
+   * Tirage périodique d'un boss errant.
+   *
+   * Le tirage se fait sur le générateur de la partie, donc deux parties de même graine
+   * voient les mêmes rôdeurs aux mêmes instants — la rejouabilité à la graine ne se perd
+   * pas au profit d'une surprise.
+   */
+  private runRodeurs(w: World, m: number, dt: number): void {
+    if (m < RODEUR_DEBUT || this.rodeurs >= RODEUR_MAX) return;
+    this.rodeurTimer -= dt;
+    if (this.rodeurTimer > 0) return;
+    this.rodeurTimer = RODEUR_ECART;
+
+    if (w.rng.next() > RODEUR_CHANCE) return;
+
+    // Un rôdeur pendant un boss scripté ferait deux barres de vie et une bouillie sonore.
+    if (w.boss) return;
+
+    const eligibles = RODEURS.filter((r) => m >= r.from);
+    if (eligibles.length === 0) return;
+    const choix = eligibles[w.rng.int(0, eligibles.length - 1)]!;
+
+    const e = w.spawnOffscreen(choix.enemy);
+    if (!e) return;
+    this.rodeurs++;
+
+    audio.play('boss');
+    audio.setBossMode(true);
+    w.announce(choix.label, 'rôde');
+    w.cam.shake(0.3, true);
   }
 
   private runEvent(w: World, ev: WaveEvent): void {

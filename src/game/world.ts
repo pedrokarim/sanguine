@@ -301,7 +301,10 @@ export class World {
 
     const m = this.minute;
     const isBoss = !!def.boss;
-    const hpMul = hpScale(isBoss ? Math.min(m, 30) : m) * (1 + this.player.flag('enemyHp'));
+    // Le niveau est lu à l'apparition et n'est plus mis à jour ensuite : un ennemi déjà sur
+    // le terrain ne durcit pas parce que le joueur vient de monter d'un niveau.
+    const hpMul = hpScale(isBoss ? Math.min(m, 30) : m, this.player.level)
+      * (1 + this.player.flag('enemyHp'));
 
     e.active = true;
     e.x = x;
