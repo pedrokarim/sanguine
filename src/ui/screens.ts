@@ -504,7 +504,7 @@ export class Screens {
       onReroll();
     });
     const skip = this.button('Passer');
-    skip.appendChild(iconValue('gold', '+50', 1.05));
+    skip.appendChild(iconValue('gold', '+50'));
     skip.addEventListener('click', () => { audio.play('confirm'); onSkip(); });
     actions.append(reroll, skip);
     el.appendChild(actions);
@@ -739,7 +739,7 @@ export class Screens {
 
       const purse = document.createElement('div');
       purse.className = 'gold-count';
-      purse.appendChild(iconValue('gold', abbrev(sv.gold), 1));
+      purse.appendChild(iconValue('gold', abbrev(sv.gold)));
       el.appendChild(purse);
 
       const note = document.createElement('div');
@@ -792,7 +792,7 @@ export class Screens {
             on ? 'primary' : '',
           );
           // Un prix s'écrit avec la monnaie, pas avec son nom.
-          if (!on && !has && !gated) btn.appendChild(iconValue('gold', String(item.price), 1.05));
+          if (!on && !has && !gated) btn.appendChild(iconValue('gold', String(item.price)));
           btn.classList.add('shop-btn');
           btn.disabled = on || gated || (!has && sv.gold < item.price);
           btn.addEventListener('click', () => {
@@ -866,7 +866,7 @@ export class Screens {
 
       const gold = document.createElement('div');
       gold.className = 'gold-count';
-      gold.appendChild(iconValue('gold', abbrev(sv.gold), 1));
+      gold.appendChild(iconValue('gold', abbrev(sv.gold)));
       el.appendChild(gold);
 
       const grid = document.createElement('div');
@@ -924,7 +924,7 @@ export class Screens {
         info.append(n, d, pips);
 
         const buy = this.button(maxed ? 'MAX' : '', 'buy');
-        if (!maxed) buy.appendChild(iconValue('gold', String(cost), 1.05));
+        if (!maxed) buy.appendChild(iconValue('gold', String(cost)));
         buy.classList.add('buy');
         buy.disabled = maxed || sv.gold < cost;
         buy.addEventListener('click', () => {

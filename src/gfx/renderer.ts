@@ -589,7 +589,12 @@ export class Renderer {
       // place du côté **intérieur** de la pastille, sinon elle sort de l'écran en bas.
       const dist = Math.round(m.d / 10) * 10;
       const below = py < VH / 2;
-      font.drawCentered(ctx, String(dist), px, below ? py + R + 1 : py - R - 8, m.color, 1);
+      // L'écart au liseré est nommé une fois et retranché de la hauteur du texte dans le cas
+      // « au-dessus » : écrit en nombres bruts, il ne restait symétrique que tant que la
+      // police gardait exactement sept pixels de haut.
+      const LABEL_GAP = 2;
+      const ly = below ? py + R + LABEL_GAP : py - R - LABEL_GAP - font.TEXT_H;
+      font.drawCentered(ctx, String(dist), px, ly, m.color, 1);
 
       ctx.globalAlpha = 1;
     }
