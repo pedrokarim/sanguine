@@ -1,6 +1,7 @@
 import type { SpriteSet } from '../gfx/sprites';
 import type { EnemyDef, BossDef } from '../data/enemies';
 import type { WeaponDef } from '../data/weapons';
+import type { Rang } from '../data/waves';
 
 /**
  * Interfaces des entités. Tous les pools stockent des objets **pré-alloués** : `active`
@@ -37,6 +38,14 @@ export interface Enemy {
   sprite: SpriteSet;
   boss: boolean;
   elite: boolean;
+  /**
+   * Rang de résistance, `null` pour la piétaille.
+   *
+   * `elite` reste à côté plutôt que d'être déduit : il commande le butin, les coffres et le
+   * choix de planche, et une partie sauvegardée avant l'arrivée des rangs doit continuer de
+   * se relire. Le rang, lui, ne pilote que la résistance et le calque.
+   */
+  rang: Rang | null;
 
   /** Horloge d'animation, en secondes. */
   anim: number;
@@ -223,7 +232,7 @@ export function makeEnemy(id: number): Enemy {
     hp: 1, maxHp: 1, damage: 1, speed: 0, radius: 5,
     def: null as unknown as EnemyDef,
     sprite: null as unknown as SpriteSet,
-    boss: false, elite: false,
+    boss: false, elite: false, rang: null,
     anim: 0, flash: 0, facing: 1, touchCd: 0,
     slow: 0, stun: 0, poison: 0, poisonDps: 0, lastPid: -1,
     immuneSrc: new Int32Array(IMMUNE_SLOTS).fill(-1),

@@ -74,3 +74,53 @@ export function describeMods(m: Mods): string {
 
   return out.join(', ');
 }
+
+/**
+ * Surpassements.
+ *
+ * Passé un certain point, un joueur a ses six armes au maximum, ses six objets au maximum,
+ * et rien de ce que le jeu sait offrir ne lui manque. Les montées de niveau continuaient
+ * pourtant d'arriver, et ne proposaient plus que les trois mêmes lots de secours — la même
+ * main, indéfiniment. Mesuré : au-delà du build complet, **quarante montées de niveau
+ * d'affilée** proposaient « Bourse, Repas chaud, Parchemin », et une fois sur trois la
+ * quatrième carte doublait la première.
+ *
+ * Ces bonus-là ne s'épuisent pas. Ils sont volontairement petits : la résistance des
+ * ennemis croît avec le niveau du joueur (voir `hpScale`), ils servent donc à **tenir le
+ * rythme**, pas à reprendre l'avantage. Un surpassement qui rendrait plus fort que la
+ * taxe qu'il déclenche relancerait exactement l'emballement qu'on cherche à contenir.
+ */
+export interface Surpassement {
+  id: string;
+  nom: string;
+  mods: Mods;
+}
+
+export const SURPASSEMENTS: Surpassement[] = [
+  { id: 'sur-might', nom: 'Rage tenace', mods: { might: 0.07 } },
+  { id: 'sur-area', nom: 'Emprise', mods: { area: 0.06 } },
+  { id: 'sur-cooldown', nom: 'Cadence', mods: { cooldown: 0.035 } },
+  { id: 'sur-hp', nom: 'Endurance', mods: { maxHp: 12 } },
+  { id: 'sur-speed', nom: 'Foulée', mods: { moveSpeed: 0.03 } },
+  { id: 'sur-pickup', nom: 'Convoitise', mods: { pickup: 0.09 } },
+  { id: 'sur-armor', nom: 'Cuir tanné', mods: { armor: 0.6 } },
+  { id: 'sur-crit', nom: 'Œil sûr', mods: { crit: 0.02 } },
+];
+
+export const SURPASSEMENT_BY_ID = new Map<string, Surpassement>(
+  SURPASSEMENTS.map((s) => [s.id, s]),
+);
+
+/** Chiffre romain, pour numéroter les surpassements empilés sans allonger la carte. */
+export function romain(n: number): string {
+  const table: [number, string][] = [
+    [1000, 'M'], [900, 'CM'], [500, 'D'], [400, 'CD'], [100, 'C'], [90, 'XC'],
+    [50, 'L'], [40, 'XL'], [10, 'X'], [9, 'IX'], [5, 'V'], [4, 'IV'], [1, 'I'],
+  ];
+  let reste = Math.max(1, Math.min(3999, Math.round(n)));
+  let out = '';
+  for (const [v, s] of table) {
+    while (reste >= v) { out += s; reste -= v; }
+  }
+  return out;
+}

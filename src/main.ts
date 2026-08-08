@@ -28,6 +28,7 @@ import { COSMETIC_BY_ID } from './data/cosmetics';
 import { motifAt, routeAt } from './game/terrain';
 import { enemyById } from './data/enemies';
 import { Mobile } from './ui/mobile';
+import { RANGS } from './data/waves';
 
 /**
  * Point d'entrée et machine à états d'écrans.
@@ -800,6 +801,8 @@ Object.defineProperty(window, 'sanguine', {
       }
     },
     startRun,
+    /** Table des rangs — sert aux mesures de charge, qui doivent pouvoir forcer la proportion. */
+    RANGS_TEST: RANGS,
     countActiveProjectiles(): number {
       let n = 0;
       if (world) for (const p of world.projectiles) if (p.active) n++;

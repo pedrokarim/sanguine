@@ -1,7 +1,7 @@
 import { clamp, TAU } from '../core/math';
 import { load } from '../core/save';
 import { makeHero, type SpriteSet } from '../gfx/sprites';
-import { addMods, type Mods } from '../data/mods';
+import { addMods, SURPASSEMENT_BY_ID, type Mods } from '../data/mods';
 import { characterById, NO_REGEN_CHARS, type CharacterDef } from '../data/characters';
 import { COSMETIC_BY_ID } from '../data/cosmetics';
 import { passiveById } from '../data/passives';
@@ -57,6 +57,11 @@ export class Player {
   weapons: WeaponInstance[] = [];
   /** `id de passif` → niveau. */
   passives = new Map<string, number>();
+  /**
+   * Surpassements accumulés, par identifiant. Sans plafond : c'est leur raison d'être.
+   * Voir `SURPASSEMENTS` dans `data/mods.ts`.
+   */
+  surpassements = new Map<string, number>();
   relics: string[] = [];
   /** Effets spéciaux cumulés des reliques. */
   flags: Partial<Record<RelicFlag, number>> = {};
@@ -190,6 +195,12 @@ export class Player {
     this.recompute();
   }
 
+  /** Empile un surpassement. Aucun plafond : ils prennent le relais quand tout est au max. */
+  addSurpassement(id: string): void {
+    this.surpassements.set(id, (this.surpassements.get(id) ?? 0) + 1);
+    this.recompute();
+  }
+
   addPassive(id: string): void {
     const cur = this.passives.get(id) ?? 0;
     const def = passiveById(id);
@@ -226,6 +237,11 @@ export class Player {
 
     for (const [pid, lvl] of this.passives) {
       addMods(m, passiveById(pid).perLevel, lvl);
+    }
+
+    for (const [sid, n] of this.surpassements) {
+      const su = SURPASSEMENT_BY_ID.get(sid);
+      if (su) addMods(m, su.mods, n);
     }
 
     this.flags = {};

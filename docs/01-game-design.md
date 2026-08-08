@@ -36,8 +36,39 @@ Une partie dure **30 minutes**. Le temps est le seul véritable adversaire.
 | 24–29 | **Survie pure** | L’écran est plein. Seuls les builds aboutis tiennent. |
 | 29–30 | **Le Sanguinaire** | Boss final. Le tuer = victoire. |
 
-Si le joueur atteint 30:00 sans tuer le boss, la **Faucheuse** apparaît : invulnérable, rapide,
-un seul contact tue. C’est le rideau.
+Si le joueur atteint 30:00 sans tuer le boss, la **Faucheuse** apparaît : invulnérable,
+un seul contact tue. C’est le rideau. Elle règle son pas sur celui du joueur à chaque
+instant – une vitesse fixe la rendait triviale à semer dès qu’on montait ses bottes.
+
+Elle vient aussi **quand la horde déborde**. Le nombre d’ennemis simultanés est plafonné pour
+protéger l’appareil ; s’y cogner en silence serait la pire des réponses, puisque le joueur
+verrait le flux se tarir sans comprendre pourquoi. Tenir ce plafond pendant vingt-six secondes
+signifie que l’écart ne se refermera plus : la Faucheuse vient le dire, après un avertissement
+qui laisse le temps de percer ou de fuir. La contrainte technique devient une règle du monde.
+
+### Rangs de résistance
+
+La résistance de fond monte avec le temps **et avec le niveau du joueur**. Par-dessus, une
+minorité d’ennemis est nettement plus dure, et le signale par un calque coloré :
+
+| Rang | PV | Taille | Vitesse | Apparaît | Marque |
+|---|---|---|---|---|---|
+| Endurci | ×2,4 | ×1,12 | ×0,96 | 5ᵉ min | halo bleu |
+| Élite | ×6 | ×1,4 | ×0,9 | 9ᵉ min | halo doré + cerne |
+| Colosse | ×18 | ×1,85 | ×0,74 | 14ᵉ min | halo violet + cerne + barre permanente |
+
+Un ennemi dix-huit fois plus résistant que son voisin sans marque visible n’est pas une
+difficulté : le joueur en conclut que son arme ne fonctionne plus et s’obstine, au lieu de
+contourner. Ce qui encaisse avance aussi moins vite – sinon un colosse serait une punition
+qu’on ne peut ni tuer ni distancer.
+
+### Surpassements
+
+Passé six armes et six objets au maximum, plus rien ne peut être amélioré. Les montées de
+niveau proposaient alors indéfiniment les trois mêmes lots de secours. Les **surpassements**
+prennent le relais : de petits bonus permanents qui ne s’épuisent jamais, numérotés en
+chiffres romains. Ils sont volontairement modestes, la résistance des ennemis croissant avec
+le niveau du joueur – ils servent à tenir le rythme, pas à reprendre l’avantage.
 
 ## 3. Contrôles
 
@@ -180,14 +211,20 @@ qui arrive et quand. Trois **rôdeurs** s’y ajoutent au hasard – une Matrone
 
 | Réglage | Valeur |
 |---|---|
-| Écart minimal entre deux tirages | 75 s |
-| Probabilité par tirage | 34 % |
-| Plafond par partie | 5 |
+| Écart minimal entre deux tirages | 52 s |
+| Probabilité par tirage | 45 % |
+| Plafond par partie | 11 |
+| Boss vivants en même temps | 3 |
 
 Le tirage se fait sur le générateur de la partie : deux parties de même graine voient les
-mêmes rôdeurs aux mêmes instants, la rejouabilité à la graine n’est pas sacrifiée. Aucun
-rôdeur ne paraît pendant un boss scripté – deux barres de vie simultanées et deux musiques
-superposées ne se lisent pas.
+mêmes rôdeurs aux mêmes instants, la rejouabilité à la graine n’est pas sacrifiée. Un rôdeur
+peut désormais s’ajouter à un boss déjà présent, mais jamais au-delà de **trois boss
+simultanés** – au-delà, ni les barres de vie ni les thèmes sonores ne se lisent, et l’appareil
+du joueur n’a pas à encaisser un nombre non borné de gros corps.
+
+Les paliers scriptés lèvent eux-mêmes **plusieurs corps** passé la seizième minute : deux
+Matrones, deux puis trois Chevaliers Exsangues, deux Chœurs. Un boss unique ne pesait plus
+rien face à un build de fin de partie. Le Sanguinaire, lui, reste seul : c’est un duel.
 
 Ce sont de **vrais boss**, pas des ennemis gonflés en points de vie : ils ont leur barre,
 leur musique, et laissent à leur chute trois coffres et une relique garantie. Un sac à PV
