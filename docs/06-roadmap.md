@@ -54,6 +54,20 @@
 - [x] **Interface décorée** : cadres 9-slice, fleurons, équerres, bandeau de titre, grain
 - [x] **Illustration des menus** : scène nocturne en 6 couches animées par parallaxe
 
+## Monde et décor – livré après la v1
+
+- [x] Végétation : 4 essences, 16 silhouettes, semées en bosquets
+- [x] Sols à motifs : 6 motifs, cache bornée à 40 tuiles
+- [x] Décor destructible : brasero, jarre, reliquaire, sarcophage
+- [x] Montures de rareté : 4 traitements d’angle
+- [x] Routes : réseau couvrant 4,3 % des tuiles
+- [x] Ruines et collision : 6 bâtiments, résolution par moindre pénétration
+- [x] Villages abandonnés : 4 à 9 maisons, pression majorée, coffre garanti
+- [x] Refonte graphique : échelle 1,5 et passes d’éclairage sur 116 sprites
+- [x] Cartes de partage Open Graph, image générée par le code
+
+Le détail et les mesures sont dans [`07-monde-et-decor.md`](07-monde-et-decor.md).
+
 ## Au-delà (non prévu pour la v1)
 
 Ces idées sont volontairement **hors périmètre**. Elles sont notées pour ne pas être oubliées,

@@ -352,3 +352,56 @@ puits au Marais, cairns dans les Bois Morts.
 
 **Tension de design** : atteindre une structure oblige à quitter la zone dégagée que le joueur
 s’est ménagée, et à traverser la horde deux fois – à l’aller et au retour.
+
+
+---
+
+## 14. Végétation (4 essences, 16 silhouettes)
+
+| Essence | Biomes | Silhouette |
+|---|---|---|
+| Pin mort | Bois Morts, Cimetière | Étroit, étagé, cime irrégulière |
+| Chêne noueux | Lande, Cimetière | Houppier large et bas, branches maîtresses visibles |
+| Saule noyé | Marais | Tronc penché, rideaux jusqu’au sol |
+| Tronc calciné | Cendres, Bois Morts | Fût nu, fendu, branches cassées |
+
+Quatre variantes par essence, deux tailles. Semées sur une cellule de 220 px, avec un second
+tirage sur 900 px qui triple la densité et crée les **bosquets**.
+
+## 15. Ruines (6)
+
+| Ruine | Taille | Murs | Biomes |
+|---|---|---|---|
+| Pan de mur | 120 × 44 | 2 | tous |
+| Angle de maison | 92 × 92 | 4 | Lande, Cimetière |
+| Nef effondrée | 216 × 120 | 8 | Cimetière |
+| Tour tronquée | 84 × 112 | 3 | Bois Morts, Cimetière |
+| Ferme brûlée | 160 × 104 | 6 | Cendres, Lande |
+| Pontons rompus | 176 × 72 | 5 | Marais |
+
+**Toute ruine a au moins deux ouvertures.** Le joueur ne doit jamais pouvoir être coincé
+entre un mur et la horde sans issue.
+
+## 16. Décor destructible (4)
+
+| Prop | PV | Ce qu’il donne |
+|---|---|---|
+| Brasero | 26 | 1 à 4 pièces, parfois un cœur |
+| Jarre | 18 | 2 à 5 gemmes |
+| Reliquaire brisé | 44 | Une relique |
+| Sarcophage | 130 | **4 squelettes**, puis un coffre – Cimetière uniquement |
+
+Ils ne comptent pas dans les morts et ne donnent pas d’XP : le butin récompense le détour, il
+ne remplace pas le combat comme source de niveaux.
+
+## 17. Motifs de sol (6)
+
+Dallage, pavé, labour, vase, cendre craquelée, terre retournée. Choisis par la **position**
+sur un bruit de neuf tuiles de période, pas par le biome seul – une route ou un village
+impose le sien.
+
+## 18. Villages
+
+Quatre à neuf maisons le long d’une rue, sol dallé, arbres raréfiés de 72 %, pression
+d’ennemis **+40 %** et un coffre garanti au centre. Désirable et dangereux : sans récompense
+certaine, le bon calcul serait de passer au large.
