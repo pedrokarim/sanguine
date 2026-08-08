@@ -248,6 +248,7 @@ export class Screens {
     onCodex: () => void,
     onShop: () => void,
     onArchive: () => void,
+    onProgress: () => void,
     savedRun: RunSave | null,
     onResume: () => void,
   ): void {
@@ -301,14 +302,16 @@ export class Screens {
     const bShop = this.button('Boutique');
     const bArchive = this.button('Archive');
     const bCodex = this.button('Codex');
+    const bProg = this.button('Progression');
     const bOpt = this.button('Options');
     bPlay.addEventListener('click', () => { audio.play('confirm'); onPlay(); });
     bSanct.addEventListener('click', () => { audio.play('confirm'); onSanctuary(); });
     bShop.addEventListener('click', () => { audio.play('confirm'); onShop(); });
     bArchive.addEventListener('click', () => { audio.play('confirm'); onArchive(); });
     bCodex.addEventListener('click', () => { audio.play('confirm'); onCodex(); });
+    bProg.addEventListener('click', () => { audio.play('confirm'); onProgress(); });
     bOpt.addEventListener('click', () => { audio.play('confirm'); onOptions(); });
-    list.append(bPlay, bSanct, bShop, bArchive, bCodex, bOpt);
+    list.append(bPlay, bSanct, bShop, bArchive, bCodex, bProg, bOpt);
     el.appendChild(list);
 
     if (sv.stats.runs > 0) {
@@ -356,7 +359,7 @@ export class Screens {
     legal.textContent = `© ${YEAR} Ascencia · v${VERSION}`;
     el.appendChild(legal);
 
-    const nav = [bPlay, bSanct, bShop, bArchive, bCodex, bOpt];
+    const nav = [bPlay, bSanct, bShop, bArchive, bCodex, bProg, bOpt];
     this.navigable(bResume ? [bResume, ...nav] : nav);
   }
 
@@ -464,6 +467,134 @@ export class Screens {
       case 'kills': return sv.stats.kills >= c.unlock.value;
       case 'win': return sv.stats.wins >= c.unlock.value;
     }
+  }
+
+
+  // ------------------------------------------------------------------ progression
+
+  /**
+   * Arbre de progression.
+   *
+   * Le jeu contenait déjà tout ce qu'il fallait — quinze recettes d'évolution et quatre
+   * conditions de déblocage — mais rien ne les montrait. Un joueur découvrait les évolutions
+   * par accident, ou pas du tout, et n'avait aucun moyen de savoir ce qu'il lui restait à
+   * débloquer ni comment.
+   *
+   * L'écran ne dévoile pas ce qui n'a pas été rencontré. Une recette dont l'arme de base est
+   * inconnue reste silhouettée : savoir qu'il existe une évolution est une information, savoir
+   * laquelle en est une autre, et la seconde se mérite.
+   */
+  progression(onBack: () => void): void {
+    const el = this.open('progress');
+    const sv = load();
+    el.innerHTML = `<h2 class="title-font">Progression</h2>`;
+
+    const scroll = document.createElement('div');
+    scroll.className = 'codex-scroll';
+
+    const section = (titre: string, fait: number, total: number): HTMLDivElement => {
+      const h = document.createElement('div');
+      h.className = 'codex-section';
+      h.innerHTML = `<span class="t">${titre}</span><span class="c">${fait} / ${total}</span>`;
+      scroll.appendChild(h);
+      const g = document.createElement('div');
+      g.className = 'prog-liste';
+      scroll.appendChild(g);
+      return g;
+    };
+
+    // --------------------------------------------------------------- personnages
+    const debloques = CHARACTERS.filter((c) => this.isUnlocked(c, sv)).length;
+    const gChars = section('Personnages', debloques, CHARACTERS.length);
+    for (const c of CHARACTERS) {
+      const ouvert = this.isUnlocked(c, sv);
+      const ligne = document.createElement('div');
+      ligne.className = `prog-ligne${ouvert ? '' : ' locked'}`;
+
+      const jeu = makeHero(`prog:${c.id}`, c.art, false);
+      const vign = this.spriteBlock(spriteSheet(`prog:h:${c.id}`, jeu, this.fitScale(jeu, 40, 44)), ouvert, 0.8);
+      ligne.appendChild(vign);
+
+      const txt = document.createElement('div');
+      txt.className = 'prog-txt';
+      txt.innerHTML = `<b>${ouvert ? c.name : '???'}</b>`;
+      if (c.unlock && !ouvert) {
+        const cond = document.createElement('span');
+        cond.className = 'prog-cond';
+        cond.textContent = c.unlock.label;
+        txt.appendChild(cond);
+        // La barre chiffre ce qu'il reste : « survivre dix minutes » sans savoir qu'on en est
+        // à huit ne dit pas si l'objectif est proche ou lointain.
+        const fait = c.unlock.kind === 'time' ? sv.stats.bestTime
+          : c.unlock.kind === 'gems' ? sv.stats.gems
+          : c.unlock.kind === 'kills' ? sv.stats.kills
+          : sv.stats.wins;
+        const jauge = document.createElement('div');
+        jauge.className = 'prog-jauge';
+        const rempli = document.createElement('div');
+        rempli.style.width = `${Math.min(100, (fait / c.unlock.value) * 100)}%`;
+        jauge.appendChild(rempli);
+        txt.appendChild(jauge);
+        const chiffre = document.createElement('span');
+        chiffre.className = 'prog-chiffre';
+        chiffre.textContent = `${Math.min(fait, c.unlock.value)} / ${c.unlock.value}`;
+        txt.appendChild(chiffre);
+      } else {
+        const d = document.createElement('span');
+        d.className = 'prog-cond';
+        d.textContent = `${c.perk} · ${c.flaw}`;
+        txt.appendChild(d);
+      }
+      ligne.appendChild(txt);
+      gChars.appendChild(ligne);
+    }
+
+    // --------------------------------------------------------------- évolutions
+    const recettes = WEAPONS.filter((w) => w.evolvesTo && w.requires);
+    const trouvees = recettes.filter((w) => sv.seenWeapons.includes(w.evolvesTo!)).length;
+    const gEvo = section('Évolutions', trouvees, recettes.length);
+    for (const w of recettes) {
+      const connue = sv.seenWeapons.includes(w.id);
+      const faite = sv.seenWeapons.includes(w.evolvesTo!);
+      const evo = WEAPONS.find((x) => x.id === w.evolvesTo);
+      const pas = PASSIVE_BY_ID.get(w.requires!);
+      if (!evo || !pas) continue;
+
+      const ligne = document.createElement('div');
+      ligne.className = `prog-recette${faite ? ' faite' : connue ? '' : ' locked'}`;
+
+      const bloc = (set: SpriteSet, vu: boolean, cle: string): HTMLElement => {
+        const d = document.createElement('div');
+        d.className = 'prog-bloc';
+        d.appendChild(this.spriteBlock(spriteSheet(cle, set, this.fitScale(set, 34, 34)), vu, 1));
+        return d;
+      };
+      ligne.appendChild(bloc(makeProjectile(w.sprite, w.color), connue, `prog:w:${w.id}`));
+      const plus = document.createElement('span');
+      plus.className = 'prog-op';
+      plus.textContent = '+';
+      ligne.appendChild(plus);
+      ligne.appendChild(bloc(makePassiveSprite(pas.icon, pas.color ?? '#f2c46b'), connue, `prog:p:${pas.id}`));
+      const fleche = document.createElement('span');
+      fleche.className = 'prog-op fleche';
+      fleche.textContent = '→';
+      ligne.appendChild(fleche);
+      ligne.appendChild(bloc(makeProjectile(evo.sprite, evo.color), faite, `prog:e:${evo.id}`));
+
+      const nom = document.createElement('div');
+      nom.className = 'prog-nom';
+      nom.innerHTML = connue
+        ? `<b>${faite ? evo.name : '???'}</b><span class="prog-cond">${w.name} au niveau maximal, avec ${pas.name}</span>`
+        : `<b>???</b><span class="prog-cond">Une arme que vous n’avez pas encore vue</span>`;
+      ligne.appendChild(nom);
+      gEvo.appendChild(ligne);
+    }
+
+    el.appendChild(scroll);
+    const back = this.button('Retour');
+    back.addEventListener('click', onBack);
+    el.appendChild(back);
+    this.navigable([back]);
   }
 
   // ------------------------------------------------------------- montée de niveau

@@ -38,7 +38,7 @@ import { Mobile } from './ui/mobile';
 
 type State =
   | 'title' | 'charselect' | 'playing' | 'levelup' | 'chest'
-  | 'paused' | 'sanctuary' | 'shop' | 'codex' | 'archive' | 'reading'
+  | 'paused' | 'sanctuary' | 'shop' | 'codex' | 'archive' | 'reading' | 'progress'
   | 'options' | 'gameover' | 'victory';
 
 /**
@@ -292,12 +292,18 @@ function goTitle(): void {
   hud = null;
   audio.stopMusic();
   audio.setBossMode(false);
-  screens.title(goCharSelect, goSanctuary, goOptions, goCodex, goShop, goArchive, load().run, () => startRun('', true));
+  screens.title(goCharSelect, goSanctuary, goOptions, goCodex, goShop, goArchive, goProgress,
+    load().run, () => startRun('', true));
 }
 
 function goCharSelect(): void {
   state = 'charselect';
   screens.characterSelect(startRun, goTitle);
+}
+
+function goProgress(): void {
+  state = 'progress';
+  screens.progression(goTitle);
 }
 
 function goSanctuary(): void {
