@@ -398,7 +398,7 @@ export function makeHero(key: string, art: HeroArt, moving: boolean): SpriteSet 
   return styleDetaille ? makeHeroDetaille(key, art, moving) : makeHeroClassique(key, art, moving);
 }
 
-function makeHeroClassique(key: string, art: HeroArt, moving: boolean): SpriteSet {
+export function makeHeroClassique(key: string, art: HeroArt, moving: boolean): SpriteSet {
   const ck = `${key}:${moving ? 'walk' : 'idle'}`;
   const hit = cache.get(ck);
   if (hit) return hit;

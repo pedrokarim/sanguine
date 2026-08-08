@@ -1139,3 +1139,60 @@ body.reduce-motion .rotate-phone-img { animation: none; transform: rotate(-90deg
 }
 .rotate-actions { display: flex; flex-direction: column; gap: .6em; width: min(17em, 80vw) }
 .rotate-actions .btn { width: 100% }
+
+/* ═══════════════════════════════════════════════════ planche des sprites */
+
+/*
+ * Page annexe qui montre tous les sprites du jeu. Elle est servie par la même construction
+ * et n'existe qu'au développement — mais elle emprunte la palette et les cadres du jeu,
+ * parce qu'un inventaire présenté dans un autre style ne dit pas la vérité sur ce qu'on
+ * regarde.
+ */
+#planche {
+  max-width: 76em;
+  margin: 0 auto;
+  padding: 2.5rem 1.5rem 5rem;
+}
+.pl-entete h1 {
+  font-family: var(--font-display); font-size: 1.7rem; letter-spacing: .2em;
+  text-transform: uppercase; color: var(--gold); margin-bottom: .6rem;
+}
+.pl-chapeau { color: var(--steel); max-width: 74ch; margin-bottom: .5rem; line-height: 1.6 }
+.pl-chapeau b { color: var(--linen) }
+
+#planche h2 {
+  display: flex; align-items: center; gap: .9rem;
+  font-family: var(--font-display); font-size: 1rem; letter-spacing: .22em;
+  text-transform: uppercase; color: var(--gold);
+  margin: 2.6rem 0 .5rem;
+}
+#planche h2::after { content: ""; flex: 1; height: 1px; background: linear-gradient(90deg, #f2c46b66, #f2c46b0d) }
+#planche h2 i { font-style: normal; color: var(--mist); font-size: .82em; letter-spacing: .1em }
+.pl-sous { color: var(--mist); font-size: .88rem; margin-bottom: 1rem; max-width: 70ch }
+
+.pl-grille { display: flex; flex-wrap: wrap; gap: .8rem; align-items: flex-start }
+.pl-cell {
+  display: flex; flex-direction: column; gap: .55rem;
+  padding: .7rem .6rem .6rem;
+  background-color: rgba(16, 20, 33, .85);
+  border: 1px solid var(--stone);
+  min-width: 7.5em;
+}
+/* Damier sombre : sans lui, on ne distingue pas le transparent du fond de la page. */
+.pl-scene {
+  display: grid; place-items: center; min-height: 7em; padding: .4rem;
+  background: repeating-conic-gradient(#141a2b 0 25%, #0e1220 0 50%) 0 0 / 14px 14px;
+}
+.pl-scene canvas { image-rendering: pixelated; display: block }
+.pl-cell figcaption { display: flex; flex-direction: column; gap: .15rem }
+.pl-cell b { color: var(--linen); font-size: .84rem }
+.pl-meta { color: var(--mist); font-size: .72rem; letter-spacing: .04em; font-variant-numeric: tabular-nums }
+.pl-note { color: var(--copper); font-size: .72rem; font-style: italic }
+
+.pl-bilan {
+  margin-top: 3rem; padding: .9rem 1.2rem;
+  border-left: 3px solid var(--gold);
+  background: rgba(255, 255, 255, .04);
+  color: var(--steel);
+}
+.pl-bilan b { color: var(--gold) }
