@@ -3,7 +3,8 @@ import * as font from './font';
 import { P, rgba } from './palette';
 import { shadowSprite, type SpriteSet } from './sprites';
 import {
-  biomeAt, biomeAtTile, groundTile, groundVariantAt, propSprite, poiSprite, GROUND_TILE,
+  biomeAt, biomeAtTile, groundTile, groundVariantAt, propSprite, poiSprite, treeSprite,
+  GROUND_TILE,
 } from '../game/terrain';
 import type { World } from '../game/world';
 import type { Enemy } from '../game/types';
@@ -45,6 +46,7 @@ export class Renderer {
     this.drawGround(ox, oy, VW, VH);
     this.drawSplats(w, ox, oy);
     this.drawProps(w, ox, oy);
+    this.drawTrees(w, ox, oy);
     this.drawPois(w, ox, oy);
     this.drawCaches(w, ox, oy);
     this.drawZones(w, ox, oy);
@@ -99,6 +101,28 @@ export class Renderer {
   }
 
   /** Structures : lueur pulsée tant qu'elles sont actives, sprite éteint une fois utilisées. */
+  /**
+   * Végétation.
+   *
+   * Dessinée **avant les entités**, donc toujours derrière le joueur et les ennemis. C'est un
+   * choix, pas une facilité : dans un jeu où l'on esquive en permanence, un arbre qui masque
+   * une silhouette coûte une vie. Les arbres décorent, ils n'occultent jamais.
+   *
+   * Le tri par ordonnée vient du terrain : sans lui, un arbre du fond se dessinerait
+   * par-dessus un arbre du premier plan, et la profondeur s'effondrerait.
+   */
+  private drawTrees(w: World, ox: number, oy: number): void {
+    const ctx = this.ctx;
+    const cam = w.cam;
+    for (const t of w.terrain.treesNear(cam.x, cam.y, 420)) {
+      const x = t.x + ox;
+      const y = t.y + oy;
+      if (!this.onScreen(x, y, 90, w)) continue;
+      const s = treeSprite(t.kind, t.variant, t.grand, biomeAt(t.x, t.y));
+      ctx.drawImage(s, Math.round(x - s.width / 2), Math.round(y - s.height + 3));
+    }
+  }
+
   private drawPois(w: World, ox: number, oy: number): void {
     const ctx = this.ctx;
     const cam = w.cam;

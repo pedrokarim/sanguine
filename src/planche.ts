@@ -10,7 +10,7 @@ import { CHARACTERS } from './data/characters';
 import { WEAPONS } from './data/weapons';
 import { PASSIVES } from './data/passives';
 import { RELICS } from './data/relics';
-import { poiSprite, type PoiType } from './game/terrain';
+import { poiSprite, treeSprite, TREE_VARIANTS, BIOME_BY_ID, type PoiType, type TreeKind } from './game/terrain';
 import { installDecor } from './ui/decor';
 
 /**
@@ -175,6 +175,17 @@ section('Objets', 'Ramassages à effet immédiat.',
 
 section('Pièces de collection', 'Les quatre supports de l’Archive.',
   (['parchemin', 'sceau', 'hieroglyphe', 'pierre'] as const).map((k) => deSet(k, makeFragment(k))), 5);
+
+const BIOME_ARBRE: Record<TreeKind, string> = {
+  pine: 'thicket', oak: 'graveyard', willow: 'mire', burnt: 'ashes',
+};
+section('Végétation', 'Quatre essences, quatre silhouettes par essence, deux tailles. Semées en bosquets plutôt qu’en semis régulier.',
+  (['pine', 'oak', 'willow', 'burnt'] as TreeKind[]).flatMap((k) =>
+    Array.from({ length: TREE_VARIANTS }, (_, v) => {
+      const b = BIOME_BY_ID.get(BIOME_ARBRE[k])!;
+      const c = treeSprite(k, v, true, b);
+      return { nom: `${k} ${v + 1}`, frames: [c], w: c.width, h: c.height };
+    })), 3);
 
 section('Structures', 'Points d’intérêt posés dans le monde. Générés par le terrain, pas par la fabrique de sprites.',
   (['altar', 'pyre', 'obelisk', 'well', 'ossuary', 'chapel', 'cairn'] as PoiType[]).map((t) => {
