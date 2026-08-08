@@ -1,6 +1,6 @@
 import { Rng } from '../core/rng';
 import { TAU, PI } from '../core/math';
-import { P, RARITY_COLOR, shade, type Rarity } from './palette';
+import { P, RARITY_COLOR, shade, mix, type Rarity } from './palette';
 import { Pix, toCanvas, tint, silhouette } from './pix';
 
 /**
@@ -1050,7 +1050,23 @@ export function makeProjectile(kind: ProjKind, color?: string): SpriteSet {
   if (hit) return hit;
 
   const base = color ?? P.linen;
-  const cols = [shade(base, -0.7), shade(base, -0.3), base, shade(base, 0.5), '#ffffff'];
+  /*
+   * Sept teintes au lieu de cinq. Les trois dernières ne sont posées par aucun dessin : ce
+   * sont les passes d'éclairage, comme pour les créatures.
+   *
+   * La **taille ne change pas**. Un projectile est vu une fraction de seconde au milieu de
+   * la mêlée : l'agrandir brouillerait la lecture du combat, ce que le détail ne rachète
+   * pas. On gagne du volume, pas de la place.
+   */
+  const cols = [
+    shade(base, -0.72),                  // 0 contour
+    shade(base, -0.32),                  // 1 ombre
+    base,                                // 2 teinte propre
+    shade(base, 0.5),                    // 3 lumière
+    '#ffffff',                           // 4 éclat
+    mix(shade(base, 0.4), P.ice, 0.4),   // 5 rasante froide
+    shade(base, -0.5),                   // 6 contour du côté éclairé
+  ];
   const frames: Pix[] = [];
   const N = 4;
 
@@ -1172,7 +1188,14 @@ export function makeProjectile(kind: ProjKind, color?: string): SpriteSet {
         break;
       }
     }
-    p.outline(0);
+
+    /*
+     * Mêmes passes que sur les créatures, pour que projectiles et monde aient l'air éclairés
+     * par la même lumière. L'occlusion est écartée : sur un sprite de dix pixels, chercher
+     * un rebord ne produit que du bruit.
+     */
+    p.rimLight(1, 0, 5);
+    p.outlineDouble(0, 6);
     frames.push(p);
   }
 
@@ -1493,7 +1516,14 @@ export function makeFragment(kind: 'parchemin' | 'sceau' | 'hieroglyphe' | 'pier
         p.rect(5, 12 + lift, 4, 1, 1);
         break;
     }
-    p.outline(0);
+
+    /*
+     * Mêmes passes que sur les créatures, pour que projectiles et monde aient l'air éclairés
+     * par la même lumière. L'occlusion est écartée : sur un sprite de dix pixels, chercher
+     * un rebord ne produit que du bruit.
+     */
+    p.rimLight(1, 0, 5);
+    p.outlineDouble(0, 6);
     frames.push(p);
   }
 
