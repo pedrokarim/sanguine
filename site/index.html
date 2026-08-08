@@ -157,6 +157,7 @@ footer a:hover{color:var(--gold)}
   <a href="#monde">Monde</a>
   <a href="#bestiaire">Bestiaire</a>
   <a href="#meta">Sanctuaire</a>
+  <a href="#confort">Confort</a>
   <a href="#technique">Technique</a>
   <a class="play" href="https://sanguine.ascencia.re">▶ Jouer</a>
 </div></nav>
@@ -335,11 +336,81 @@ footer a:hover{color:var(--gold)}
   </div>
 </div></section>
 
+<!-- -------------------------------------------------------- CONFORT -->
+<section id="confort"><div class="wrap">
+  <h2>Confort &amp; durée de vie</h2>
+  <p class="lead">Un survivor-like se joue par sessions courtes et répétées. Tout ce qui suit
+  existe pour que reprendre une partie ne coûte rien — et pour que l'or serve à autre chose
+  qu'à la puissance brute.</p>
+
+  <h3>La boutique</h3>
+  <p>L'or n'avait qu'un débouché&nbsp;: le Sanctuaire, c'est-à-dire de la puissance. Un joueur
+  qui a fini d'acheter ses améliorations n'avait plus rien à en faire. La boutique met les deux
+  en concurrence — dépenser en puissance ou en allure — avec <strong>vingt-trois
+  cosmétiques</strong>&nbsp;: neuf teintes de personnage, six traînées de pas, quatre thèmes
+  d'interface et quatre curseurs.</p>
+  <div class="note"><b>Règle absolue&nbsp;:</b> aucun cosmétique n'influence le jeu. Ni
+  statistique, ni lisibilité. Les teintes restent chaudes et saturées, les traînées discrètes,
+  et rien ne touche aux couleurs réservées aux gemmes ni au sang.</div>
+  <div class="grid g2">
+    <figure><img src="screenshots/10-boutique.png" alt="La boutique">
+      <figcaption><b>Vingt-trois cosmétiques.</b> Une teinte ne s'achète pas&nbsp;: elle se
+      mérite.</figcaption></figure>
+    <figure><img src="screenshots/12-options.png" alt="Les options">
+      <figcaption><b>Neuf réglages de confort</b>, en plus des trois volumes.</figcaption></figure>
+  </div>
+
+  <h3>L'Archive</h3>
+  <p>Quarante-deux pièces sont enfouies dans le domaine. Elles ne tombent pas comme du butin et
+  ne s'achètent pas&nbsp;: elles se <strong>cherchent</strong>. La minimap pulse en direction de
+  ce qui dort à proximité, de plus en plus vite à mesure qu'on approche — une mécanique de
+  sourcier, pas une carte au trésor. Marguerite la Sourcière, seule personne du casting dont le
+  métier est de trouver ce qui est enfoui, porte plus loin que les autres.</p>
+  <p>Chaque pièce trouvée rejoint l'Archive, où elle se lit en plein écran. L'Archive n'affiche
+  qu'un indice à la fois&nbsp;: on a toujours exactement un objectif, jamais une liste.</p>
+  <div class="note">Ce que contiennent ces pièces n'est pas documenté ici, et ne le sera pas.
+  Elles se trouvent en jouant.</div>
+
+  <h3>Reprendre une partie</h3>
+  <p>Un onglet fermé au milieu d'une partie ne la coûte plus&nbsp;: la progression est
+  enregistrée en continu et l'écran-titre propose de reprendre là où l'on s'était arrêté. Le
+  genre n'en fait pas l'usage — une partie dure trente minutes et se rejoue — mais trente
+  minutes, c'est long à perdre sur une fausse manœuvre.</p>
+
+  <h3>Accessibilité</h3>
+  <p>Neuf réglages, tous persistants&nbsp;: échelle de l'interface, intensité des secousses de
+  caméra (à 40&nbsp;% par défaut), réduction des flashs, réduction des animations, contraste
+  renforcé, police sans empattement, repère sous le joueur, affichage des dégâts chiffrés, et
+  <strong>vitesse de jeu</strong> réglable — de quoi ralentir la simulation entière sans rien
+  changer à l'équilibrage.</p>
+
+  <h3>Sur téléphone et tablette</h3>
+  <p>Le jeu se joue au doigt&nbsp;: un joystick virtuel apparaît là où l'on pose le pouce, et un
+  bouton de pause est posé en haut, hors de portée des pouces au repos. L'écran reste allumé
+  pendant une partie — les armes tirent seules, on peut ne pas toucher l'écran pendant de
+  longues secondes.</p>
+  <p>Le cadrage vise le <strong>paysage</strong>. La vue est en 16∶9, et le facteur d'échelle
+  entier — celui qui garantit un pixel net — ne peut pas remplir un écran portrait&nbsp;: il y
+  laisse deux bandes noires. Le jeu propose alors de tourner l'appareil.</p>
+  <p>La proposition ne se déclenche pas sur le type d'appareil mais sur la <strong>part d'écran
+  réellement perdue</strong>. Un iPhone en portrait en perd 61&nbsp;%, un iPad 32&nbsp;%&nbsp;;
+  tous deux reçoivent la proposition. Une tablette 4∶3 n'en perd que 17&nbsp;% et n'est pas
+  sollicitée. Et la proposition reste une proposition&nbsp;: qui veut jouer en portrait le
+  peut.</p>
+  <div class="grid g2">
+    <figure><img src="screenshots/13-telephone.png" alt="Une partie sur téléphone, en paysage">
+      <figcaption><b>En paysage</b>, l'écran entier sert au jeu.</figcaption></figure>
+    <figure><img src="screenshots/14-rotation.png" alt="La proposition de rotation">
+      <figcaption><b>En portrait</b>, le geste est montré plutôt qu'écrit — et une partie en
+      cours est mise en pause avant l'affichage.</figcaption></figure>
+  </div>
+</div></section>
+
 <!-- -------------------------------------------------------- TECHNIQUE -->
 <section id="technique"><div class="wrap">
   <h2>Sous le capot</h2>
   <p class="lead">Tout ce que vous voyez et entendez est <strong>généré par le code au
-  démarrage</strong>. Aucun PNG, aucun fichier audio, aucune police. Le jeu entier pèse 60 ko
+  démarrage</strong>. Aucun PNG, aucun fichier audio, aucune police. Le jeu entier pèse 71 ko
   compressés et fonctionne hors ligne.</p>
 
   <div class="grid g3">

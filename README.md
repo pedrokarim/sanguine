@@ -65,9 +65,10 @@ Une partie dure **30 minutes**. Le temps est le seul véritable adversaire.
 | **11 améliorations** | Méta-progression permanente au Sanctuaire |
 | **Codex** | 77 entrées à sprites animés – armes, évolutions, bestiaire, reliques |
 | **Reprise de partie** | Un onglet fermé ne coûte plus la partie en cours |
-| **Boutique** | 22 cosmétiques — teintes, traînées, thèmes d'interface, curseurs |
+| **Boutique** | 23 cosmétiques — teintes, traînées, thèmes d'interface, curseurs |
 | **Collection** | 42 pièces disséminées, trouvables à la résonance, et leur archive |
 | **Accessibilité** | Échelle d'interface, contraste, animations, vitesse de jeu, repère joueur |
+| **Tactile** | Téléphone et tablette — joystick, pause, zones sûres, écran maintenu allumé |
 
 ---
 
@@ -76,12 +77,17 @@ Une partie dure **30 minutes**. Le temps est le seul véritable adversaire.
 | Action | Clavier | Manette | Tactile |
 |---|---|---|---|
 | Déplacement | `ZQSD` / `WASD` / flèches | Stick gauche | Glisser (joystick virtuel) |
-| Pause | `Échap` / `P` | Start | – |
+| Pause | `Échap` / `P` | Start | Bouton en haut de l'écran |
 | Valider | `Entrée` / `Espace` / clic | A | Tap |
 | Minimap | `M` | – | – |
 | Plein écran | `F` | – | – |
 
 La minimap sert aussi de détecteur : elle pulse en direction de ce qui est enfoui à proximité.
+
+Sur téléphone et tablette, le jeu **propose de passer en paysage** — mais seulement quand ça
+vaut la peine : le déclencheur est la part d'écran réellement perdue en bandes noires, pas le
+type d'appareil. Un iPhone en portrait en perd 61 %, un iPad 32 %, une tablette 4∶3 seulement
+17 % et n'est donc pas sollicitée. La proposition reste une proposition.
 
 **Il n'y a pas de touche d'attaque.** C'est le genre qui veut ça.
 
