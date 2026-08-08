@@ -17,7 +17,7 @@ import type { Offer, ChestResult } from '../game/upgrades';
 import { BloodLogo, BLOOD, DAWN } from './logo';
 import { iconValue } from './icons';
 import {
-  FRAGMENTS, CYCLES, EPILOGUE, TOTAL, TYPE_LABEL, reveal, roman,
+  FRAGMENTS, CYCLES, EPILOGUE, TOTAL, TYPE_LABEL, roman,
   type FragmentDef,
 } from '../data/fragments';
 import { makeFragment } from '../gfx/sprites';
@@ -587,7 +587,7 @@ export class Screens {
     const hint = document.createElement('div');
     hint.className = 'archive-hint';
     hint.textContent = next
-      ? reveal(CYCLES[next.cycle]!.hint)
+      ? CYCLES[next.cycle]!.hint
       : 'Le recueil est complet.';
     el.appendChild(hint);
 
@@ -604,7 +604,7 @@ export class Screens {
       const head = document.createElement('div');
       head.className = 'codex-section';
       head.innerHTML = '<span class="t"></span><span class="c"></span>';
-      head.querySelector('.t')!.textContent = revealed ? reveal(cy.name) : `Cycle ${roman(c + 1)}`;
+      head.querySelector('.t')!.textContent = revealed ? cy.name : `Cycle ${roman(c + 1)}`;
       head.querySelector('.c')!.textContent = `${got} / ${items.length}`;
       scroll.appendChild(head);
 
@@ -626,7 +626,7 @@ export class Screens {
         num.textContent = roman(f.n);
         const n = document.createElement('div');
         n.className = 'codex-name';
-        n.textContent = has ? reveal(f.t) : '—';
+        n.textContent = has ? f.t : '—';
         const d = document.createElement('div');
         d.className = 'codex-desc';
         d.textContent = has ? TYPE_LABEL[f.type] : 'Introuvé';
@@ -642,7 +642,7 @@ export class Screens {
       const ep = document.createElement('div');
       ep.className = 'archive-epilogue';
       ep.textContent = 'Lire l\'épilogue';
-      ep.addEventListener('click', () => this.readText('Épilogue', reveal(EPILOGUE)));
+      ep.addEventListener('click', () => this.readText('Épilogue', EPILOGUE));
       scroll.appendChild(ep);
     }
 
@@ -655,7 +655,7 @@ export class Screens {
 
   /** Vue de lecture d'une pièce. */
   readFragment(f: FragmentDef, onClose?: () => void): void {
-    this.readText(`${roman(f.n)} · ${reveal(f.t)}`, reveal(f.b), f, onClose);
+    this.readText(`${roman(f.n)} · ${f.t}`, f.b, f, onClose);
   }
 
   /**
