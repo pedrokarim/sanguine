@@ -37,12 +37,13 @@ export class Hud {
   private tooltip: HTMLDivElement | null = null;
   readonly minimap: Minimap;
 
-  constructor(parent: HTMLElement) {
+  constructor(parent: HTMLElement, onPause?: () => void) {
     this.root = document.createElement('div');
     this.root.id = 'hud';
     this.root.innerHTML = `
       <div class="xp-track"><div class="xp-fill"></div></div>
       <div class="hud-timer">00:00</div>
+      <button class="touch-pause" type="button" aria-label="Pause"></button>
       <div class="hud-topleft">
         <div class="hud-stat"><span class="k">NIV</span> <span class="v lvl">1</span></div>
         <div class="hp-wrap" style="width:9em;margin-top:3px">
@@ -89,6 +90,14 @@ export class Hud {
     q<HTMLDivElement>('.kills-row').appendChild(kills);
     this.killsText = kills.querySelector<HTMLSpanElement>('.icon-value')!;
     this.killsText.classList.add('v');
+    // Sans clavier, c'est le seul moyen d'interrompre une partie.
+    if (onPause) {
+      q<HTMLButtonElement>('.touch-pause').addEventListener('click', (e) => {
+        e.stopPropagation();   // sinon le contact arme aussi le joystick
+        onPause();
+      });
+    }
+
     this.relicRail = q('.relic-rail');
     this.bossBar = q('.boss-bar');
     this.bossName = q('.boss-bar .name');
