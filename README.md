@@ -65,6 +65,9 @@ Une partie dure **30 minutes**. Le temps est le seul véritable adversaire.
 | **11 améliorations** | Méta-progression permanente au Sanctuaire |
 | **Codex** | 77 entrées à sprites animés – armes, évolutions, bestiaire, reliques |
 | **Reprise de partie** | Un onglet fermé ne coûte plus la partie en cours |
+| **Boutique** | 22 cosmétiques — teintes, traînées, thèmes d'interface, curseurs |
+| **Collection** | 42 pièces disséminées, trouvables à la résonance, et leur archive |
+| **Accessibilité** | Échelle d'interface, contraste, animations, vitesse de jeu, repère joueur |
 
 ---
 
@@ -76,6 +79,9 @@ Une partie dure **30 minutes**. Le temps est le seul véritable adversaire.
 | Pause | `Échap` / `P` | Start | – |
 | Valider | `Entrée` / `Espace` / clic | A | Tap |
 | Minimap | `M` | – | – |
+
+La minimap sert aussi de détecteur : elle pulse en direction de ce qui est enfoui à proximité.
+
 | Plein écran | `F` | – | – |
 
 **Il n'y a pas de touche d'attaque.** C'est le genre qui veut ça.
