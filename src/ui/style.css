@@ -1295,3 +1295,54 @@ html.og-page, html.og-page body { height: auto; overflow: visible; background: #
   font-family: var(--font-ui); font-size: 19px; letter-spacing: .3em;
   text-transform: uppercase; color: var(--gold); opacity: .8;
 }
+
+/* ────────────────────────────────────────────── arbre de progression */
+
+/*
+ * Le jeu contenait déjà quinze recettes d'évolution et quatre conditions de déblocage, mais
+ * rien ne les montrait : on découvrait une évolution par accident, ou jamais.
+ *
+ * La mise en page est une **liste de recettes**, pas un graphe. Un vrai arbre demanderait un
+ * placement automatique et deviendrait illisible sur un écran de téléphone ; trois vignettes
+ * et deux opérateurs disent la même chose et se lisent d'un coup.
+ */
+.prog-liste { display: flex; flex-direction: column; gap: .45em }
+
+.prog-ligne, .prog-recette {
+  display: flex; align-items: center; gap: .8em;
+  padding: .55em .8em;
+  /* Le décor de menu est clair par endroits — la lune, l'horizon. À 82 % d'opacité les
+     lignes s'y délavaient et le texte devenait pénible. */
+  background-color: rgba(11, 13, 20, .93);
+  background-image: var(--grain);
+  border: 1px solid var(--stone);
+  border-radius: 2px;
+}
+.prog-ligne.locked, .prog-recette.locked { opacity: .6 }
+/* Une recette accomplie porte la monture d'or : le progrès doit se voir sans lire. */
+.prog-recette.faite { border-color: var(--gold); background-color: rgba(242, 196, 107, .06) }
+
+.prog-txt, .prog-nom { display: flex; flex-direction: column; gap: .12em; min-width: 0 }
+.prog-txt b, .prog-nom b { color: var(--gold); font-family: var(--font-display); font-size: 1.02em }
+.prog-cond { font-size: .78em; color: var(--steel); line-height: 1.35 }
+.prog-chiffre { font-size: .72em; color: var(--mist); font-variant-numeric: tabular-nums }
+
+.prog-jauge {
+  width: 12em; height: 4px; margin-top: .2em;
+  background: #05060a; border: 1px solid var(--stone-hi);
+}
+.prog-jauge > div {
+  height: 100%;
+  background: linear-gradient(90deg, var(--copper), var(--gold));
+  box-shadow: 0 0 5px rgba(242, 196, 107, .55);
+}
+
+.prog-bloc { display: grid; place-items: center; width: 2.6em; height: 2.6em; flex: none }
+.prog-op { color: var(--mist); font-size: 1.1em; flex: none }
+.prog-op.fleche { color: var(--gold) }
+.prog-nom { margin-left: .4em }
+
+@media (max-width: 720px) {
+  .prog-recette { flex-wrap: wrap }
+  .prog-nom { width: 100%; margin-left: 0 }
+}

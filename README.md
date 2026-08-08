@@ -66,6 +66,7 @@ Une partie dure **30 minutes**. Le temps est le seul véritable adversaire.
 | **7 structures** | Autel, bûcher, obélisque, puits, ossuaire, chapelle, cairn |
 | **11 améliorations** | Méta-progression permanente au Sanctuaire |
 | **Codex** | 77 entrées à sprites animés – armes, évolutions, bestiaire, reliques |
+| **Progression** | Les 15 recettes d’évolution et les 4 déblocages, avec leur avancement chiffré |
 | **Reprise de partie** | Un onglet fermé ne coûte plus la partie en cours |
 | **Boutique** | 23 cosmétiques – teintes, traînées, thèmes d’interface, curseurs |
 | **Collection** | 42 pièces disséminées, trouvables à la résonance, et leur archive |
