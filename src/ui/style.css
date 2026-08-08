@@ -1148,6 +1148,24 @@ body.reduce-motion .rotate-phone-img { animation: none; transform: rotate(-90deg
  * parce qu'un inventaire présenté dans un autre style ne dit pas la vérité sur ce qu'on
  * regarde.
  */
+/*
+ * La planche est une page, pas un jeu.
+ *
+ * La feuille du jeu verrouille `html, body` en `height: 100%` et `overflow: hidden` — c'est
+ * ce qui empêche la page de bouger sous le doigt pendant une partie. La planche hérite de la
+ * même feuille, pour garder la palette et les cadres, et se retrouvait donc impossible à
+ * faire défiler. On rend ici ce qui n'a de sens qu'en jeu.
+ */
+html.planche, html.planche body {
+  height: auto;
+  min-height: 100%;
+  overflow: visible;
+  overflow-y: auto;
+  touch-action: auto;
+  user-select: text;
+  cursor: auto;
+}
+
 #planche {
   max-width: 76em;
   margin: 0 auto;
