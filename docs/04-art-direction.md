@@ -413,3 +413,112 @@ doubler ce que le joueur a sous les yeux.
 
 La distance se place du côté **intérieur** de la pastille, faute de quoi elle sort de l’écran
 sur les bords inférieurs.
+
+
+---
+
+## 18. Passage à une définition supérieure
+
+Les sprites ont d’abord été dessinés sur des grilles de 8 à 16 pixels, avec deux ou trois
+teintes par matière. Ce choix se défendait – il rend lisible une mêlée à quatre cents
+créatures – mais il ne laissait pas la place de dire ce qu’était un objet : une plume n’était
+qu’un trait oblique, un calice une ellipse sur un bâton.
+
+### Le facteur
+
+Tout est agrandi de **1,5**, sous une constante unique, `CORPS_ECHELLE`. Un seul chiffre à
+changer pour reculer, ce qui compte quand on touche à l’apparence de tout le jeu d’un coup.
+
+| | Avant | Après |
+|---|---|---|
+| Héros | 13 × 15, 6 teintes | **19 × 23, 9 teintes** |
+| Goule | 12 × 14 | 18 × 21 |
+| Sanguinaire | 56 × 60 | 84 × 90 |
+| Icônes de passif | 13 × 13 | 20 × 20 |
+| Cœur, pièce, coffre | 10 × 10, 8 × 8, 16 × 15 | 16 × 16, 14 × 14, 24 × 22 |
+
+### Deux mécanismes, parce qu’il y a deux familles de dessins
+
+**Les corps** dessinent déjà en proportions de la grille – `p.w * 0.3`, `h * 0.66`. Seule
+l’épaisseur des membres était absolue : `Pix.unit` la met à l’échelle. Sans elle, un corps
+plus grand aurait gardé des bras fins, comme des pattes d’araignée.
+
+**Les objets** sont tracés en coordonnées fixes. Une première version les a mis à l’échelle
+par un facteur non entier : **la croix est devenue un L brisé, le sablier un carré bleu, le
+cœur un triangle**. Une forme de douze pixels ne survit pas à une multiplication non entière,
+l’arrondi déplaçant chaque point d’une fraction. Le chemin est abandonné et le commentaire de
+`pixObjet` le consigne. Ils ont été **redessinés**, pas étirés.
+
+### Les passes d’éclairage
+
+Trois passes s’appliquent après le dessin, sur la silhouette déjà formée – c’est ce qui les
+rend valables pour les huit plans corporels sans en toucher un seul.
+
+| Passe | Ce qu’elle fait | Piège évité |
+|---|---|---|
+| **Rasante** | Éclaire le bord opposé à la lumière | Ne compter que le vide **extérieur** : sinon chaque trou interne reçoit sa ligne claire et la silhouette se moucheture |
+| **Occlusion** | Assombrit ce qui est sous un rebord | Chercher un rebord – du plein surmonté de vide – et non compter les voisins pleins, ce qui assombrirait tout l’intérieur |
+| **Contour double** | Éclaircit le contour du côté de la lumière | Un contour d’une seule couleur sombre aplatit ce qu’il entoure |
+
+Mesuré : créatures de 5 à **8 teintes**, boss à 8,4, à parité avec les héros à 8,5. Les
+projectiles passent de 3,4 à 5,2 – **sans changer de taille**, parce qu’un projectile est vu
+une fraction de seconde et que l’agrandir brouillerait la lecture du combat.
+
+Une première version prenait la teinte la plus claire du corps et l’éclaircissait de moitié :
+chaque créature se retrouvait cernée d’un liseré presque blanc, et l’écran ressemblait à une
+planche d’autocollants. Les écarts sont faibles, et c’est délibéré.
+
+### La planche
+
+`pnpm planche` produit une page qui affiche **les 116 sprites du jeu**, générés à l’instant
+par ses propres fonctions, avec leur taille et leur **nombre de teintes réelles**.
+
+Ce compteur est l’outil qui a rendu le travail possible : il chiffre le détail au lieu de le
+laisser à l’appréciation, et c’est lui qui a montré qu’après l’agrandissement, seul le héros
+avait vraiment gagné en définition – tout le reste avait simplement grandi.
+
+---
+
+## 19. Le décor
+
+### Végétation
+
+Quatre essences, quatre variantes, deux tailles. Elles se distinguent par la **silhouette
+avant la couleur** : un arbre vu de haut et à distance se reconnaît à son contour, et le tri
+doit rester possible en niveaux de gris.
+
+Les arbres sont dessinés **derrière** les entités. C’est un choix, pas une facilité : dans un
+jeu où l’on esquive en permanence, un arbre qui masque une silhouette coûte une vie.
+
+Trois défauts corrigés après les avoir vus à l’écran :
+
+- le houppier du chêne prenait la teinte de détail du sol, donc un gris au Cimetière : on y
+  lisait un rocher posé sur un tronc ;
+- ce houppier était trois ellipses pleines, donc une masse lisse. À cette distance, c’est
+  l’**irrégularité du contour** qui dit « feuillage » ;
+- la rasante frappait chaque rideau du saule, larges d’un pixel et entourés de vide des deux
+  côtés : l’arbre sortait strié de cyan comme une guirlande.
+
+### Ruines
+
+Les blocs sont dessinés **à l’aplomb exact de leur rectangle de collision**. Ce que le joueur
+voit est ce qui l’arrête : un décor qui ment sur sa collision est pire que pas de collision
+du tout.
+
+### Montures de rareté
+
+Quatre traitements d’angle – équerre, équerre redoublée, volute, ronce. La marque se joue sur
+trois ou quatre pixels : à la taille d’un cadre 9-slice, une ornementation plus riche se
+réduit à une bouillie. Elle n’est posée que sur les objets **découverts**, sinon une vignette
+silhouettée révélerait la rareté de ce qu’elle cache.
+
+---
+
+## 20. Image de partage
+
+Composée par le code du jeu, dans `src/og.ts`, et photographiée par `tools/og.mjs`. Une
+illustration dessinée à part vieillirait dès la prochaine refonte de sprites ; celle-ci suit.
+
+Trois règles : le titre doit se lire **en vignette**, parce qu’une image de partage est vue à
+300 pixels de large dans un fil ; une seule promesse, pas une liste de fonctionnalités ; des
+créatures plutôt qu’une interface, parce qu’on partage un monde et pas un menu.
