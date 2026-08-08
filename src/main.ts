@@ -79,6 +79,8 @@ const screens = new Screens(uiLayer);
 const mobile = new Mobile(uiLayer, {
   enPartie: () => state === 'playing',
   interrompre: () => { if (state === 'playing') togglePause(); },
+  // Deux bandes, en haut et en bas, rapportées à la hauteur réelle de l'écran.
+  perteVerticale: () => (display.height > 0 ? (2 * blitY) / display.height : 0),
 });
 const renderer = new Renderer(ctx);
 const director = new Director();

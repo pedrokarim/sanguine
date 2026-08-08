@@ -2,7 +2,7 @@ import { Pix, toCanvas } from '../gfx/pix';
 import { P } from '../gfx/palette';
 
 /**
- * Adaptation au téléphone.
+ * Adaptation aux appareils tactiles — téléphone comme tablette.
  *
  * Le jeu était jouable au doigt depuis le début — le joystick virtuel existe — mais rien
  * ne tenait compte de l'appareil lui-même : ni l'orientation, ni l'encoche, ni la mise en
@@ -34,11 +34,8 @@ export function isTouch(): boolean {
 }
 
 /**
- * Téléphone plutôt que tablette.
- *
- * La diagonale n'est pas accessible, mais le plus petit côté suffit : sous 500 px CSS, on
- * est sur un téléphone quelle que soit l'orientation. Une tablette a assez de place pour
- * jouer en portrait sans qu'on ait à insister.
+ * Téléphone plutôt que tablette. Ne sert qu'à ajuster la densité de l'interface — jamais à
+ * décider s'il faut proposer une rotation, voir `doitProposer`.
  */
 export function isPhone(): boolean {
   return isTouch() && Math.min(window.innerWidth, window.innerHeight) < 500;
@@ -77,13 +74,13 @@ function phoneSprite(): HTMLCanvasElement {
 // ---------------------------------------------------------------------------
 
 /**
- * Passe en plein écran et tente de verrouiller le paysage.
+ * Plein écran seul, sans toucher à l'orientation.
  *
- * Les deux échouent silencieusement sur iPhone, où Safari n'expose ni l'un ni l'autre. Ce
- * n'est pas un cas dégradé à corriger : c'est précisément pourquoi l'écran de rotation
- * existe et propose de tourner l'appareil à la main plutôt que de compter sur l'API.
+ * Échoue silencieusement sur iPhone, où Safari ne l'expose pas. Ce n'est pas un cas dégradé
+ * à corriger : c'est précisément pourquoi l'écran de rotation propose de tourner l'appareil
+ * à la main plutôt que de compter sur l'API.
  */
-async function plainEcranPaysage(): Promise<void> {
+async function plainEcran(): Promise<void> {
   try {
     if (!document.fullscreenElement) {
       await document.documentElement.requestFullscreen?.();
@@ -91,6 +88,11 @@ async function plainEcranPaysage(): Promise<void> {
   } catch {
     /* refusé ou non pris en charge : on continue, ce n'est pas bloquant */
   }
+}
+
+/** Plein écran **et** verrou paysage. Réservé au bouton qui le propose explicitement. */
+async function plainEcranPaysage(): Promise<void> {
+  await plainEcran();
   try {
     const o = screen.orientation as ScreenOrientation & {
       lock?: (o: string) => Promise<void>;
@@ -143,6 +145,15 @@ export interface CrochetsMobile {
   enPartie: () => boolean;
   /** Interrompre la partie — l'écran couvre le jeu, on ne meurt pas en lisant. */
   interrompre: () => void;
+  /**
+   * Part de la hauteur d'écran perdue en bandes noires, entre 0 et 1.
+   *
+   * C'est la seule mesure qui décide s'il faut proposer une rotation. Le critère précédent
+   * — « est-ce un téléphone ? » — se trompait dans les deux sens : il épargnait une
+   * tablette en portrait qui perd pourtant près de la moitié de son écran, et il aurait
+   * sermonné un téléphone dont le format se serait trouvé convenir.
+   */
+  perteVerticale: () => number;
 }
 
 export class Mobile {
@@ -167,12 +178,18 @@ export class Mobile {
     addEventListener('resize', () => this.reevaluer());
     addEventListener('orientationchange', () => setTimeout(() => this.reevaluer(), 120));
 
-    // Le plein écran exige un geste utilisateur. Le premier contact sert de déclencheur,
-    // une seule fois, sans rien demander.
+    /*
+     * Le plein écran exige un geste utilisateur : le premier contact sert de déclencheur.
+     *
+     * Il ne verrouille **pas** l'orientation. La première version le faisait, et retournait
+     * donc une tablette dont le propriétaire avait délibérément choisi le portrait, sans
+     * rien lui proposer. Le verrou n'est posé que depuis le bouton de l'écran de rotation,
+     * là où il a été demandé.
+     */
     const premierGeste = (): void => {
       if (this.gestePris) return;
       this.gestePris = true;
-      void plainEcranPaysage();
+      void plainEcran();
     };
     addEventListener('pointerdown', premierGeste, { once: true, passive: true });
 
@@ -186,8 +203,19 @@ export class Mobile {
     else this.veille.relacher();
   }
 
+  /**
+   * Seuil de perte à partir duquel la rotation vaut d'être proposée.
+   *
+   * En deçà, les bandes se lisent comme un cadre et personne ne s'en plaint. Au-delà, elles
+   * dominent l'écran et le jeu devient une vignette au milieu du noir.
+   */
+  private static readonly PERTE_MAX = 0.22;
+
   private doitProposer(): boolean {
-    return isPhone() && isPortrait() && !this.accepteLePortrait;
+    if (!isTouch() || this.accepteLePortrait) return false;
+    // L'orientation seule ne suffit pas : ce qui gêne, c'est l'écran perdu, pas le sens de
+    // l'appareil. Un format inhabituel en paysage mérite la même proposition.
+    return isPortrait() && this.crochets.perteVerticale() > Mobile.PERTE_MAX;
   }
 
   private reevaluer(): void {
@@ -211,7 +239,7 @@ export class Mobile {
 
     const titre = document.createElement('h2');
     titre.className = 'title-font';
-    titre.textContent = 'Tournez votre téléphone';
+    titre.textContent = isPhone() ? 'Tournez votre téléphone' : 'Tournez votre écran';
     el.appendChild(titre);
 
     const texte = document.createElement('p');
