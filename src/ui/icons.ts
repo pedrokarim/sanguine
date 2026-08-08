@@ -41,7 +41,15 @@ const MAKERS: Record<string, () => SpriteSet> = {
  * Crée un sprite inline. `em` fixe la hauteur relative au texte environnant, ce qui laisse
  * l'icône suivre l'échelle d'interface choisie par le joueur.
  */
-export function icon(name: keyof typeof MAKERS | string, em = 1.15): HTMLSpanElement {
+/**
+ * Hauteur d'un sprite inline, en em du texte qu'il accompagne. Légèrement au-dessus de la
+ * hauteur de capitale : en dessous, l'icône se perd sous la ligne ; au-dessus, elle bouscule
+ * l'interligne. Une seule valeur pour toute l'interface — les tailles au cas par cas étaient
+ * la seconde source d'incohérence.
+ */
+export const ICON_EM = 1.15;
+
+export function icon(name: keyof typeof MAKERS | string, em = ICON_EM): HTMLSpanElement {
   const make = MAKERS[name];
   const el = document.createElement('span');
   el.className = 'icon-sprite';
@@ -75,15 +83,24 @@ export function icon(name: keyof typeof MAKERS | string, em = 1.15): HTMLSpanEle
 }
 
 /**
- * Valeur précédée de son icône. Retourne un fragment, donc s'insère n'importe où sans
- * ajouter de niveau de boîte.
+ * Valeur précédée de son icône.
+ *
+ * Retourne une **boîte** et non un fragment. La première version renvoyait un fragment
+ * « pour s'insérer n'importe où sans ajouter de niveau de boîte » : l'écart entre le sprite
+ * et son nombre dépendait alors du `gap` du parent, quel qu'il soit, additionné à une marge
+ * portée par la valeur. Deux mécanismes qui se composaient au hasard, et cinq écarts
+ * différents mesurés dans l'interface pour la même paire pièce + montant.
+ *
+ * Avec une boîte propre, l'écart interne est fixé une seule fois (`--icon-gap`) et le `gap`
+ * du parent ne sépare plus que le couple du texte voisin — ce qui est son rôle.
  */
-export function iconValue(name: string, value: string, em = 1.15): DocumentFragment {
-  const frag = document.createDocumentFragment();
-  frag.appendChild(icon(name, em));
+export function iconValue(name: string, value: string, em = ICON_EM): HTMLSpanElement {
+  const box = document.createElement('span');
+  box.className = 'icon-pair';
+  box.appendChild(icon(name, em));
   const v = document.createElement('span');
   v.className = 'icon-value';
   v.textContent = value;
-  frag.appendChild(v);
-  return frag;
+  box.appendChild(v);
+  return box;
 }

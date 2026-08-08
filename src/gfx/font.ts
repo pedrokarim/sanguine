@@ -29,6 +29,9 @@ const GLYPHS: Record<string, string> = {
 
 const GW = 3;
 const GH = 5;
+
+/** Hauteur d'une ligne rendue, cadratin compris. Sert à espacer un texte d'un sprite. */
+export const TEXT_H = GH + 2;
 const PAD = 1;
 const CELL_W = GW + PAD;
 const ORDER = Object.keys(GLYPHS);

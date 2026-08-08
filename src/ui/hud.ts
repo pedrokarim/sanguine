@@ -2,7 +2,7 @@ import { formatTime, abbrev, clamp } from '../core/math';
 import { RELIC_BY_ID } from '../data/relics';
 import { passiveById } from '../data/passives';
 import { iconFor } from '../game/upgrades';
-import { icon } from './icons';
+import { iconValue } from './icons';
 import { Minimap } from './minimap';
 import type { World } from '../game/world';
 
@@ -78,17 +78,17 @@ export class Hud {
     this.passiveRow = q('.slot-row.passives');
     // Les compteurs du HUD portent le sprite de ce qu'ils comptent plutôt que son nom :
     // le joueur finit par lire l'icône seule, sans mot.
-    const goldRow = q<HTMLDivElement>('.gold-row');
-    goldRow.appendChild(icon('gold', 1.2));
-    this.goldText = document.createElement('span');
-    this.goldText.className = 'v icon-value';
-    goldRow.appendChild(this.goldText);
+    // Le HUD montait son couple icône + nombre à la main, avec sa propre taille et son
+    // propre écart. Il passe par le composant commun : un seul espacement à régler.
+    const gold = iconValue('gold', '0');
+    q<HTMLDivElement>('.gold-row').appendChild(gold);
+    this.goldText = gold.querySelector<HTMLSpanElement>('.icon-value')!;
+    this.goldText.classList.add('v');
 
-    const killsRow = q<HTMLDivElement>('.kills-row');
-    killsRow.appendChild(icon('kills', 1.2));
-    this.killsText = document.createElement('span');
-    this.killsText.className = 'v icon-value';
-    killsRow.appendChild(this.killsText);
+    const kills = iconValue('kills', '0');
+    q<HTMLDivElement>('.kills-row').appendChild(kills);
+    this.killsText = kills.querySelector<HTMLSpanElement>('.icon-value')!;
+    this.killsText.classList.add('v');
     this.relicRail = q('.relic-rail');
     this.bossBar = q('.boss-bar');
     this.bossName = q('.boss-bar .name');

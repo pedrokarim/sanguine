@@ -5,6 +5,13 @@
    ========================================================================== */
 
 :root {
+  /* Espacements des sprites d'interface. Deux valeurs, et deux seulement : un sprite est
+     toujours plus proche de la valeur qu'il qualifie que du texte voisin. */
+  --icon-gap: .38em;   /* sprite ↔ sa propre valeur */
+  --label-gap: .68em;  /* le couple ↔ un libellé ou un mot voisin */
+  --text-gap: .24em;   /* entre deux lignes de texte d'une même vignette */
+  --group-gap: .3em;   /* s'ajoute au précédent : détache un sprite de sa légende */
+
   --night: #0b0d14;
   --soil: #131725;
   --stone: #232b40;
@@ -330,7 +337,20 @@ body.cursor-hidden #game { cursor: none; }
   position: absolute; top: 15px; right: 12px;
   display: flex; flex-direction: column; align-items: flex-end; gap: 2px;
 }
-.hud-topright .hud-stat { display: flex; align-items: center; gap: .1em }
+.hud-topright .hud-stat { display: flex; align-items: center; justify-content: flex-end }
+
+/*
+ * Les deux compteurs sont l'un sous l'autre. La pièce et la silhouette d'ennemi n'ont pas
+ * la même largeur : posés tels quels, ni les sprites ni les nombres ne tombent en colonne.
+ * Colonne d'icône à largeur fixe, nombres ferrés à droite en chiffres tabulaires — les deux
+ * lignes s'alignent alors exactement, quelle que soit la valeur affichée.
+ */
+/* 4ch : `abbrev` ne dépasse jamais quatre caractères (9.9k, 999k, 9.9M). La piste est donc
+   calée exactement sur le pire cas — assez large pour ne jamais déborder, pas un pixel de
+   plus, sans quoi le nombre flotte loin de son icône. */
+.hud-topright .icon-pair { display: grid; grid-template-columns: 1.45em 4ch; align-items: center }
+.hud-topright .icon-sprite { justify-self: center }
+.hud-topright .icon-value { text-align: right }
 
 .hud-stat { font-size: .95em; letter-spacing: .08em; text-shadow: 0 2px 0 #000; }
 .hud-stat .k { color: var(--mist); }
@@ -494,6 +514,7 @@ body.cursor-hidden #game { cursor: none; }
 .card canvas {
   width: 56px; height: 56px; image-rendering: pixelated;
   filter: drop-shadow(0 2px 3px rgba(0, 0, 0, .8));
+  margin-bottom: var(--group-gap);
 }
 .card .name {
   font-size: 1.15em; font-weight: 700; letter-spacing: .03em; color: var(--gold);
@@ -525,7 +546,7 @@ body.cursor-hidden #game { cursor: none; }
 .card.is-evo .name { color: var(--rar-epic) }
 
 .levelup-actions { display: flex; gap: .7em; margin-top: .4em; }
-.levelup-actions .btn { display: flex; align-items: center; justify-content: center; gap: .5em }
+.levelup-actions .btn { display: flex; align-items: center; justify-content: center; gap: var(--label-gap) }
 
 /* --------------------------------------------------- sélection personnage */
 
@@ -555,6 +576,7 @@ body.cursor-hidden #game { cursor: none; }
 .pick canvas {
   width: 48px; height: 54px; image-rendering: pixelated;
   filter: drop-shadow(0 2px 3px rgba(0, 0, 0, .9));
+  margin-bottom: var(--group-gap);
 }
 .pick .name { font-weight: 700; color: var(--gold); letter-spacing: .02em; font-size: 1.08em }
 .pick .perk { font-size: .78em; color: var(--steel) }
@@ -620,7 +642,8 @@ body.cursor-hidden #game { cursor: none; }
 .sanct-row .pip.on { background: var(--gold); box-shadow: 0 0 4px rgba(242, 196, 107, .8) }
 .sanct-row .buy {
   font-size: .82em; padding: .4em .7em; white-space: nowrap;
-  display: flex; align-items: center; justify-content: center; gap: .35em; min-width: 5.2em;
+  display: flex; align-items: center; justify-content: center; gap: var(--label-gap);
+  min-width: 5.2em;
 }
 
 .gold-count {
@@ -666,7 +689,7 @@ body.cursor-hidden #game { cursor: none; }
 }
 
 .codex-cell {
-  display: flex; flex-direction: column; align-items: center; gap: .25em;
+  display: flex; flex-direction: column; align-items: center; gap: var(--text-gap);
   padding: .6em .5em .7em;
   background-color: rgba(16, 20, 33, .9);
   background-image: var(--grain);
@@ -687,7 +710,11 @@ body.cursor-hidden #game { cursor: none; }
    différentes (une dague, un boss de 60 px) s'alignent proprement. */
 .codex-stage {
   display: flex; align-items: flex-end; justify-content: center;
-  height: 4.6em; margin-bottom: .2em;
+  height: 4.6em;
+  /* S'ajoute délibérément au `gap` de la vignette. Le sprite est le sujet, le texte sa
+     légende : il doit s'en détacher plus que les lignes de légende entre elles. Sans cette
+     marge, un sprite bas — une gemme, une fiole — vient toucher la ligne de statistiques. */
+  margin-bottom: var(--group-gap);
 }
 
 .codex-sprite {
@@ -739,7 +766,19 @@ body.cursor-hidden #game { cursor: none; }
 @keyframes icon-play { to { background-position-x: var(--end); } }
 body.reduce-motion .icon-sprite.anim { animation: none }
 
-.icon-value { margin-left: .35em; font-variant-numeric: tabular-nums }
+/*
+ * Un sprite et son nombre forment **un mot**, pas deux éléments voisins. L'écart interne est
+ * donc plus serré que celui qui sépare ce couple du texte alentour : c'est ce rapport, et non
+ * une valeur absolue, qui fait lire « 900 pièces d'or » plutôt que « une pièce » puis « 900 ».
+ *
+ * Les deux écarts sont en `em`, donc proportionnels au texte qu'ils accompagnent : une grande
+ * bourse écarte plus qu'un prix en petits caractères, dans le même rapport.
+ */
+.icon-pair {
+  display: inline-flex; align-items: center; gap: var(--icon-gap);
+  line-height: 1; vertical-align: -.06em;
+}
+.icon-value { font-variant-numeric: tabular-nums }
 
 /* ------------------------------------------------------- puces d'angle */
 
@@ -758,7 +797,7 @@ body.reduce-motion .icon-sprite.anim { animation: none }
 .stat-corner.br { bottom: 2.6em; right: 1.4em; align-items: flex-end }
 
 .stat-chip {
-  display: flex; align-items: center; gap: .5em;
+  display: flex; align-items: center; gap: var(--icon-gap);
   padding: .3em .65em .3em .45em;
   background-color: rgba(11, 13, 20, .62);
   border: 8px solid transparent;
@@ -769,7 +808,7 @@ body.reduce-motion .icon-sprite.anim { animation: none }
 }
 .stat-chip:hover { opacity: 1 }
 .stat-chip > * { image-rendering: auto }
-.chip-text { display: flex; align-items: baseline; gap: .4em; line-height: 1 }
+.chip-text { display: flex; align-items: baseline; gap: var(--label-gap); line-height: 1 }
 .chip-value {
   font-size: 1em; font-weight: 700; color: var(--gold);
   font-variant-numeric: tabular-nums;
@@ -814,7 +853,7 @@ body.reduce-motion .icon-sprite.anim { animation: none }
    s'aligner sur la même ligne de base, sinon le bandeau ondule. */
 .stat-icon {
   display: flex; align-items: flex-end; justify-content: center;
-  height: 2.4em; margin-bottom: .3em;
+  height: 2.4em; margin-bottom: var(--group-gap);
 }
 .stat-value {
   font-size: 1.15em; font-weight: 700; color: var(--gold);
@@ -865,7 +904,6 @@ body.reduce-motion .icon-sprite.anim { animation: none }
   background: radial-gradient(ellipse at center, rgba(5, 6, 10, .9), rgba(2, 2, 5, .98));
   z-index: 60;
 }
-.reading-icon { margin-bottom: .2em }
 .reading-panel {
   max-width: 52ch; padding: 1.6em 2em;
   font-family: var(--font-display); font-size: 1.12em; line-height: 1.75;
@@ -879,7 +917,7 @@ body.reduce-motion .icon-sprite.anim { animation: none }
 .shop-cell .shop-btn {
   position: absolute; left: .6em; right: .6em; bottom: .5em;
   font-size: .74em; padding: .4em .3em; letter-spacing: .08em;
-  display: flex; align-items: center; justify-content: center; gap: .35em;
+  display: flex; align-items: center; justify-content: center; gap: var(--label-gap);
 }
 .shop-cell.equipped { border-image: var(--frame-gold) 8 / 8px / 0 round }
 .shop-cell.locked .codex-name { color: var(--steel) }
