@@ -2,6 +2,7 @@ import { formatTime, abbrev, clamp } from '../core/math';
 import { RELIC_BY_ID } from '../data/relics';
 import { passiveById } from '../data/passives';
 import { iconFor } from '../game/upgrades';
+import { icon } from './icons';
 import { Minimap } from './minimap';
 import type { World } from '../game/world';
 
@@ -54,8 +55,8 @@ export class Hud {
         <div class="slot-row passives"></div>
       </div>
       <div class="hud-topright">
-        <div class="hud-stat"><span class="k">OR</span> <span class="v gold">0</span></div>
-        <div class="hud-stat"><span class="k">MORTS</span> <span class="v kills">0</span></div>
+        <div class="hud-stat gold-row"></div>
+        <div class="hud-stat kills-row"></div>
       </div>
       <div class="relic-rail"></div>
       <div class="boss-bar" style="display:none">
@@ -75,8 +76,19 @@ export class Hud {
     this.levelText = q('.lvl');
     this.weaponRow = q('.slot-row.weapons');
     this.passiveRow = q('.slot-row.passives');
-    this.goldText = q('.gold');
-    this.killsText = q('.kills');
+    // Les compteurs du HUD portent le sprite de ce qu'ils comptent plutôt que son nom :
+    // le joueur finit par lire l'icône seule, sans mot.
+    const goldRow = q<HTMLDivElement>('.gold-row');
+    goldRow.appendChild(icon('gold', 1.2));
+    this.goldText = document.createElement('span');
+    this.goldText.className = 'v icon-value';
+    goldRow.appendChild(this.goldText);
+
+    const killsRow = q<HTMLDivElement>('.kills-row');
+    killsRow.appendChild(icon('kills', 1.2));
+    this.killsText = document.createElement('span');
+    this.killsText.className = 'v icon-value';
+    killsRow.appendChild(this.killsText);
     this.relicRail = q('.relic-rail');
     this.bossBar = q('.boss-bar');
     this.bossName = q('.boss-bar .name');

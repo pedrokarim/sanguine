@@ -15,6 +15,7 @@ import { ENEMIES, BOSSES, enemyById, type EnemyAI } from '../data/enemies';
 import type { Rarity } from '../gfx/palette';
 import type { Offer, ChestResult } from '../game/upgrades';
 import { BloodLogo, BLOOD, DAWN } from './logo';
+import { iconValue } from './icons';
 import {
   SKINS, TRAILS, THEMES, CURSORS, KIND_LABEL,
   type Cosmetic, type CosmeticKind,
@@ -486,7 +487,8 @@ export class Screens {
       audio.play('confirm');
       onReroll();
     });
-    const skip = this.button('Passer (+50 or)');
+    const skip = this.button('Passer  ');
+    skip.appendChild(iconValue('gold', '+50', 1.05));
     skip.addEventListener('click', () => { audio.play('confirm'); onSkip(); });
     actions.append(reroll, skip);
     el.appendChild(actions);
@@ -570,7 +572,7 @@ export class Screens {
 
       const purse = document.createElement('div');
       purse.className = 'gold-count';
-      purse.textContent = `${abbrev(sv.gold)} or`;
+      purse.appendChild(iconValue('gold', abbrev(sv.gold), 1));
       el.appendChild(purse);
 
       const note = document.createElement('div');
@@ -615,10 +617,9 @@ export class Screens {
           d.textContent = item.desc;
           cell.append(n, d);
 
-          const btn = this.button(
-            on ? 'Équipé' : has ? 'Équiper' : `${item.price} or`,
-            on ? 'primary' : '',
-          );
+          const btn = this.button(on ? 'Équipé' : has ? 'Équiper' : '', on ? 'primary' : '');
+          // Un prix s'écrit avec la monnaie, pas avec son nom.
+          if (!on && !has) btn.appendChild(iconValue('gold', String(item.price), 1.05));
           btn.classList.add('shop-btn');
           btn.disabled = on || (!has && sv.gold < item.price);
           btn.addEventListener('click', () => {
@@ -684,7 +685,7 @@ export class Screens {
 
       const gold = document.createElement('div');
       gold.className = 'gold-count';
-      gold.textContent = `${abbrev(sv.gold)} or`;
+      gold.appendChild(iconValue('gold', abbrev(sv.gold), 1));
       el.appendChild(gold);
 
       const grid = document.createElement('div');
@@ -741,7 +742,8 @@ export class Screens {
         }
         info.append(n, d, pips);
 
-        const buy = this.button(maxed ? 'MAX' : `${cost}`, 'buy');
+        const buy = this.button(maxed ? 'MAX' : '', 'buy');
+        if (!maxed) buy.appendChild(iconValue('gold', String(cost), 1.05));
         buy.classList.add('buy');
         buy.disabled = maxed || sv.gold < cost;
         buy.addEventListener('click', () => {
@@ -1024,6 +1026,8 @@ export class Screens {
     slider('Secousse de caméra', 0, 1, 0.05, () => sv.options.shake, (v) => { sv.options.shake = v; }, pct);
     toggle('Contraste renforcé', 'Textes plus clairs et mieux détourés.',
       () => sv.options.highContrast, (v) => { sv.options.highContrast = v; });
+    toggle('Police uniforme', 'Une seule famille sans empattement, plus espacée.',
+      () => sv.options.plainFont, (v) => { sv.options.plainFont = v; });
 
     section('Confort visuel');
     toggle('Réduire les flashs', 'Supprime les flashs plein écran et les vignettes pulsées.',

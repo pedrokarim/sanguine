@@ -23,7 +23,32 @@
   --rar-epic: #a855f7;
   --rar-cursed: #dc2626;
   --hud-scale: 1;
+
+  /*
+   * Deux familles, deux rôles. Aucune n'est téléchargée : le jeu ne fait aucune requête
+   * réseau, une webfont romprait cette garantie et ajouterait un flash de texte non stylé.
+   *
+   * `--font-display` — un serif de labeur, pour tout ce qui **nomme** : titres, noms de
+   *   personnages, d'armes, de reliques, phrases d'ambiance. Il apporte le registre de
+   *   manuscrit que le monospace seul ne donne pas.
+   *
+   * `--font-ui` — un monospace, pour tout ce qui **informe** : boutons, libellés, chiffres,
+   *   HUD. Ses chasses fixes empêchent les compteurs de sautiller à chaque incrément, ce
+   *   qu'un serif proportionnel ferait en permanence.
+   */
+  --font-display: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua",
+                  Georgia, "Times New Roman", serif;
+  --font-ui: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, "DejaVu Sans Mono", monospace;
 }
+
+/* Option d'accessibilité : une seule famille sans empattement, plus large et plus espacée. */
+body.plain-font {
+  --font-display: system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-ui: system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+body.plain-font .title-font,
+body.plain-font .card .name,
+body.plain-font .codex-name { letter-spacing: .06em }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -39,7 +64,7 @@ html, body {
   cursor: var(--cursor, auto);
   background: #05060a;
   color: var(--linen);
-  font-family: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+  font-family: var(--font-ui);
   -webkit-font-smoothing: antialiased;
   -webkit-tap-highlight-color: transparent;
   touch-action: none;
@@ -144,10 +169,27 @@ body.cursor-hidden #game { cursor: none; }
 .btn.danger { cursor: var(--cursor-danger, pointer) }
 .btn.danger:hover { border-image: var(--frame-blood) 8 / 8px / 0 round; color: var(--blood-hi); }
 
+/* Tout ce qui nomme passe au serif ; l'interlettrage compense sa densité. */
+.title-font,
+.screen h1, .screen h2,
+.screen .tagline,
+.card .name, .pick .name, .codex-name,
+.sanct-row .n, .banner .big, .boss-bar .name {
+  font-family: var(--font-display);
+}
+
 .title-font {
   font-weight: 700;
-  letter-spacing: .18em;
+  letter-spacing: .16em;
   text-transform: uppercase;
+}
+
+/* Les chiffres restent en chasse fixe partout : un compteur qui change de largeur à chaque
+   incrément attire l'œil pour rien. */
+.chip-value, .stat-value, .icon-value, .opt-val,
+.hud-stat .v, .hud-timer, .gold-count, .unlock-count, .stats-table .v {
+  font-family: var(--font-ui);
+  font-variant-numeric: tabular-nums;
 }
 
 /* ------------------------------------------------------------------- écrans */
@@ -250,7 +292,7 @@ body.cursor-hidden #game { cursor: none; }
  * contre son fond réel, jamais dans l'absolu.
  */
 .screen .tagline {
-  color: #9aa3c4; font-style: italic; letter-spacing: .08em;
+  color: #9aa3c4; font-style: italic; letter-spacing: .04em; font-size: 1.08em;
   text-shadow: 0 1px 3px rgba(0, 0, 0, .9), 0 0 10px rgba(0, 0, 0, .7);
 }
 .screen .hint {
@@ -284,7 +326,11 @@ body.cursor-hidden #game { cursor: none; }
 @keyframes urgent { 50% { opacity: .45 } }
 
 .hud-topleft  { position: absolute; top: 15px; left: 12px; }
-.hud-topright { position: absolute; top: 15px; right: 12px; text-align: right; }
+.hud-topright {
+  position: absolute; top: 15px; right: 12px;
+  display: flex; flex-direction: column; align-items: flex-end; gap: 2px;
+}
+.hud-topright .hud-stat { display: flex; align-items: center; gap: .1em }
 
 .hud-stat { font-size: .95em; letter-spacing: .08em; text-shadow: 0 2px 0 #000; }
 .hud-stat .k { color: var(--mist); }
@@ -335,7 +381,7 @@ body.cursor-hidden #game { cursor: none; }
   text-align: center; pointer-events: none;
 }
 .banner .big {
-  font-size: 2.3em; font-weight: 700; letter-spacing: .24em; text-transform: uppercase;
+  font-size: 2.5em; font-weight: 700; letter-spacing: .2em; text-transform: uppercase;
   color: var(--blood-hi); text-shadow: 0 0 30px rgba(240, 64, 90, .8), 0 3px 0 #000;
   animation: banner-in .4s cubic-bezier(.2, 1.6, .4, 1);
 }
@@ -450,7 +496,7 @@ body.cursor-hidden #game { cursor: none; }
   filter: drop-shadow(0 2px 3px rgba(0, 0, 0, .8));
 }
 .card .name {
-  font-size: 1.05em; font-weight: 700; letter-spacing: .09em; color: var(--gold);
+  font-size: 1.15em; font-weight: 700; letter-spacing: .03em; color: var(--gold);
   text-shadow: 0 2px 0 rgba(0, 0, 0, .8);
 }
 .card .kind {
@@ -479,6 +525,7 @@ body.cursor-hidden #game { cursor: none; }
 .card.is-evo .name { color: var(--rar-epic) }
 
 .levelup-actions { display: flex; gap: .7em; margin-top: .4em; }
+.levelup-actions .btn { display: flex; align-items: center; justify-content: center }
 
 /* --------------------------------------------------- sélection personnage */
 
@@ -509,7 +556,7 @@ body.cursor-hidden #game { cursor: none; }
   width: 48px; height: 54px; image-rendering: pixelated;
   filter: drop-shadow(0 2px 3px rgba(0, 0, 0, .9));
 }
-.pick .name { font-weight: 700; color: var(--gold); letter-spacing: .07em; font-size: .95em }
+.pick .name { font-weight: 700; color: var(--gold); letter-spacing: .02em; font-size: 1.08em }
 .pick .perk { font-size: .78em; color: var(--steel) }
 .pick .flaw { font-size: .78em; color: var(--blood-hi) }
 .pick.locked { opacity: .55; cursor: not-allowed; filter: grayscale(.85) }
@@ -559,14 +606,20 @@ body.cursor-hidden #game { cursor: none; }
   background: rgba(19, 23, 37, .85); border: 1px solid var(--stone); border-radius: 2px;
 }
 .sanct-row .info { flex: 1; min-width: 0 }
-.sanct-row .n { font-size: .92em; color: var(--gold); font-weight: 700; letter-spacing: .05em }
+.sanct-row .n { font-size: 1.02em; color: var(--gold); font-weight: 700; letter-spacing: .01em }
 .sanct-row .d { font-size: .76em; color: var(--steel) }
 .sanct-row .pips { display: flex; gap: 2px; margin-top: 3px }
 .sanct-row .pip { width: 9px; height: 5px; background: var(--stone-hi); border-radius: 1px }
 .sanct-row .pip.on { background: var(--gold); box-shadow: 0 0 4px rgba(242, 196, 107, .8) }
-.sanct-row .buy { font-size: .82em; padding: .4em .7em; white-space: nowrap }
+.sanct-row .buy {
+  font-size: .82em; padding: .4em .7em; white-space: nowrap;
+  display: flex; align-items: center; justify-content: center; min-width: 5.2em;
+}
 
-.gold-count { font-size: 1.5em; color: var(--gold); font-weight: 700; letter-spacing: .1em }
+.gold-count {
+  font-size: 1.5em; color: var(--gold); font-weight: 700; letter-spacing: .1em;
+  display: flex; align-items: center; justify-content: center;
+}
 
 /* ----------------------------------------------------------------- codex */
 
@@ -649,7 +702,7 @@ body.cursor-hidden #game { cursor: none; }
   font-size: .7em; letter-spacing: .14em; text-transform: uppercase;
 }
 .codex-name {
-  font-size: .84em; font-weight: 700; letter-spacing: .04em; color: var(--gold);
+  font-size: .95em; font-weight: 700; letter-spacing: .01em; color: var(--gold);
   text-shadow: 0 1px 0 rgba(0, 0, 0, .8);
 }
 .codex-desc { font-size: .74em; color: var(--steel); line-height: 1.4 }
@@ -657,6 +710,29 @@ body.cursor-hidden #game { cursor: none; }
 @media (prefers-reduced-motion: reduce) {
   .codex-sprite { animation: none }
 }
+
+/* --------------------------------------------------- sprites dans le texte */
+
+/*
+ * Icône alignée sur la ligne de texte. La hauteur est exprimée en `em` : l'icône suit donc
+ * automatiquement l'échelle d'interface choisie dans les options.
+ */
+.icon-sprite {
+  display: inline-block;
+  vertical-align: -0.22em;
+  background-repeat: no-repeat;
+  background-position: 0 0;
+  image-rendering: pixelated;
+  flex: none;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, .85));
+}
+.icon-sprite.anim {
+  animation: icon-play var(--dur, .6s) steps(var(--n)) infinite;
+}
+@keyframes icon-play { to { background-position-x: var(--end); } }
+body.reduce-motion .icon-sprite.anim { animation: none }
+
+.icon-value { margin-left: .35em; font-variant-numeric: tabular-nums }
 
 /* ------------------------------------------------------- puces d'angle */
 
@@ -759,6 +835,7 @@ body.cursor-hidden #game { cursor: none; }
 .shop-cell .shop-btn {
   position: absolute; left: .6em; right: .6em; bottom: .5em;
   font-size: .74em; padding: .4em .3em; letter-spacing: .08em;
+  display: flex; align-items: center; justify-content: center;
 }
 .shop-cell.equipped { border-image: var(--frame-gold) 8 / 8px / 0 round }
 .shop-cell.locked .codex-name { color: var(--steel) }

@@ -26,6 +26,8 @@ export interface Options {
   showDamage: boolean;
   /** Renforce le contraste des textes d'interface. */
   highContrast: boolean;
+  /** Remplace le serif des titres par une seule famille sans empattement, plus espacée. */
+  plainFont: boolean;
   /**
    * Vitesse de simulation, 0.6 à 1. Ce n'est pas un réglage de difficulté déguisé : le jeu
    * reste identique, il se déroule simplement moins vite, ce qui rend le kiting accessible
@@ -120,7 +122,7 @@ function fresh(): SaveData {
       master: 0.8, sfx: 0.7, music: 0.45,
       hudScale: 1.15, shake: 0.4,
       reduceFlash: false, reduceMotion: false, highlightPlayer: false,
-      showDamage: true, highContrast: false, gameSpeed: 1,
+      showDamage: true, highContrast: false, plainFont: false, gameSpeed: 1,
     },
     cosmetics: {
       owned: [],

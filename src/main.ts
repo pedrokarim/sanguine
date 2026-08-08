@@ -227,6 +227,7 @@ function applyOptions(): void {
   document.documentElement.style.setProperty('--hud-scale', String(o.hudScale));
   document.body.classList.toggle('reduce-motion', o.reduceMotion);
   document.body.classList.toggle('high-contrast', o.highContrast);
+  document.body.classList.toggle('plain-font', o.plainFont);
 
   if (world) {
     world.cam.intensity = o.reduceFlash ? 0 : o.shake;
