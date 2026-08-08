@@ -30,6 +30,13 @@ export interface Cosmetic {
   color?: string;
   /** Seconde couleur, pour les thèmes d'interface. */
   accent?: string;
+  /**
+   * Condition de déblocage hors monnaie. `'complete'` exige la collection entière : c'est la
+   * seule contrepartie de l'Archive, et elle ne s'achète pas.
+   */
+  requires?: 'complete';
+  /** Teinte universelle : s'applique à n'importe quel personnage. */
+  universal?: boolean;
 }
 
 const C = (c: Cosmetic): Cosmetic => c;
@@ -39,6 +46,7 @@ const C = (c: Cosmetic): Cosmetic => c;
 // ---------------------------------------------------------------------------
 
 export const SKINS: Cosmetic[] = [
+  // La teinte universelle est ajoutée en fin de fichier : elle ne s'achète pas.
   C({
     id: 'skin-ysolde-givre', kind: 'skin', charId: 'ysolde', price: 900,
     name: 'Ysolde · Givre', desc: 'Elle a traversé un hiver de trop.',
@@ -79,6 +87,12 @@ export const SKINS: Cosmetic[] = [
     name: 'Le Comte · Pourpre', desc: 'Il a retrouvé sa cour. Elle est vide.',
     art: { cloak: '#3d1050', cloth: '#22102e', accent: '#d8b4fe' },
   }),
+  C({
+    id: 'skin-arpente', kind: 'skin', price: 0, universal: true, requires: 'complete',
+    name: 'Arpenté', desc: 'Vous avez été mesuré, et vous le savez.',
+    art: { cloak: '#2a2f3d', cloth: '#9aa2b8', skin: '#e6e2d8', accent: '#7de8ff' },
+  }),
+
 ];
 
 // ---------------------------------------------------------------------------

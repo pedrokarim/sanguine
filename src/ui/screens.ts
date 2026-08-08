@@ -324,6 +324,14 @@ export class Screens {
       el.appendChild(stats);
     }
 
+    // Marque de collection complète : une phrase, en bas, sans fanfare — c'est le ton.
+    if (sv.fragments.length >= TOTAL) {
+      const mark = document.createElement('div');
+      mark.className = 'title-mark';
+      mark.textContent = 'Quarante-deux relevés. Le formulaire est complet.';
+      el.appendChild(mark);
+    }
+
     // Mention de copyright, comme sur un écran-titre de jeu : discrète, en bas, permanente.
     const legal = document.createElement('div');
     legal.className = 'copyright';
@@ -755,9 +763,12 @@ export class Screens {
         grid.className = 'codex-grid';
 
         for (const item of items) {
-          const has = item.price === 0 || sv.cosmetics.owned.includes(item.id);
+          // Un article à condition ne s'achète pas : il se mérite, et reste verrouillé tant
+          // que la condition n'est pas remplie.
+          const gated = item.requires === 'complete' && sv.fragments.length < TOTAL;
+          const has = !gated && (item.price === 0 || sv.cosmetics.owned.includes(item.id));
           // Une teinte s'équipe pour son personnage, les autres articles par catégorie.
-          const slot = item.kind === 'skin' ? `skin:${item.charId}` : item.kind;
+          const slot = item.kind === 'skin' ? (item.universal ? 'skin:*' : `skin:${item.charId}`) : item.kind;
           const on = sv.cosmetics.equipped[slot] === item.id;
 
           const cell = document.createElement('div');
@@ -776,13 +787,17 @@ export class Screens {
           d.textContent = item.desc;
           cell.append(n, d);
 
-          const btn = this.button(on ? 'Équipé' : has ? 'Équiper' : '', on ? 'primary' : '');
+          const btn = this.button(
+            on ? 'Équipé' : has ? 'Équiper' : gated ? `${sv.fragments.length} / ${TOTAL}` : '',
+            on ? 'primary' : '',
+          );
           // Un prix s'écrit avec la monnaie, pas avec son nom.
-          if (!on && !has) btn.appendChild(iconValue('gold', String(item.price), 1.05));
+          if (!on && !has && !gated) btn.appendChild(iconValue('gold', String(item.price), 1.05));
           btn.classList.add('shop-btn');
-          btn.disabled = on || (!has && sv.gold < item.price);
+          btn.disabled = on || gated || (!has && sv.gold < item.price);
           btn.addEventListener('click', () => {
             const cur = load();
+            if (gated) { audio.play('deny'); return; }
             if (!has) {
               if (cur.gold < item.price) { audio.play('deny'); return; }
               update((x) => {
@@ -820,8 +835,8 @@ export class Screens {
 
   /** Aperçu d'un article : sprite réel pour les teintes, pastille de couleur sinon. */
   private shopPreview(item: Cosmetic): HTMLElement {
-    if (item.kind === 'skin' && item.charId) {
-      const c = characterById(item.charId);
+    if (item.kind === 'skin') {
+      const c = characterById(item.charId ?? 'ysolde');
       const art = { ...c.art, ...(item.art ?? {}) };
       const set = makeHero(`shop:${item.id}`, art, false);
       return this.spriteBlock(spriteSheet(`shop:${item.id}`, set, this.fitScale(set, 96, 54)), true, 0.9);
