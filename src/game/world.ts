@@ -519,8 +519,15 @@ export class World {
 
     e.dying = 0.28;
     e.hp = 0;
-    this.kills++;
-    this.player.killStreak++;
+    /*
+     * Le décor brisé ne compte pas comme une mort et ne fait pas monter la série. Sinon
+     * briser des jarres gonflerait le compteur et la courbe de niveaux, et le joueur
+     * apprendrait à farmer le mobilier plutôt qu'à survivre.
+     */
+    if (!e.def.decor) {
+      this.kills++;
+      this.player.killStreak++;
+    }
 
     const heavy = e.boss || e.elite || e.radius > 9;
     audio.play(heavy ? 'killHeavy' : 'kill');
@@ -565,10 +572,63 @@ export class World {
 
   // -------------------------------------------------------------------- butin
 
+  /** Cellules de décor déjà posées ou brisées : elles ne repoussent pas. */
+  private decorVus = new Set<string>();
+  private decorTimer = 0;
+
+  /**
+   * Fait apparaître le décor destructible que le terrain a semé autour du joueur.
+   *
+   * Passe légère, quatre fois par seconde : ces objets sont rares et immobiles, les chercher
+   * à chaque image serait du gaspillage. Une cellule déjà posée est retenue définitivement,
+   * ce qui empêche un brasero de repousser dès qu'on s'éloigne et revient.
+   */
+  private updateDecor(dt: number): void {
+    this.decorTimer -= dt;
+    if (this.decorTimer > 0) return;
+    this.decorTimer = 0.25;
+
+    for (const d of this.terrain.destructiblesNear(this.player.x, this.player.y, 460)) {
+      if (this.decorVus.has(d.key)) continue;
+      this.decorVus.add(d.key);
+      this.spawnEnemy(d.kind, d.x, d.y);
+    }
+  }
+
   private dropLoot(e: Enemy): void {
     const pl = this.player;
     const luck = pl.stats.luck;
     const r = this.rng;
+
+    /*
+     * Le décor a sa propre table. Il ne donne **jamais d'XP** : le butin doit récompenser le
+     * détour, pas remplacer le combat comme source de niveaux.
+     */
+    if (e.def.decor) {
+      switch (e.def.id) {
+        case 'brazier':
+          this.spawnPickup('gold', e.x, e.y, 1 + r.int(0, 3), 0);
+          if (r.next() < 0.3 * luck) this.spawnPickup('heart', e.x + 6, e.y, 0, 0);
+          break;
+        case 'jar':
+          for (let i = 0; i < r.int(2, 5); i++) {
+            this.spawnPickup('gem', e.x + r.spread(7), e.y + r.spread(7), 2, 0);
+          }
+          break;
+        case 'reliquary':
+          this.dropRelic(e.x, e.y);
+          break;
+        case 'sarcophagus':
+          // Il libère ce qu'il contenait avant de livrer son coffre : c'est le seul décor
+          // qui coûte quelque chose, et donc le seul dont l'ouverture soit un choix.
+          for (let i = 0; i < 4; i++) {
+            this.spawnEnemy('skeleton', e.x + r.spread(24), e.y + r.spread(24));
+          }
+          this.spawnPickup('chest', e.x, e.y, 0, 0);
+          break;
+      }
+      return;
+    }
 
     // Gemme d'XP – toujours, sauf pour les scissions déjà comptées.
     const rank = e.boss ? 3 : e.elite ? 2 : e.def.gemRank;
@@ -811,6 +871,7 @@ export class World {
     }
 
     this.rebuildGrid();
+    this.updateDecor(sdt);
     this.updateEnemies(sdt);
     this.updateProjectiles(sdt);
     this.updateZones(sdt);
@@ -1014,6 +1075,10 @@ export class World {
       e.x += e.vx * dt;
       e.y += e.vy * dt;
       e.facing = e.vx < -1 ? -1 : e.vx > 1 ? 1 : e.facing;
+
+      // Le décor ne bouge pas, ne pousse personne et ne blesse pas. On le sort avant la
+      // séparation : un brasero repoussé par la horde traverserait la carte.
+      if (e.def.ai === 'static') { e.vx = 0; e.vy = 0; continue; }
 
       if (e.def.ai !== 'phase' && !e.boss) this.separate(e, dt);
 

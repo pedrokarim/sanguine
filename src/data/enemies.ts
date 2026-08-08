@@ -18,11 +18,20 @@ export type EnemyAI =
   | 'ranged' // s'arrête à distance et crache
   | 'leech' // se soigne en touchant le joueur
   | 'dasher' // ruée rectiligne qui traverse l'écran
-  | 'split'; // se scinde à la mort
+  | 'split' // se scinde à la mort
+  | 'static'; // ne bouge pas et ne blesse pas — décor destructible
 
 export interface EnemyDef {
   id: string;
   name: string;
+  /**
+   * Élément de décor destructible plutôt que créature.
+   *
+   * Ne compte pas dans les morts, ne donne pas d'XP, ne fait pas monter la série. Sans cela,
+   * briser des jarres gonflerait le compteur et la courbe de niveaux, et le joueur
+   * apprendrait à farmer le mobilier plutôt qu'à survivre.
+   */
+  decor?: boolean;
   hp: number;
   damage: number;
   speed: number;
@@ -131,7 +140,7 @@ export const ENEMIES: EnemyDef[] = [
 export const ENEMY_BY_ID = new Map(ENEMIES.map((e) => [e.id, e]));
 
 export function enemyById(id: string): EnemyDef {
-  const e = ENEMY_BY_ID.get(id) ?? BOSS_BY_ID.get(id);
+  const e = ENEMY_BY_ID.get(id) ?? BOSS_BY_ID.get(id) ?? DESTR_BY_ID.get(id);
   if (!e) throw new Error(`Ennemi inconnu : ${id}`);
   return e;
 }
@@ -151,6 +160,45 @@ export interface BossDef extends EnemyDef {
   /** Invulnérable et impossible à tuer – réservé à la Faucheuse. */
   invincible?: boolean;
 }
+
+/**
+ * Décor destructible.
+ *
+ * Séparé de `ENEMIES` pour que le director ne les fasse jamais apparaître : ils sont posés
+ * par le terrain, là où il a semé. Ils empruntent toute la mécanique des créatures —
+ * dégâts, mort, particules, butin — sans en être.
+ *
+ * Le sarcophage est le seul à **coûter** quelque chose. Sans lui, briser le décor serait un
+ * gain gratuit, et le joueur le ferait machinalement plutôt que par choix.
+ */
+export const DESTRUCTIBLES: EnemyDef[] = [
+  {
+    id: 'brazier', name: 'Brasero', decor: true,
+    from: 0, weight: 0,
+    hp: 26, damage: 0, speed: 0, radius: 7, gemRank: 0, ai: 'static', kbResist: 1,
+    art: { plan: 'objet', forme: 'brasero', w: 14, h: 17, cols: ['#3a2418', '#5c3a1e', '#7d5228'], eye: '#ffb347', frames: 4 },
+  },
+  {
+    id: 'jar', name: 'Jarre', decor: true,
+    from: 0, weight: 0,
+    hp: 18, damage: 0, speed: 0, radius: 6, gemRank: 0, ai: 'static', kbResist: 1,
+    art: { plan: 'objet', forme: 'jarre', w: 13, h: 15, cols: ['#2f2a3a', '#4a4358', '#6b6178'], eye: '#a8c5d6', frames: 1 },
+  },
+  {
+    id: 'reliquary', name: 'Reliquaire Brisé', decor: true,
+    from: 0, weight: 0,
+    hp: 44, damage: 0, speed: 0, radius: 7, gemRank: 0, ai: 'static', kbResist: 1,
+    art: { plan: 'objet', forme: 'reliquaire', w: 15, h: 15, cols: ['#4a3a18', '#7a6028', '#b08a3a'], eye: '#f2c46b', frames: 2 },
+  },
+  {
+    id: 'sarcophagus', name: 'Sarcophage', decor: true,
+    from: 0, weight: 0,
+    hp: 130, damage: 0, speed: 0, radius: 11, gemRank: 0, ai: 'static', kbResist: 1,
+    art: { plan: 'objet', forme: 'sarcophage', w: 24, h: 20, cols: ['#2a2f3a', '#454c5c', '#666f80'], eye: '#9aa2b8', frames: 1 },
+  },
+];
+
+export const DESTR_BY_ID = new Map(DESTRUCTIBLES.map((d) => [d.id, d]));
 
 export const BOSSES: BossDef[] = [
   {

@@ -26,6 +26,7 @@ import { Backdrop } from './ui/backdrop';
 import { installDecor, applyTheme, applyCursor } from './ui/decor';
 import { COSMETIC_BY_ID } from './data/cosmetics';
 import { motifAt } from './game/terrain';
+import { enemyById } from './data/enemies';
 import { Mobile } from './ui/mobile';
 
 /**
@@ -724,6 +725,8 @@ Object.defineProperty(window, 'sanguine', {
     get view(): { w: number; h: number } { return { w: VIEW.w, h: VIEW.h }; },
     /** Motif de sol d'une tuile — sert à vérifier la répartition sans jouer des heures. */
     motifAt,
+    /** Planche d'un ennemi ou d'un décor, par identifiant. Sert aux vérifications. */
+    spriteOf: (id: string) => makeBody(`chk:${id}`, enemyById(id).art),
     get blit(): { scale: number; x: number; y: number } {
       return { scale: blitScale, x: blitX, y: blitY };
     },

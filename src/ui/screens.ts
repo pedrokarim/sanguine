@@ -37,6 +37,7 @@ const AI_LABEL: Record<EnemyAI, string> = {
   ranged: 'crache à distance',
   leech: 'se nourrit de vous',
   dasher: 'ruée rectiligne',
+  static: 'immobile',
   split: 'se scinde à la mort',
 };
 
