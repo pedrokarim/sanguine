@@ -49,14 +49,28 @@ function build(pixFrames: Pix[], colors: readonly string[]): SpriteSet {
   };
 }
 
+/**
+ * Palette d'une créature.
+ *
+ * Les six premières teintes sont celles d'origine, et les plans corporels continuent de s'y
+ * référer par leurs indices — c'est ce qui permet d'enrichir l'ombrage sans réécrire les
+ * huit plans. Les trois dernières ne sont posées par aucun plan : ce sont les passes
+ * d'éclairage de `makeBody` qui les appliquent.
+ *
+ * Toutes sont dérivées des trois couleurs de la créature. Une créature reste donc définie
+ * par trois teintes dans `data/enemies.ts`, ce qui garde la table lisible.
+ */
 function paletteOf(a: BodyArt): string[] {
   return [
-    shade(a.cols[0], -0.55), // contour
-    a.cols[0],
-    a.cols[1],
-    a.cols[2],
-    a.eye,
-    a.accent ?? a.eye,
+    shade(a.cols[0], -0.55), // 0 contour
+    a.cols[0],               // 1 corps, ombre
+    a.cols[1],               // 2 corps
+    a.cols[2],               // 3 corps, lumière
+    a.eye,                   // 4 œil
+    a.accent ?? a.eye,       // 5 accent
+    shade(a.cols[1], 0.22),  // 6 rasante — bord opposé à la lumière
+    shade(a.cols[0], -0.4),  // 7 occlusion — sous un rebord
+    shade(a.cols[0], -0.42), // 8 contour du côté éclairé
   ];
 }
 
@@ -309,7 +323,23 @@ export function makeBody(key: string, art: BodyArt): SpriteSet {
       for (let k = -k0; k <= k0; k++) p.set(cx + k, Math.round(S), 5);
       for (const k of [-k0, 0, k0]) p.set(cx + k, 0, 5);
     }
-    p.outline(0);
+    /*
+     * Passes d'éclairage.
+     *
+     * Elles s'appliquent après le plan, sur la silhouette déjà formée, et c'est ce qui les
+     * rend valables pour les huit plans sans en toucher un seul. Mesuré avant : cinq teintes
+     * par créature contre neuf pour le héros — les corps avaient grandi sans être éclairés.
+     *
+     * L'ordre compte : la rasante se pose sur les bords, l'occlusion creuse sous les
+     * rebords, et le contour vient en dernier pour ne pas être mangé par les deux autres.
+     *
+     * Les écarts sont volontairement faibles. Une première version prenait la teinte la plus
+     * claire du corps et l'éclaircissait de moitié : chaque créature se retrouvait cernée
+     * d'un liseré presque blanc, et l'écran ressemblait à une planche d'autocollants.
+     */
+    p.rimLight(1, 0, 6);
+    p.occlusion(7);
+    p.outlineDouble(0, 8);
     pixFrames.push(p);
   }
   const set = build(pixFrames, paletteOf(art));
