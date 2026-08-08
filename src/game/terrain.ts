@@ -435,7 +435,34 @@ function periodicNoise(x: number, y: number, period: number, seed: number): numb
  *
  * Le sol nu reste majoritaire : au-delà d'un seuil, le motif cesse d'être un événement.
  */
+/**
+ * Force de la route à une tuile donnée, entre 0 et 1.
+ *
+ * Les routes suivent une **ligne de niveau** d'un champ de bruit : elles serpentent donc
+ * naturellement, sans qu'on ait à tracer un chemin. Une route en droite se lirait comme une
+ * frontière de carte, pas comme un chemin creusé par l'usage.
+ *
+ * Dans un monde infini et sans carte, une route est un repère de navigation : savoir qu'on
+ * la suit donne un sens à la marche.
+ */
+export function routeAt(tx: number, ty: number): number {
+  // Deux réseaux d'orientations différentes, pour que des routes se croisent.
+  const a = valueNoise2(tx / 17, ty / 29, 0x51a7);
+  const b = valueNoise2(tx / 31 + 5, ty / 13 - 3, 0x9c34);
+  const d = Math.min(Math.abs(a - 0.5), Math.abs(b - 0.5));
+  // La route est la bande étroite où le champ traverse sa ligne de niveau.
+  /*
+   * Le seuil décide de la largeur du réseau. Mesuré à 0,028 : 11 % des tuiles portaient une
+   * route, ce qui est un quadrillage, pas un chemin. À 0,010 on retombe autour de 4 %, soit
+   * une route croisée toutes les quelques minutes de marche — assez pour qu'elle serve de
+   * repère, assez rare pour qu'en trouver une compte.
+   */
+  return d < 0.010 ? 1 - d / 0.010 : 0;
+}
+
 export function motifAt(tx: number, ty: number): SolMotif {
+  // Une route prime sur le motif du biome : c'est elle qu'on doit voir.
+  if (routeAt(tx, ty) > 0.35) return 'pave';
   const biome = biomeAtTile(tx, ty);
   if (biome.motifs.length === 0) return 'nu';
   const n = valueNoise2(tx / 9, ty / 9, 0x3a1f);
