@@ -1,4 +1,5 @@
 import { clamp, lerp, TAU } from '../core/math';
+import * as font from './font';
 import { P, rgba } from './palette';
 import { shadowSprite, type SpriteSet } from './sprites';
 import {
@@ -459,32 +460,136 @@ export class Renderer {
     this.drawEdgeMarkers(w, VW, VH);
   }
 
+  /**
+   * Bulles de proximité.
+   *
+   * Un objet précieux hors champ est signalé par une **pastille plaquée au bord de l'écran**,
+   * portant son propre sprite, un chevron vers sa direction et sa distance. C'est le seul
+   * moyen de rendre l'exploration décidable : sans elles, on ne quitte jamais la zone
+   * dégagée qu'on s'est ménagée, faute de savoir ce qu'on gagnerait à le faire.
+   *
+   * Trois précautions contre l'encombrement :
+   *   – les pastilles sont **plafonnées** et **priorisées** (un boss prime sur un cœur) ;
+   *   – elles s'estompent avec la distance, si bien qu'un objet lointain ne crie pas aussi
+   *     fort qu'un objet à deux pas ;
+   *   – rien n'est affiché pour un objet déjà visible : la pastille ne double jamais ce que
+   *     le joueur a sous les yeux.
+   */
   private drawEdgeMarkers(w: World, VW: number, VH: number): void {
     const ctx = this.ctx;
     const cam = w.cam;
 
-    const mark = (x: number, y: number, color: string): void => {
-      if (cam.visible(x, y, 0)) return;
-      const dx = x - cam.x;
-      const dy = y - cam.y;
-      const a = Math.atan2(dy, dx);
-      const r = Math.min(VW, VH) * 0.42;
-      const px = VW / 2 + Math.cos(a) * r;
-      const py = VH / 2 + Math.sin(a) * r;
-      ctx.fillStyle = color;
-      ctx.beginPath();
-      ctx.moveTo(px + Math.cos(a) * 5, py + Math.sin(a) * 5);
-      ctx.lineTo(px + Math.cos(a + 2.4) * 4, py + Math.sin(a + 2.4) * 4);
-      ctx.lineTo(px + Math.cos(a - 2.4) * 4, py + Math.sin(a - 2.4) * 4);
-      ctx.closePath();
-      ctx.fill();
+    interface Marker {
+      x: number; y: number; color: string; sprite: HTMLCanvasElement | null;
+      prio: number; d: number;
+    }
+    const marks: Marker[] = [];
+
+    const add = (
+      x: number, y: number, color: string, sprite: HTMLCanvasElement | null,
+      prio: number, maxDist: number,
+    ): void => {
+      if (cam.visible(x, y, 10)) return;
+      const d = Math.hypot(x - cam.x, y - cam.y);
+      if (d > maxDist) return;
+      marks.push({ x, y, color, sprite, prio, d });
     };
 
-    if (w.boss?.active) mark(w.boss.x, w.boss.y, P.bloodHi);
+    // Priorités décroissantes : ce qui menace ou ce qui est rare passe devant.
+    for (const b of w.bossGroup) {
+      if (b.active && b.dying <= 0) add(b.x, b.y, P.bloodHi, b.sprite.frames[0] ?? null, 0, 4000);
+    }
+    for (const k of w.caches) {
+      if (!k.taken) add(k.x, k.y, P.spark, w.cacheSprite(k.def).frames[0] ?? null, 1, w.resonanceRange);
+    }
     for (const p of w.pickups) {
-      if (p.active && (p.kind === 'chest' || p.kind === 'relic')) {
-        mark(p.x, p.y, p.kind === 'chest' ? P.gold : '#a855f7');
+      if (!p.active) continue;
+      const f = p.sprite?.frames[0] ?? null;
+      if (p.kind === 'relic') {
+        const cols = ['#ffffff', '#5b9df5', '#a855f7', '#dc2626'];
+        add(p.x, p.y, cols[clamp(p.rank, 0, 3)]!, f, 2, 1600);
+      } else if (p.kind === 'chest') {
+        add(p.x, p.y, P.gold, f, 3, 1400);
+      } else if (p.kind === 'heart') {
+        add(p.x, p.y, P.bloodHi, f, 4, 700);
       }
+    }
+    // Structures encore actives : plus discrètes, et seulement à courte portée.
+    for (const poi of w.terrain.poisNear(cam.x, cam.y, 620)) {
+      if (!poi.used) add(poi.x, poi.y, poi.def.color, null, 5, 620);
+    }
+
+    if (marks.length === 0) return;
+    marks.sort((a, b) => a.prio - b.prio || a.d - b.d);
+
+    // Marge suffisante pour que la pastille, son chevron et sa distance tiennent à l'écran.
+    const hw = VW / 2 - 20;
+    const hh = VH / 2 - 22;
+
+    for (const m of marks.slice(0, 6)) {
+      const dx = m.x - cam.x;
+      const dy = m.y - cam.y;
+      const a = Math.atan2(dy, dx);
+
+      // Projection sur le **rectangle** de l'écran, pas sur un cercle : une pastille posée
+      // sur un cercle flotte au milieu des bords longs au lieu de les épouser.
+      const sx = Math.abs(dx) > 0.001 ? hw / Math.abs(dx) : Infinity;
+      const sy = Math.abs(dy) > 0.001 ? hh / Math.abs(dy) : Infinity;
+      const k = Math.min(sx, sy);
+      const px = Math.round(VW / 2 + dx * k);
+      const py = Math.round(VH / 2 + dy * k);
+
+      // Plus c'est proche, plus c'est franc.
+      const near = clamp(1 - m.d / 1600, 0.18, 1);
+      const alpha = 0.35 + near * 0.6;
+
+      const R = 9;
+      ctx.globalAlpha = alpha;
+
+      // Pastille : fond sombre, liseré à la couleur de l'objet.
+      ctx.fillStyle = 'rgba(5,6,10,0.86)';
+      ctx.fillRect(px - R, py - R, R * 2, R * 2);
+      ctx.strokeStyle = m.color;
+      ctx.lineWidth = 1;
+      ctx.strokeRect(px - R + 0.5, py - R + 0.5, R * 2 - 1, R * 2 - 1);
+
+      if (m.sprite) {
+        const sc = Math.min((R * 2 - 4) / m.sprite.width, (R * 2 - 4) / m.sprite.height, 1);
+        const dw = Math.max(1, Math.round(m.sprite.width * sc));
+        const dh = Math.max(1, Math.round(m.sprite.height * sc));
+        ctx.drawImage(m.sprite, px - dw / 2, py - dh / 2, dw, dh);
+      } else {
+        // Structures : pas de sprite en pastille, un losange plein suffit.
+        ctx.fillStyle = m.color;
+        ctx.fillRect(px - 2, py - 2, 4, 4);
+      }
+
+      /*
+       * Chevron vers l'extérieur.
+       *
+       * Sa base est construite **perpendiculairement** à la direction, et non par un décalage
+       * angulaire : à ±2,5 rad, les deux points de base repassaient derrière la pointe et
+       * produisaient un immense triangle qui recouvrait entièrement la pastille.
+       */
+      const ux = Math.cos(a);
+      const uy = Math.sin(a);
+      const nx = -uy;
+      const ny = ux;
+      ctx.fillStyle = m.color;
+      ctx.beginPath();
+      ctx.moveTo(px + ux * (R + 6), py + uy * (R + 6));
+      ctx.lineTo(px + ux * (R + 1) + nx * 3.5, py + uy * (R + 1) + ny * 3.5);
+      ctx.lineTo(px + ux * (R + 1) - nx * 3.5, py + uy * (R + 1) - ny * 3.5);
+      ctx.closePath();
+      ctx.fill();
+
+      // Distance, arrondie à la dizaine — une valeur au pixel près serait du bruit. Elle se
+      // place du côté **intérieur** de la pastille, sinon elle sort de l'écran en bas.
+      const dist = Math.round(m.d / 10) * 10;
+      const below = py < VH / 2;
+      font.drawCentered(ctx, String(dist), px, below ? py + R + 1 : py - R - 8, m.color, 1);
+
+      ctx.globalAlpha = 1;
     }
   }
 

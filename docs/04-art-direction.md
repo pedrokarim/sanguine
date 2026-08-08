@@ -387,3 +387,29 @@ L'animation des planches doit défiler en **longueurs**, jamais en pourcentages.
 l'image` : sur une planche plus large que sa boîte, cette différence est négative, le sens
 s'inverse et l'image sort du cadre. L'icône disparaissait cinq frames sur six — et restait
 invisible sur une capture prise au mauvais moment.
+
+## 17. Bulles de proximité
+
+Un objet précieux hors champ est signalé par une **pastille plaquée au bord de l'écran**,
+portant son propre sprite, un chevron vers sa direction et sa distance arrondie à la dizaine.
+
+C'est ce qui rend l'exploration décidable. Sans elles, le joueur ne quitte jamais la zone
+dégagée qu'il s'est ménagée, faute de savoir ce qu'il gagnerait à le faire — et tout le travail
+sur les structures, les coffres et les reliques ne sert à rien.
+
+### Priorité et plafond
+Six pastilles au maximum, triées par importance puis par distance :
+boss → pièce de collection → relique → coffre → cœur → structure. Elles s'estompent avec la
+distance, et rien n'est affiché pour un objet déjà visible : une pastille ne doit jamais
+doubler ce que le joueur a sous les yeux.
+
+### Deux détails de géométrie qui font tout
+- **Projection sur le rectangle de l'écran, pas sur un cercle.** Une pastille posée sur un
+  cercle flotte au milieu des bords longs au lieu de les épouser — elle a l'air d'être perdue
+  dans le décor plutôt que d'être un élément d'interface.
+- **La base du chevron se construit perpendiculairement à la direction.** Avec un décalage
+  angulaire de ±2,5 rad, les deux points de base repassent *derrière* la pointe : le résultat
+  n'est pas une flèche mais un immense triangle qui recouvre entièrement la pastille.
+
+La distance se place du côté **intérieur** de la pastille, faute de quoi elle sort de l'écran
+sur les bords inférieurs.
