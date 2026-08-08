@@ -261,7 +261,7 @@ export class Screens {
     fl.className = 'flourish';
     const tag = document.createElement('p');
     tag.className = 'tagline';
-    tag.textContent = '« Tenez jusqu\'à l\'aube. Elle ne viendra pas. »';
+    tag.textContent = '« Tenez jusqu’à l’aube. Elle ne viendra pas. »';
     el.append(fl, tag);
 
     const list = document.createElement('div');
@@ -653,7 +653,7 @@ export class Screens {
     if (complete) {
       const ep = document.createElement('div');
       ep.className = 'archive-epilogue';
-      ep.textContent = 'Lire l\'épilogue';
+      ep.textContent = 'Lire l’épilogue';
       ep.addEventListener('click', () => this.readText('Épilogue', EPILOGUE));
       scroll.appendChild(ep);
     }
@@ -748,7 +748,7 @@ export class Screens {
 
       const note = document.createElement('div');
       note.className = 'hint';
-      note.textContent = 'Rien de tout ceci n\'influence le jeu.';
+      note.textContent = 'Rien de tout ceci n’influence le jeu.';
       el.appendChild(note);
 
       const scroll = document.createElement('div');
@@ -1207,7 +1207,7 @@ export class Screens {
     slider('Musique', 0, 1, 0.05, () => sv.options.music, (v) => { sv.options.music = v; }, pct);
 
     section('Affichage');
-    slider('Taille de l\'interface', 0.7, 2, 0.05, () => sv.options.hudScale, (v) => { sv.options.hudScale = v; }, pct);
+    slider('Taille de l’interface', 0.7, 2, 0.05, () => sv.options.hudScale, (v) => { sv.options.hudScale = v; }, pct);
     slider('Secousse de caméra', 0, 1, 0.05, () => sv.options.shake, (v) => { sv.options.shake = v; }, pct);
     toggle('Contraste renforcé', 'Textes plus clairs et mieux détourés.',
       () => sv.options.highContrast, (v) => { sv.options.highContrast = v; });
@@ -1219,7 +1219,7 @@ export class Screens {
       () => sv.options.reduceFlash, (v) => { sv.options.reduceFlash = v; });
     toggle('Réduire les animations', 'Coulures du logo, sprites du codex, transitions.',
       () => sv.options.reduceMotion, (v) => { sv.options.reduceMotion = v; });
-    toggle('Chiffres de dégâts', 'Les couper réduit beaucoup le bruit à l\'écran.',
+    toggle('Chiffres de dégâts', 'Les couper réduit beaucoup le bruit à l’écran.',
       () => sv.options.showDamage, (v) => { sv.options.showDamage = v; });
 
     section('Jeu');

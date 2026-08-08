@@ -21,13 +21,13 @@
 
 Un **survivor-like** (*bullet heaven*) jouable directement dans le navigateur. Vous ne tirez
 jamais : vos armes se déclenchent seules. Toute la profondeur vient du choix des améliorations
-entre deux vagues, et de la construction d'un build qui transforme un chasseur fragile en
-machine à effacer l'écran.
+entre deux vagues, et de la construction d’un build qui transforme un chasseur fragile en
+machine à effacer l’écran.
 
 Une partie dure **30 minutes**. Le temps est le seul véritable adversaire.
 
 > **Aucune dépendance runtime. Aucun fichier binaire.**
-> Sprites, animations, décor, biomes, illustration des menus, ornements d'interface, logo,
+> Sprites, animations, décor, biomes, illustration des menus, ornements d’interface, logo,
 > curseur et sons sont **générés par le code** au démarrage. Le jeu entier tient en 72 ko
 > compressés et fonctionne hors ligne.
 
@@ -44,9 +44,9 @@ Une partie dure **30 minutes**. Le temps est le seul véritable adversaire.
 | ![Montée de niveau](docs/screenshots/04-amelioration.png) | ![Relique](docs/screenshots/05-relique.png) |
 | **Un choix à chaque niveau** – trois cartes tirées par catégorie, la horde figée derrière | **24 reliques**, dont quatre maudites : puissantes, mais elles se paient |
 | ![Codex](docs/screenshots/07-codex.png) | ![Bestiaire](docs/screenshots/08-bestiaire.png) |
-| **Codex de 77 entrées** à sprites animés, silhouettées tant qu'elles ne sont pas découvertes | **Bestiaire** – dix-huit créatures, leurs statistiques et leur comportement |
+| **Codex de 77 entrées** à sprites animés, silhouettées tant qu’elles ne sont pas découvertes | **Bestiaire** – dix-huit créatures, leurs statistiques et leur comportement |
 | ![Sanctuaire](docs/screenshots/09-sanctuaire.png) | ![Fin de partie](docs/screenshots/06-fin.png) |
-| **Sanctuaire** – l'or survit à la mort et achète des améliorations permanentes | **Bilan de fin**, graine comprise pour rejouer exactement le même run |
+| **Sanctuaire** – l’or survit à la mort et achète des améliorations permanentes | **Bilan de fin**, graine comprise pour rejouer exactement le même run |
 
 ---
 
@@ -55,20 +55,20 @@ Une partie dure **30 minutes**. Le temps est le seul véritable adversaire.
 | | |
 |---|---|
 | **18 armes** | + 15 évolutions, débloquées uniquement par les coffres |
-| **12 passifs** | 6 emplacements d'armes, 6 de passifs – le plafond force les vrais choix |
+| **12 passifs** | 6 emplacements d’armes, 6 de passifs – le plafond force les vrais choix |
 | **24 reliques** | Objets uniques, hors emplacements, dont 4 **maudites** |
-| **13 ennemis** | 9 comportements d'IA distincts |
+| **13 ennemis** | 9 comportements d’IA distincts |
 | **5 boss** | Dont la Faucheuse, invulnérable, qui met fin à la partie |
 | **6 personnages** | 4 à débloquer, avec progression affichée |
-| **5 biomes** | Composition d'ennemis et effets passifs propres |
+| **5 biomes** | Composition d’ennemis et effets passifs propres |
 | **7 structures** | Autel, bûcher, obélisque, puits, ossuaire, chapelle, cairn |
 | **11 améliorations** | Méta-progression permanente au Sanctuaire |
 | **Codex** | 77 entrées à sprites animés – armes, évolutions, bestiaire, reliques |
 | **Reprise de partie** | Un onglet fermé ne coûte plus la partie en cours |
-| **Boutique** | 23 cosmétiques — teintes, traînées, thèmes d'interface, curseurs |
+| **Boutique** | 23 cosmétiques – teintes, traînées, thèmes d’interface, curseurs |
 | **Collection** | 42 pièces disséminées, trouvables à la résonance, et leur archive |
-| **Accessibilité** | Échelle d'interface, contraste, animations, vitesse de jeu, repère joueur |
-| **Tactile** | Téléphone et tablette — joystick, pause, zones sûres, écran maintenu allumé |
+| **Accessibilité** | Échelle d’interface, contraste, animations, vitesse de jeu, repère joueur |
+| **Tactile** | Téléphone et tablette – joystick, pause, zones sûres, écran maintenu allumé |
 
 ---
 
@@ -77,19 +77,19 @@ Une partie dure **30 minutes**. Le temps est le seul véritable adversaire.
 | Action | Clavier | Manette | Tactile |
 |---|---|---|---|
 | Déplacement | `ZQSD` / `WASD` / flèches | Stick gauche | Glisser (joystick virtuel) |
-| Pause | `Échap` / `P` | Start | Bouton en haut de l'écran |
+| Pause | `Échap` / `P` | Start | Bouton en haut de l’écran |
 | Valider | `Entrée` / `Espace` / clic | A | Tap |
 | Minimap | `M` | – | – |
 | Plein écran | `F` | – | – |
 
 La minimap sert aussi de détecteur : elle pulse en direction de ce qui est enfoui à proximité.
 
-Sur téléphone et tablette, le jeu **propose de passer en paysage** — mais seulement quand ça
-vaut la peine : le déclencheur est la part d'écran réellement perdue en bandes noires, pas le
-type d'appareil. Un iPhone en portrait en perd 61 %, un iPad 32 %, une tablette 4∶3 seulement
-17 % et n'est donc pas sollicitée. La proposition reste une proposition.
+Sur téléphone et tablette, le jeu **propose de passer en paysage** – mais seulement quand ça
+vaut la peine : le déclencheur est la part d’écran réellement perdue en bandes noires, pas le
+type d’appareil. Un iPhone en portrait en perd 61 %, un iPad 32 %, une tablette 4∶3 seulement
+17 % et n’est donc pas sollicitée. La proposition reste une proposition.
 
-**Il n'y a pas de touche d'attaque.** C'est le genre qui veut ça.
+**Il n’y a pas de touche d’attaque.** C’est le genre qui veut ça.
 
 AZERTY et QWERTY fonctionnent simultanément : les touches sont lues par **code physique**.
 
@@ -98,9 +98,9 @@ AZERTY et QWERTY fonctionnent simultanément : les touches sont lues par **code 
 
 | Touche | Effet |
 |---|---|
-| `~` | Compteurs de debug : FPS, entités, temps par système, et le rapport d'échelle physique (`net` / `rééchantillonné`) |
+| `~` | Compteurs de debug : FPS, entités, temps par système, et le rapport d’échelle physique (`net` / `rééchantillonné`) |
 | `F1` | +10 niveaux · `F2` +1 minute · `F3` soins complets |
-| `F4` | Tue tout à l'écran · `F5` +10 000 or |
+| `F4` | Tue tout à l’écran · `F5` +10 000 or |
 | `F6` | Fait tomber une relique · `F7` fait tomber un coffre |
 
 La console expose `window.sanguine` : `.snapshot()`, `.world`, `.startRun(id)`, `.exportSprites()`.
@@ -118,7 +118,7 @@ pnpm build      # production → dist/
 pnpm preview    # sert le build
 ```
 
-`dist/index.html` fonctionne aussi en `file://` et hors ligne : rien n'est chargé depuis le
+`dist/index.html` fonctionne aussi en `file://` et hors ligne : rien n’est chargé depuis le
 réseau.
 
 ### Docker
@@ -146,15 +146,15 @@ src/
 
 | Choix | Raison |
 |---|---|
-| **Canvas 2D** plutôt que WebGL | Suffisant jusqu'à ~2000 sprites, sans la complexité des shaders |
-| **Pools pré-alloués** plutôt qu'un ECS | Peu de types d'entités, énormément d'instances |
-| **Grille de hachage** reconstruite chaque frame | Plus rapide qu'une mise à jour incrémentale, impossible à désynchroniser |
+| **Canvas 2D** plutôt que WebGL | Suffisant jusqu’à ~2000 sprites, sans la complexité des shaders |
+| **Pools pré-alloués** plutôt qu’un ECS | Peu de types d’entités, énormément d’instances |
+| **Grille de hachage** reconstruite chaque frame | Plus rapide qu’une mise à jour incrémentale, impossible à désynchroniser |
 | **HUD en DOM** | Texte net à toute résolution, accessible, gratuit dans la boucle de rendu |
 | **Monde déterministe par position** | Monde infini à coût mémoire nul, runs rejouables à la graine |
-| **Facteur d'échelle entier en pixels physiques** | Un pixel de jeu vaut toujours un nombre entier de pixels écran, à n'importe quel `devicePixelRatio` |
+| **Facteur d’échelle entier en pixels physiques** | Un pixel de jeu vaut toujours un nombre entier de pixels écran, à n’importe quel `devicePixelRatio` |
 
-La résolution logique s'adapte à la fenêtre en conservant le facteur entier : pas de bandes
-noires, et un pixel art net y compris sous une mise à l'échelle Windows à 125 % ou 150 %.
+La résolution logique s’adapte à la fenêtre en conservant le facteur entier : pas de bandes
+noires, et un pixel art net y compris sous une mise à l’échelle Windows à 125 % ou 150 %.
 
 Mesuré à la densité de la 28ᵉ minute, Déferlante active : **60 fps constants** avec 460 ennemis
 et 2 200 objets au sol (`update` ~1 ms, `render` 5 à 12 ms), tas mémoire stable sur la durée.
@@ -173,26 +173,26 @@ La documentation de conception est en français et sert de **source de vérité*
 | [`docs/02-content-bible.md`](docs/02-content-bible.md) | Armes, passifs, reliques, ennemis, biomes, structures |
 | [`docs/03-technical-architecture.md`](docs/03-technical-architecture.md) | Stack, modules, budget de performance |
 | [`docs/04-art-direction.md`](docs/04-art-direction.md) | Palette, pipeline procédural, game feel, erreurs corrigées |
-| [`docs/05-audio-design.md`](docs/05-audio-design.md) | Synthèse, catalogue d'effets, musique adaptative |
+| [`docs/05-audio-design.md`](docs/05-audio-design.md) | Synthèse, catalogue d’effets, musique adaptative |
 | [`docs/06-roadmap.md`](docs/06-roadmap.md) | Jalons, hors périmètre, dette technique assumée |
 
 ---
 
 ## Équilibrage mesuré, pas deviné
 
-Les courbes ne sont pas réglées à l'intuition mais **mesurées par un bot** qui joue réellement :
+Les courbes ne sont pas réglées à l’intuition mais **mesurées par un bot** qui joue réellement :
 il fuit la pression locale des ennemis, dérive vers les gemmes et choisit ses cartes.
 
 Deux réglages de densité ont été mesurés puis rejetés. Le second est le plus instructif :
 
 | Réglage | Résultat mesuré |
 |---|---|
-| `0.9 + min × 0.55` | ~20 ennemis à l'écran, niveau 8 seulement à 3 min 30 : trop vide |
+| `0.9 + min × 0.55` | ~20 ennemis à l’écran, niveau 8 seulement à 3 min 30 : trop vide |
 | `1.6 + min × 1.05` | 474 ennemis à 6 min, **une seule arme au niveau 5**, mort à 6 min 48 |
 | `1.1 + min × 0.70` | Niveau 14 à 4 min 30, 4 armes, 745 morts, 60 fps – **retenu** |
 
-Au-delà d'un certain seuil, **augmenter la densité réduit la progression** : le joueur ne tue
-plus assez vite, ne ramasse plus de gemmes, et la courbe d'XP s'effondre pendant que l'écran se
+Au-delà d’un certain seuil, **augmenter la densité réduit la progression** : le joueur ne tue
+plus assez vite, ne ramasse plus de gemmes, et la courbe d’XP s’effondre pendant que l’écran se
 remplit.
 
 ---

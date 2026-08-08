@@ -4,22 +4,22 @@
 
 ### M0 – Squelette *(fondations)*
 - [x] Vite + TypeScript strict, zéro dépendance runtime
-- [x] Canvas à résolution logique fixe, mise à l'échelle entière
+- [x] Canvas à résolution logique fixe, mise à l’échelle entière
 - [x] Boucle à pas fixe 60 Hz avec interpolation de rendu
 - [x] Input unifié clavier (AZERTY + QWERTY) / manette / tactile
 
 ### M1 – Noyau jouable
 - [x] Joueur déplaçable, caméra qui suit
 - [x] Sol infini tuilé, décalques de sang persistants
-- [x] Pool d'ennemis, IA de poursuite, séparation partielle
+- [x] Pool d’ennemis, IA de poursuite, séparation partielle
 - [x] Grille de hachage spatial, collisions cercle-cercle
-- [x] Première arme (Pieu), dégâts, mort d'ennemi
+- [x] Première arme (Pieu), dégâts, mort d’ennemi
 
 ### M2 – Boucle de progression
-- [x] Gemmes d'XP, aimantation, courbe de niveaux
+- [x] Gemmes d’XP, aimantation, courbe de niveaux
 - [x] Écran de montée de niveau avec 3 cartes pondérées
 - [x] 18 armes, 12 passifs, recalcul des stats dérivées
-- [x] Évolutions d'armes via coffres
+- [x] Évolutions d’armes via coffres
 
 ### M3 – Contenu et butin
 - [x] 13 ennemis, élites, 4 boss avec mécaniques distinctes
@@ -49,8 +49,8 @@
 - [x] **Caméra** : secousse ramenée de « irregardable » à un accent discret, réglable à zéro
 - [x] **Équilibrage** : deux réglages de densité mesurés et rejetés avant le bon
 - [x] **Tirage des cartes** pondéré par catégorie – corrigeait un build complet dès la 2ᵉ minute
-- [x] **Biomes** : 5 régions procédurales avec composition d'ennemis et effets passifs
-- [x] **Structures** : 7 points d'intérêt déterministes, à effet unique
+- [x] **Biomes** : 5 régions procédurales avec composition d’ennemis et effets passifs
+- [x] **Structures** : 7 points d’intérêt déterministes, à effet unique
 - [x] **Interface décorée** : cadres 9-slice, fleurons, équerres, bandeau de titre, grain
 - [x] **Illustration des menus** : scène nocturne en 6 couches animées par parallaxe
 
@@ -72,7 +72,7 @@ pas pour être faites maintenant.
 | Sujet | Décision | Quand y revenir |
 |---|---|---|
 | Séparation des ennemis approximative (4 voisins/frame) | Acceptable visuellement, indispensable à la performance | Si la superposition devient gênante à 1500 ennemis |
-| Canvas 2D plutôt que WebGL | Suffisant jusqu'à ~2000 sprites | Si l'on vise 5000+ entités |
+| Canvas 2D plutôt que WebGL | Suffisant jusqu’à ~2000 sprites | Si l’on vise 5000+ entités |
 | Pas de tests unitaires | Le jeu est visuel, `tsc --strict` est le filet | Si la logique de build devient un vrai domaine métier |
-| HUD en DOM | Texte net, gratuit en rendu | Jamais – c'est le bon choix |
+| HUD en DOM | Texte net, gratuit en rendu | Jamais – c’est le bon choix |
 | Une seule carte | Périmètre v1 | Après retours joueurs |

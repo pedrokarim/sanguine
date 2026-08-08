@@ -127,6 +127,13 @@ jobs:
           if [ "$fail" -eq 0 ]; then echo "OK — aucune exécution dynamique."; fi
           exit $fail
 
+      - name: Typographie française
+        run: |
+          # Le jeu est écrit en français, et la typographie française n'est pas l'anglaise.
+          # Le tiret cadratin et l'apostrophe droite revenaient à chaque session d'écriture ;
+          # les corriger à la main ne tenait pas d'une fois sur l'autre.
+          node tools/check-typo.mjs
+
       - name: Aucun script inline dans la page
         run: |
           # Un seul script inline obligerait à relâcher script-src en 'unsafe-inline',
