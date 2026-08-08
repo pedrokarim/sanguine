@@ -124,10 +124,10 @@ entete.className = 'pl-entete';
 entete.innerHTML = `
   <h1>Planche des sprites</h1>
   <p class="pl-chapeau">Tout ce que le jeu sait dessiner, généré à l’instant par ses propres
-  fonctions. Aucun fichier image n’intervient — cette page ne peut donc pas diverger du jeu.</p>
+  fonctions. Aucun fichier image n’intervient – cette page ne peut donc pas diverger du jeu.</p>
   <p class="pl-chapeau">Le compteur de <b>teintes</b> sous chaque vignette mesure le détail :
   c’est le nombre de couleurs distinctes réellement présentes. Un sprite agrandi sans travail
-  d’ombrage garde le même compte qu’avant — c’est ce qui permet de repérer d’un coup d’œil ce
+  d’ombrage garde le même compte qu’avant – c’est ce qui permet de repérer d’un coup d’œil ce
   qui a seulement grandi et ce qui a vraiment gagné en définition.</p>
   <p class="pl-chapeau">Échelle des corps en vigueur : <b>×${CORPS_ECHELLE}</b>.</p>`;
 racine.appendChild(entete);
@@ -148,7 +148,7 @@ section('Héros', 'Six personnages, au repos et en marche. Le dernier est l’an
 section('Ennemis', 'Chaque créature dans son animation de déplacement.',
   ENEMIES.map((e) => deSet(e.name, makeBody(`pl:e:${e.id}`, e.art))), 4);
 
-section('Boss', 'Cinq, dont la Faucheuse — invulnérable, elle met fin à la partie.',
+section('Boss', 'Cinq, dont la Faucheuse – invulnérable, elle met fin à la partie.',
   BOSSES.map((b) => deSet(b.name, makeBody(`pl:b:${b.id}`, b.art))), 3);
 
 const projKinds = [...new Set(WEAPONS.map((w) => w.sprite))] as ProjKind[];
