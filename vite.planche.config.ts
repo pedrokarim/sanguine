@@ -20,10 +20,10 @@ export default defineConfig({
     assetsInlineLimit: 100_000_000,
     cssCodeSplit: false,
     rollupOptions: {
-      input: { planche: 'planche.html' },
+      input: { planche: 'planche.html', og: 'og.html' },
       output: {
-        entryFileNames: 'planche.[hash].js',
-        assetFileNames: 'planche.[hash].[ext]',
+        entryFileNames: '[name].[hash].js',
+        assetFileNames: '[name].[hash].[ext]',
       },
     },
   },
