@@ -27,6 +27,8 @@ import { installDecor } from './ui/decor';
  */
 
 const racine = document.getElementById('planche')!;
+// Lève le verrouillage de défilement posé par la feuille du jeu — voir style.css.
+document.documentElement.classList.add('planche');
 installDecor();
 
 // ---------------------------------------------------------------------------
