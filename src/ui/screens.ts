@@ -503,7 +503,7 @@ export class Screens {
       audio.play('confirm');
       onReroll();
     });
-    const skip = this.button('Passer  ');
+    const skip = this.button('Passer');
     skip.appendChild(iconValue('gold', '+50', 1.05));
     skip.addEventListener('click', () => { audio.play('confirm'); onSkip(); });
     actions.append(reroll, skip);
