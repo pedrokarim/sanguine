@@ -715,6 +715,51 @@ Object.defineProperty(window, 'sanguine', {
     get blit(): { scale: number; x: number; y: number } {
       return { scale: blitScale, x: blitX, y: blitY };
     },
+    /**
+     * Avance la simulation de `seconds` en exécutant de **vrais pas fixes**.
+     *
+     * Sert à mesurer l'équilibrage sans jouer trente minutes en temps réel. Multiplier
+     * `speedScale` aurait été plus court à écrire, mais allongerait chaque pas et ferait
+     * traverser les collisions : on mesurerait alors une autre physique que celle du jeu.
+     * Ici, seul le nombre de pas par image change.
+     */
+    fastForward(seconds: number, pilote?: (w: World) => { x: number; y: number }): void {
+      if (state !== 'playing' || !world) return;
+      const w = world;
+      const dt = 1 / 60;
+      const pas = Math.round(seconds * 60);
+      for (let i = 0; i < pas; i++) {
+        // Le pilote est fourni par l'appelant : l'intelligence du bot de mesure n'a rien
+        // à faire dans le code du jeu, seul le point d'entrée y est.
+        const cmd = pilote ? pilote(w) : { x: 0, y: 0 };
+        w.player.update(dt * w.timeScale, cmd.x, cmd.y, w.terrain.currentBiome.moveMul);
+        w.cam.follow(w.player.x, w.player.y, dt);
+        updateWeapons(w, dt * w.timeScale);
+        director.update(w, dt * w.timeScale);
+        w.update(dt);
+
+        /*
+         * Les montées de niveau et les coffres sont résolus ici, en appelant les mêmes
+         * fonctions que l'interface. Sans cela, l'avance rapide produirait un joueur resté
+         * au niveau 3 sans passif ni relique — on mesurerait alors l'équilibrage d'une
+         * partie que personne ne joue.
+         */
+        while (w.pendingLevelUps > 0) {
+          const offres = rollOffers(w);
+          const choix = offres[0];
+          if (choix) choix.apply(w);
+          w.pendingLevelUps--;
+        }
+        while (w.pendingChests > 0) {
+          const c = openChest(w);
+          applyChest(w, c);
+          w.pendingChests--;
+        }
+        if (w.pendingFragment) w.pendingFragment = null;
+
+        if (w.state === 'dead' || w.state === 'won') break;
+      }
+    },
     startRun,
     countActiveProjectiles(): number {
       let n = 0;
