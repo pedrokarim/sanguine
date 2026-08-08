@@ -16,6 +16,7 @@ import type { Rarity } from '../gfx/palette';
 import type { Offer, ChestResult } from '../game/upgrades';
 import { BloodLogo, BLOOD, DAWN } from './logo';
 import { iconValue } from './icons';
+import { isTouch } from './mobile';
 import {
   FRAGMENTS, CYCLES, EPILOGUE, TOTAL, TYPE_LABEL, roman,
   type FragmentDef,
@@ -320,7 +321,10 @@ export class Screens {
       const stats = document.createElement('div');
       stats.className = 'hint';
       stats.style.marginTop = '1em';
-      stats.textContent = 'ZQSD ou WASD pour se déplacer. Les armes tirent seules.';
+      // Conseiller des touches à quelqu'un qui n'a pas de clavier ne l'aide pas.
+      stats.textContent = isTouch()
+        ? 'Glissez le doigt pour vous déplacer. Les armes tirent seules.'
+        : 'ZQSD ou WASD pour se déplacer. Les armes tirent seules.';
       el.appendChild(stats);
     }
 
@@ -1239,7 +1243,9 @@ export class Screens {
 
   pause(onResume: () => void, onQuit: () => void): void {
     const el = this.open('pause');
-    el.innerHTML = `<h2 class="title-font">Pause</h2><p class="hint">Échap pour reprendre</p>`;
+    // « Échap » ne veut rien dire sur une tablette : le raccourci n'y existe pas.
+    const rappel = isTouch() ? 'Le temps est arrêté.' : 'Échap pour reprendre';
+    el.innerHTML = `<h2 class="title-font">Pause</h2><p class="hint">${rappel}</p>`;
     const list = document.createElement('div');
     list.className = 'menu-list';
     const resume = this.button('Reprendre', 'primary');
