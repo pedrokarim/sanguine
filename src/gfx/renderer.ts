@@ -4,6 +4,7 @@ import { P, rgba } from './palette';
 import { shadowSprite, type SpriteSet } from './sprites';
 import {
   biomeAt, biomeAtTile, groundTile, groundVariantAt, motifAt, propSprite, poiSprite, treeSprite,
+  ruineSprite,
   GROUND_TILE,
 } from '../game/terrain';
 import type { World } from '../game/world';
@@ -45,6 +46,7 @@ export class Renderer {
 
     this.drawGround(ox, oy, VW, VH);
     this.drawSplats(w, ox, oy);
+    this.drawRuines(w, ox, oy);
     this.drawProps(w, ox, oy);
     this.drawTrees(w, ox, oy);
     this.drawPois(w, ox, oy);
@@ -111,6 +113,24 @@ export class Renderer {
    * Le tri par ordonnée vient du terrain : sans lui, un arbre du fond se dessinerait
    * par-dessus un arbre du premier plan, et la profondeur s'effondrerait.
    */
+  /**
+   * Ruines.
+   *
+   * Dessinées juste après le sol et avant tout le reste : ce sont des masses posées au sol,
+   * et le joueur comme les ennemis passent devant. Les dessiner par-dessus donnerait
+   * l'impression qu'on marche sous les murs.
+   */
+  private drawRuines(w: World, ox: number, oy: number): void {
+    const ctx = this.ctx;
+    const cam = w.cam;
+    for (const r of w.terrain.ruinesNear(cam.x, cam.y, 460)) {
+      const x = Math.round(r.x + ox);
+      const y = Math.round(r.y + oy);
+      if (!this.onScreen(x + r.def.w / 2, y + r.def.h / 2, r.def.w, w)) continue;
+      ctx.drawImage(ruineSprite(r.def, biomeAt(r.x, r.y)), x, y);
+    }
+  }
+
   private drawTrees(w: World, ox: number, oy: number): void {
     const ctx = this.ctx;
     const cam = w.cam;
