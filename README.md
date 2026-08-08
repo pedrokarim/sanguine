@@ -176,6 +176,7 @@ La documentation de conception est en français et sert de **source de vérité*
 | [`docs/04-art-direction.md`](docs/04-art-direction.md) | Palette, pipeline procédural, game feel, erreurs corrigées |
 | [`docs/05-audio-design.md`](docs/05-audio-design.md) | Synthèse, catalogue d’effets, musique adaptative |
 | [`docs/06-roadmap.md`](docs/06-roadmap.md) | Jalons, hors périmètre, dette technique assumée |
+| [`docs/07-monde-et-decor.md`](docs/07-monde-et-decor.md) | Végétation, ruines, collision, routes, sols à motifs, ornements |
 
 ---
 
