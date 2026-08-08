@@ -24,6 +24,7 @@ import { Screens, type RunSummary } from './ui/screens';
 import { Backdrop } from './ui/backdrop';
 import { installDecor, applyTheme, applyCursor } from './ui/decor';
 import { COSMETIC_BY_ID } from './data/cosmetics';
+import { Mobile } from './ui/mobile';
 
 /**
  * Point d'entrée et machine à états d'écrans.
@@ -70,6 +71,15 @@ let blitY = 0;
 
 const input = new Input(display, document.body);
 const screens = new Screens(uiLayer);
+
+/*
+ * Adaptation au téléphone. Les crochets évitent que le module d'interface connaisse la
+ * machine à états : il sait seulement demander « sommes-nous en partie ? » et « arrêtez ».
+ */
+const mobile = new Mobile(uiLayer, {
+  enPartie: () => state === 'playing',
+  interrompre: () => { if (state === 'playing') togglePause(); },
+});
 const renderer = new Renderer(ctx);
 const director = new Director();
 const backdrop = new Backdrop();
@@ -128,7 +138,18 @@ function resize(): void {
   const maxW = Math.round(BASE_W * 1.5);
   const maxH = Math.round(BASE_H * 1.5);
   const lw = Math.min(maxW, Math.max(BASE_W, Math.floor(physW / blitScale)));
-  const lh = Math.min(maxH, Math.max(BASE_H, Math.floor(physH / blitScale)));
+
+  /*
+   * En portrait, plafonner la hauteur à 1,5 × la base laissait la moitié de l'écran en
+   * bandes noires. Ce qu'il faut borner n'est pas chaque dimension prise à part mais la
+   * **surface** : c'est elle qui décide de ce qu'on voit venir. À budget égal, un écran
+   * étroit a donc droit à davantage de hauteur, sans rien gagner sur un écran large.
+   *
+   * Le facteur d'échelle reste entier : la netteté n'est pas négociée ici.
+   */
+  const budget = maxW * maxH;
+  const hautMax = Math.max(maxH, Math.floor(budget / lw));
+  const lh = Math.min(hautMax, Math.max(BASE_H, Math.floor(physH / blitScale)));
 
   VIEW.w = lw;
   VIEW.h = lh;
@@ -174,6 +195,7 @@ function watchDpr(): void {
 }
 watchDpr();
 resize();
+mobile.installer();
 
 // ---------------------------------------------------------------------------
 // Curseur : effacement automatique pendant le jeu
@@ -311,7 +333,7 @@ function startRun(charId: string, resume = false): void {
   applyOptions();
 
   hud?.destroy();
-  hud = new Hud(uiLayer);
+  hud = new Hud(uiLayer, () => togglePause());
   hud.show();
 
   if (saved) {
@@ -325,6 +347,7 @@ function startRun(charId: string, resume = false): void {
   audio.init();
   audio.startMusic();
   runSaveTimer = 0;
+  mobile.partieEnCours(true);
 
   world.setKnownFragments(load().fragments);
 
@@ -467,6 +490,7 @@ function endRun(victory: boolean): void {
   const w = world;
   if (!w) return;
   state = victory ? 'victory' : 'gameover';
+  mobile.partieEnCours(false);
   audio.stopMusic();
   audio.setBossMode(false);
   if (victory) audio.play('victory');
@@ -684,6 +708,11 @@ Object.defineProperty(window, 'sanguine', {
     get world(): World | null { return world; },
     get state(): State { return state; },
     get loop(): Loop { return loop; },
+    /** Vue logique et cadrage physique — ce qu'il faut pour vérifier la netteté et les bandes. */
+    get view(): { w: number; h: number } { return { w: VIEW.w, h: VIEW.h }; },
+    get blit(): { scale: number; x: number; y: number } {
+      return { scale: blitScale, x: blitX, y: blitY };
+    },
     startRun,
     countActiveProjectiles(): number {
       let n = 0;

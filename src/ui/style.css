@@ -1013,3 +1013,129 @@ body.reduce-motion .icon-sprite.anim { animation: none }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important }
 }
+
+/* ═══════════════════════════════════════════════════════════ téléphone */
+
+/*
+ * Zones sûres.
+ *
+ * `viewport-fit=cover` étend la page sous l'encoche et sous la barre d'accueil — c'est ce
+ * qui permet au décor d'aller jusqu'au bord. En contrepartie, tout ce qui est posé sur un
+ * bord doit s'en écarter lui-même, sinon le chrono passe derrière l'encoche et l'or se
+ * retrouve sous le coin arrondi. En paysage, l'encoche est sur un côté : les marges
+ * gauche et droite comptent autant que celles du haut.
+ */
+.hud-topleft  { top: calc(15px + env(safe-area-inset-top)); left: calc(12px + env(safe-area-inset-left)) }
+.hud-topright { top: calc(15px + env(safe-area-inset-top)); right: calc(12px + env(safe-area-inset-right)) }
+.hud-timer    { top: calc(13px + env(safe-area-inset-top)) }
+.relic-rail   { right: calc(12px + env(safe-area-inset-right)) }
+.minimap      { right: calc(12px + env(safe-area-inset-right)); bottom: calc(12px + env(safe-area-inset-bottom)) }
+.copyright    { bottom: calc(.9em + env(safe-area-inset-bottom)) }
+.stat-corner.bl, .stat-corner.br { bottom: calc(2.6em + env(safe-area-inset-bottom)) }
+.stat-corner.tl, .stat-corner.tr { top: calc(1.2em + env(safe-area-inset-top)) }
+.stat-corner.tl, .stat-corner.bl { left: calc(1.4em + env(safe-area-inset-left)) }
+.stat-corner.tr, .stat-corner.br { right: calc(1.4em + env(safe-area-inset-right)) }
+.screen { padding: max(2em, env(safe-area-inset-top)) max(2em, env(safe-area-inset-right)) max(2em, env(safe-area-inset-bottom)) max(2em, env(safe-area-inset-left)) }
+
+/*
+ * Bouton de pause tactile.
+ *
+ * Sans clavier, `Échap` n'existe pas : une partie ne pouvait tout simplement pas être
+ * interrompue au doigt. Il est posé en haut, à distance des pouces qui reposent en bas —
+ * là où le joystick apparaît — pour qu'on ne le déclenche jamais par accident.
+ */
+.touch-pause {
+  position: absolute;
+  top: calc(10px + env(safe-area-inset-top));
+  left: 50%;
+  margin-left: 6.1em;
+  width: 2.6em; height: 2.6em;
+  display: none;
+  place-items: center;
+  background-color: rgba(11, 13, 20, .72);
+  border: 8px solid transparent;
+  border-image: var(--frame-stone) 8 / 8px / 0 round;
+  image-rendering: pixelated;
+  color: var(--linen);
+  font: inherit; font-size: .9em;
+  cursor: pointer;
+}
+/* `#hud` est transparent aux pointeurs pour ne pas intercepter les contacts destinés au
+   jeu. Le bouton doit donc redevenir cliquable pour lui-même, sinon l'appui traverse et
+   arme le joystick au lieu de mettre en pause. */
+body.is-touch .touch-pause { display: grid; pointer-events: auto }
+.touch-pause::before {
+  content: ""; width: .32em; height: .95em;
+  border-left: .3em solid currentColor; border-right: .3em solid currentColor;
+}
+
+/* Le doigt est moins précis que la souris : on élargit les cibles sans changer l'échelle
+   générale, qui reste pilotée par les options d'accessibilité. */
+body.is-touch .btn { padding: .75em 1.5em; min-height: 2.9em }
+body.is-touch .card { min-height: 0 }
+
+/*
+ * Paysage sur téléphone : très large, très bas de plafond. La contrainte n'est pas la
+ * largeur mais la hauteur — d'où une requête sur `max-height`, là où les autres portent
+ * sur `max-width`. On rend au jeu la place que prenaient les marges.
+ */
+@media (max-height: 460px) and (pointer: coarse) {
+  .screen {
+    gap: .55em;
+    padding-top: max(.6em, env(safe-area-inset-top));
+    padding-bottom: max(.6em, env(safe-area-inset-bottom));
+  }
+  .screen h1 { font-size: 2.2em }
+  .screen h2 { font-size: 1.25em; padding-bottom: .35em }
+  .screen h2::after { display: none }
+  .card { width: 12em; padding: .7em .8em; font-size: .88em }
+  .card canvas { width: 40px; height: 40px }
+  .card .desc { font-size: .78em; line-height: 1.35 }
+  .codex-scroll, .opt-scroll, .sanct-grid { max-height: 52vh }
+  .blood-logo { height: clamp(56px, 22vh, 96px) }
+  .flourish { display: none }
+  .minimap { transform: scale(.72); transform-origin: bottom right }
+}
+
+/*
+ * L'écran de rotation.
+ *
+ * Il couvre tout : en portrait, ce qu'il masque n'est de toute façon qu'une vue étranglée
+ * entre deux bandes noires. Une partie en cours est mise en pause avant son affichage —
+ * personne ne doit mourir en lisant un conseil d'ergonomie.
+ */
+.rotate-screen {
+  position: fixed; inset: 0; z-index: 200;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 1.1em;
+  padding: max(1.5em, env(safe-area-inset-top)) 2em max(1.5em, env(safe-area-inset-bottom));
+  text-align: center;
+  background: radial-gradient(ellipse at center, rgba(11, 13, 20, .97), rgba(2, 2, 5, .99));
+  animation: fade-in .2s ease-out;
+}
+.rotate-screen h2 { font-size: 1.5em; color: var(--gold); letter-spacing: .12em }
+.rotate-screen h2::after { display: none }
+
+.rotate-phone { display: grid; place-items: center; height: 7.5em }
+.rotate-phone-img {
+  width: auto; height: 6.4em;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 0 14px rgba(242, 196, 107, .28));
+  /* Le quart de tour est joué en boucle, avec un temps d'arrêt à chaque extrémité : c'est
+     le geste demandé, montré plutôt qu'écrit. */
+  animation: rotate-hint 2.6s cubic-bezier(.6, 0, .3, 1) infinite;
+}
+@keyframes rotate-hint {
+  0%, 26%   { transform: rotate(0deg) }
+  46%, 74%  { transform: rotate(-90deg) }
+  94%, 100% { transform: rotate(0deg) }
+}
+body.reduce-motion .rotate-phone-img { animation: none; transform: rotate(-90deg) }
+
+.rotate-text {
+  max-width: 26ch;
+  font-family: var(--font-display); font-size: 1.02em; line-height: 1.6;
+  color: var(--steel); text-shadow: 0 1px 3px rgba(0, 0, 0, .9);
+}
+.rotate-actions { display: flex; flex-direction: column; gap: .6em; width: min(17em, 80vw) }
+.rotate-actions .btn { width: 100% }
