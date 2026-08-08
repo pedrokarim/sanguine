@@ -1214,3 +1214,21 @@ html.planche, html.planche body {
   color: var(--steel);
 }
 .pl-bilan b { color: var(--gold) }
+
+/* ───────────────────────────────────────────── montures de rareté */
+
+/*
+ * La rareté se lit à la monture avant la couleur du texte. Chaque cadre porte un traitement
+ * d'angle distinct : équerre simple, équerre redoublée, volute, ronce. Un joueur daltonien
+ * trie donc aussi vite qu'un autre.
+ */
+.rar-commune { border-image: var(--frame-commune) 8 / 8px / 0 round !important }
+.rar-rare    { border-image: var(--frame-rare) 8 / 8px / 0 round !important }
+.rar-epique  { border-image: var(--frame-epique) 8 / 8px / 0 round !important }
+.rar-maudite { border-image: var(--frame-maudite) 8 / 8px / 0 round !important }
+
+/* Fond teinté de la rareté, très discret : assez pour détacher l'objet, assez peu pour ne
+   pas concurrencer sa propre couleur. */
+.rar-rare    { background-color: rgba(91, 157, 245, .07) }
+.rar-epique  { background-color: rgba(168, 85, 247, .08) }
+.rar-maudite { background-color: rgba(196, 38, 57, .09) }
