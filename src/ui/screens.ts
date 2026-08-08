@@ -17,6 +17,11 @@ import type { Offer, ChestResult } from '../game/upgrades';
 import { BloodLogo, BLOOD, DAWN } from './logo';
 import { iconValue } from './icons';
 import {
+  FRAGMENTS, CYCLES, EPILOGUE, TOTAL, TYPE_LABEL, reveal, roman,
+  type FragmentDef,
+} from '../data/fragments';
+import { makeFragment } from '../gfx/sprites';
+import {
   SKINS, TRAILS, THEMES, CURSORS, KIND_LABEL,
   type Cosmetic, type CosmeticKind,
 } from '../data/cosmetics';
@@ -227,6 +232,7 @@ export class Screens {
     onOptions: () => void,
     onCodex: () => void,
     onShop: () => void,
+    onArchive: () => void,
     savedRun: RunSave | null,
     onResume: () => void,
   ): void {
@@ -278,14 +284,16 @@ export class Screens {
     const bPlay = this.button(savedRun ? 'Nouvelle partie' : 'Jouer', savedRun ? '' : 'primary');
     const bSanct = this.button('Sanctuaire');
     const bShop = this.button('Boutique');
+    const bArchive = this.button('Archive');
     const bCodex = this.button('Codex');
     const bOpt = this.button('Options');
     bPlay.addEventListener('click', () => { audio.play('confirm'); onPlay(); });
     bSanct.addEventListener('click', () => { audio.play('confirm'); onSanctuary(); });
     bShop.addEventListener('click', () => { audio.play('confirm'); onShop(); });
+    bArchive.addEventListener('click', () => { audio.play('confirm'); onArchive(); });
     bCodex.addEventListener('click', () => { audio.play('confirm'); onCodex(); });
     bOpt.addEventListener('click', () => { audio.play('confirm'); onOptions(); });
-    list.append(bPlay, bSanct, bShop, bCodex, bOpt);
+    list.append(bPlay, bSanct, bShop, bArchive, bCodex, bOpt);
     el.appendChild(list);
 
     if (sv.stats.runs > 0) {
@@ -322,7 +330,7 @@ export class Screens {
     legal.textContent = `© ${YEAR} Ascencia · v${VERSION}`;
     el.appendChild(legal);
 
-    const nav = [bPlay, bSanct, bShop, bCodex, bOpt];
+    const nav = [bPlay, bSanct, bShop, bArchive, bCodex, bOpt];
     this.navigable(bResume ? [bResume, ...nav] : nav);
   }
 
@@ -550,6 +558,157 @@ export class Screens {
     ok.addEventListener('click', () => { audio.play('confirm'); onDone(); });
     el.appendChild(ok);
     this.navigable([ok]);
+  }
+
+  // --------------------------------------------------------------- archive
+
+  /**
+   * L'Archive.
+   *
+   * Elle n'affiche **qu'un seul indice à la fois** — celui du plus petit fragment manquant.
+   * Une liste complète d'objectifs transformerait la collection en tableau de bord ; un
+   * objectif unique laisse la découverte se faire dans l'ordre, en jouant.
+   */
+  archive(onBack: () => void): void {
+    const el = this.open('archive');
+    const sv = load();
+    const found = new Set(sv.fragments);
+    const complete = found.size >= TOTAL;
+
+    el.innerHTML = `<h2 class="title-font">Archive</h2>`;
+
+    const count = document.createElement('div');
+    count.className = 'gold-count';
+    count.textContent = `${found.size} / ${TOTAL}`;
+    el.appendChild(count);
+
+    // Indice courant, ou conclusion.
+    const next = FRAGMENTS.find((f) => !found.has(f.n));
+    const hint = document.createElement('div');
+    hint.className = 'archive-hint';
+    hint.textContent = next
+      ? reveal(CYCLES[next.cycle]!.hint)
+      : 'Le recueil est complet.';
+    el.appendChild(hint);
+
+    const scroll = document.createElement('div');
+    scroll.className = 'codex-scroll';
+
+    for (let c = 0; c < CYCLES.length; c++) {
+      const cy = CYCLES[c]!;
+      const items = FRAGMENTS.filter((f) => f.cycle === c);
+      const got = items.filter((f) => found.has(f.n)).length;
+      // Le nom d'un cycle reste caché tant qu'on n'en a rien trouvé : il en dit déjà trop.
+      const revealed = got > 0;
+
+      const head = document.createElement('div');
+      head.className = 'codex-section';
+      head.innerHTML = '<span class="t"></span><span class="c"></span>';
+      head.querySelector('.t')!.textContent = revealed ? reveal(cy.name) : `Cycle ${roman(c + 1)}`;
+      head.querySelector('.c')!.textContent = `${got} / ${items.length}`;
+      scroll.appendChild(head);
+
+      const grid = document.createElement('div');
+      grid.className = 'codex-grid archive-grid';
+      for (const f of items) {
+        const has = found.has(f.n);
+        const cell = document.createElement('div');
+        cell.className = `codex-cell archive-cell${has ? '' : ' locked'}`;
+
+        const stage = document.createElement('div');
+        stage.className = 'codex-stage';
+        const set = makeFragment(f.type);
+        stage.appendChild(this.spriteBlock(spriteSheet(`frag:${f.type}`, set, this.fitScale(set, 60, 46)), has, 1));
+        cell.appendChild(stage);
+
+        const num = document.createElement('div');
+        num.className = 'codex-tag';
+        num.textContent = roman(f.n);
+        const n = document.createElement('div');
+        n.className = 'codex-name';
+        n.textContent = has ? reveal(f.t) : '—';
+        const d = document.createElement('div');
+        d.className = 'codex-desc';
+        d.textContent = has ? TYPE_LABEL[f.type] : 'Introuvé';
+        cell.append(num, n, d);
+
+        if (has) cell.addEventListener('click', () => this.readFragment(f));
+        grid.appendChild(cell);
+      }
+      scroll.appendChild(grid);
+    }
+
+    if (complete) {
+      const ep = document.createElement('div');
+      ep.className = 'archive-epilogue';
+      ep.textContent = 'Lire l\'épilogue';
+      ep.addEventListener('click', () => this.readText('Épilogue', reveal(EPILOGUE)));
+      scroll.appendChild(ep);
+    }
+
+    el.appendChild(scroll);
+    const back = this.button('Retour');
+    back.addEventListener('click', onBack);
+    el.appendChild(back);
+    this.navigable([back]);
+  }
+
+  /** Vue de lecture d'une pièce. */
+  readFragment(f: FragmentDef, onClose?: () => void): void {
+    this.readText(`${roman(f.n)} · ${reveal(f.t)}`, reveal(f.b), f, onClose);
+  }
+
+  /**
+   * Vue de lecture plein écran, superposée sans fermer l'écran courant : on revient à
+   * l'Archive exactement là où on l'avait laissée.
+   */
+  readText(title: string, body: string, f?: FragmentDef, onClose?: () => void): void {
+    const prev = this.current;
+    const overlay = document.createElement('div');
+    overlay.className = 'screen reading';
+
+    if (f) {
+      const set = makeFragment(f.type);
+      const st = document.createElement('div');
+      st.className = 'reading-icon';
+      st.appendChild(this.spriteBlock(spriteSheet(`read:${f.type}`, set, this.fitScale(set, 120, 88)), true, 1));
+      overlay.appendChild(st);
+    }
+
+    const h = document.createElement('h2');
+    h.className = 'title-font';
+    h.textContent = title;
+    const kind = document.createElement('div');
+    kind.className = 'hint';
+    if (f) kind.textContent = TYPE_LABEL[f.type];
+
+    const panel = document.createElement('div');
+    panel.className = 'panel reading-panel';
+    for (const para of body.split('\n\n')) {
+      const pel = document.createElement('p');
+      pel.textContent = para;
+      panel.appendChild(pel);
+    }
+
+    const close = this.button('Fermer', 'primary');
+    const shut = (): void => {
+      overlay.remove();
+      window.removeEventListener('keydown', onKey);
+      if (prev) prev.style.display = '';
+      onClose?.();
+    };
+    close.addEventListener('click', shut);
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.code === 'Escape' || e.code === 'Enter' || e.code === 'Space') {
+        e.preventDefault();
+        shut();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+
+    overlay.append(h, kind, panel, close);
+    if (prev) prev.style.display = 'none';
+    this.parent.appendChild(overlay);
   }
 
   // -------------------------------------------------------------- boutique

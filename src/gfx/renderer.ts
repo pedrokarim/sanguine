@@ -45,6 +45,7 @@ export class Renderer {
     this.drawSplats(w, ox, oy);
     this.drawProps(w, ox, oy);
     this.drawPois(w, ox, oy);
+    this.drawCaches(w, ox, oy);
     this.drawZones(w, ox, oy);
     this.drawPickups(w, ox, oy, alpha);
     this.drawEnemies(w, ox, oy, alpha);
@@ -136,6 +137,32 @@ export class Renderer {
       ctx.drawImage(sh, Math.round(x - f.width * 0.45), Math.round(y - 3), Math.round(f.width * 0.9), 7);
       ctx.globalAlpha = 1;
 
+      ctx.drawImage(f, Math.round(x - f.width / 2), Math.round(y - f.height + 4));
+    }
+  }
+
+  /** Caches de collection : halo discret et colonne de lumière, visibles de loin. */
+  private drawCaches(w: World, ox: number, oy: number): void {
+    const ctx = this.ctx;
+    for (const k of w.caches) {
+      if (k.taken) continue;
+      const x = k.x + ox;
+      const y = k.y + oy;
+      if (!this.onScreen(x, y, 70, w)) continue;
+
+      const pulse = 0.3 + Math.sin(k.anim * 2.6) * 0.16;
+      ctx.globalAlpha = pulse;
+      ctx.fillStyle = P.spark;
+      ctx.beginPath();
+      ctx.ellipse(Math.round(x), Math.round(y), 15, 8, 0, 0, TAU);
+      ctx.fill();
+      // Colonne de lumière : c'est elle qui rend la pièce repérable dans la horde.
+      ctx.globalAlpha = pulse * 0.5;
+      ctx.fillRect(Math.round(x - 1), Math.round(y - 46), 3, 46);
+      ctx.globalAlpha = 1;
+
+      const set = w.cacheSprite(k.def);
+      const f = set.frames[Math.floor(k.anim * 5) % set.frames.length]!;
       ctx.drawImage(f, Math.round(x - f.width / 2), Math.round(y - f.height + 4));
     }
   }

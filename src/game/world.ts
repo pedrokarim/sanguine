@@ -15,7 +15,9 @@ import { DROP_TABLE, hpScale, damageScale } from '../data/waves';
 import type { RunSave } from '../core/save';
 import { Player } from './player';
 import { xpForLevel } from '../data/waves';
-import { Terrain, type Poi } from './terrain';
+import { Terrain, biomeAt, type Poi } from './terrain';
+import { makeFragment } from '../gfx/sprites';
+import { FRAGMENTS, CYCLES, type FragmentDef } from '../data/fragments';
 import {
   makeEnemy, makeProjectile, makeZone, makePickup, resetImmunity, claimHit,
   type Enemy, type Projectile, type Zone, type Pickup, type PickupKind, type ProjBehavior,
@@ -130,6 +132,22 @@ export class World {
   ownedRelics = new Set<string>();
   /** Types d'ennemis croisés pendant le run, reversés au bestiaire à la fin. */
   seenEnemies = new Set<string>();
+
+  // ------------------------------------------------------------- collection
+  /**
+   * Caches de collection matérialisées dans ce run. Elles n'apparaissent que si la condition
+   * de leur cycle est remplie, et jamais plus de deux par partie : au-delà, la chasse
+   * remplacerait le jeu.
+   */
+  caches: { def: FragmentDef; x: number; y: number; anim: number; taken: boolean }[] = [];
+  /** Numéros déjà en poche au début du run, pour ne pas les proposer à nouveau. */
+  private known = new Set<number>();
+  /** Numéros ramassés pendant ce run, à reverser à la sauvegarde. */
+  foundThisRun: number[] = [];
+  private cacheTimer = 0;
+  private bossDown = false;
+  /** Portée de résonance, augmentée pour la sourcière. */
+  resonanceRange = 1200;
 
   /** Couleur de la traînée cosmétique, `null` si aucune n'est équipée. */
   trailColor: string | null = null;
@@ -752,6 +770,7 @@ export class World {
     this.cam.shake(0.5, true);
     this.announce('TERRASSÉ', this.bossName);
 
+    this.bossDown = true;
     if (e.def.id === 'sanguine') {
       this.state = 'won';
     }
@@ -794,6 +813,8 @@ export class World {
     this.updateZones(sdt);
     this.updatePickups(sdt);
     this.emitTrail(sdt);
+    this.updateCaches(sdt);
+    this.updateCacheContact(sdt);
     this.particles.update(sdt);
     this.cam.update(dt);
 
@@ -825,6 +846,105 @@ export class World {
     this.trailTimer = 0.05;
     this.particles.dust(this.player.x + fxRng.spread(2), this.player.y + 5, 1);
     this.particles.ember(this.player.x + fxRng.spread(3), this.player.y + 4, this.trailColor, 1);
+  }
+
+  /** Déclare les fragments déjà possédés, pour qu'ils ne réapparaissent jamais. */
+  setKnownFragments(found: number[]): void {
+    this.known = new Set(found);
+    // La sourcière trouve ce qui est enfoui : c'est son métier, c'était son nom avant d'être
+    // une mécanique.
+    if (this.player.char.id === 'marguerite') this.resonanceRange *= 1.6;
+  }
+
+  /** Un cycle est-il ouvert à cet instant ? */
+  private cycleOpen(c: number): boolean {
+    const cy = CYCLES[c]!;
+    const m = this.minute;
+    if (m < cy.fromMin || m > cy.toMin) return false;
+    if (this.player.level < cy.minLevel) return false;
+    if (cy.needBoss && !this.bossDown) return false;
+    if (this.known.size < cy.minFound) return false;
+    if (cy.biome && this.terrain.currentBiome.id !== cy.biome) return false;
+    return true;
+  }
+
+  /**
+   * Matérialise au plus deux caches par partie.
+   *
+   * La cache apparaît **loin du joueur** : trop près, elle se ramasserait par accident et la
+   * mécanique de résonance ne servirait à rien. Le tirage est déterministe à partir de la
+   * graine, si bien que deux parties de même graine offrent les mêmes pièces.
+   */
+  private updateCaches(dt: number): void {
+    if (this.caches.length >= 2) return;
+    this.cacheTimer -= dt;
+    if (this.cacheTimer > 0) return;
+    this.cacheTimer = 2;
+
+    for (let c = 0; c < CYCLES.length; c++) {
+      if (!this.cycleOpen(c)) continue;
+      const pool = FRAGMENTS.filter(
+        (f) => f.cycle === c && !this.known.has(f.n) && !this.caches.some((k) => k.def.n === f.n),
+      );
+      if (pool.length === 0) continue;
+
+      const def = pool[this.rng.int(0, pool.length - 1)]!;
+      const cy = CYCLES[c]!;
+
+      // Position : anneau lointain, dans une tuile du bon biome si le cycle en exige un.
+      let x = 0;
+      let y = 0;
+      let ok = false;
+      for (let tries = 0; tries < 24 && !ok; tries++) {
+        const a = this.rng.angle();
+        const r = this.rng.range(600, 1100);
+        x = this.player.x + Math.cos(a) * r;
+        y = this.player.y + Math.sin(a) * r;
+        ok = !cy.biome || biomeAt(x, y).id === cy.biome;
+      }
+      if (!ok) continue;
+
+      this.caches.push({ def, x, y, anim: 0, taken: false });
+      audio.play('relic');
+      this.announce('RÉSONANCE', 'quelque chose est enfoui, non loin');
+      return;
+    }
+  }
+
+  /** Distance à la cache la plus proche non ramassée, `Infinity` s'il n'y en a pas. */
+  nearestCache(): { d: number; x: number; y: number } | null {
+    let best: { d: number; x: number; y: number } | null = null;
+    for (const k of this.caches) {
+      if (k.taken) continue;
+      const d = Math.hypot(k.x - this.player.x, k.y - this.player.y);
+      if (!best || d < best.d) best = { d, x: k.x, y: k.y };
+    }
+    return best;
+  }
+
+  private updateCacheContact(dt: number): void {
+    for (const k of this.caches) {
+      if (k.taken) continue;
+      k.anim += dt;
+      if (dist2(k.x, k.y, this.player.x, this.player.y) < 16 * 16) {
+        k.taken = true;
+        this.known.add(k.def.n);
+        this.foundThisRun.push(k.def.n);
+        this.pendingFragment = k.def;
+        audio.play('relic');
+        this.slowMo(0.35, 0.6);
+        this.particles.beam(k.x, k.y, P.spark, 1.3);
+        this.particles.ring(k.x, k.y, 50, P.spark, 0.7, 2);
+      }
+    }
+  }
+
+  /** Pièce ramassée en attente de lecture, consommée par l'interface. */
+  pendingFragment: FragmentDef | null = null;
+
+  /** Sprite d'une cache, mis en cache par type. */
+  cacheSprite(def: FragmentDef): SpriteSet {
+    return makeFragment(def.type);
   }
 
   private rebuildGrid(): void {
