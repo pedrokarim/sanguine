@@ -3,7 +3,7 @@ import * as font from './font';
 import { P, rgba } from './palette';
 import { shadowSprite, type SpriteSet } from './sprites';
 import {
-  biomeAt, biomeAtTile, groundTile, groundVariantAt, propSprite, poiSprite, treeSprite,
+  biomeAt, biomeAtTile, groundTile, groundVariantAt, motifAt, propSprite, poiSprite, treeSprite,
   GROUND_TILE,
 } from '../game/terrain';
 import type { World } from '../game/world';
@@ -82,7 +82,7 @@ export class Renderer {
         const wx = startWX + c * TILE;
         const tx = Math.floor(wx / TILE);
         const biome = biomeAtTile(tx, ty);
-        ctx.drawImage(groundTile(biome, groundVariantAt(tx, ty)), wx + ox, wy + oy);
+        ctx.drawImage(groundTile(biome, groundVariantAt(tx, ty), motifAt(tx, ty)), wx + ox, wy + oy);
       }
     }
   }

@@ -1,6 +1,6 @@
 import { Rng } from '../core/rng';
 import { valueNoise2, TAU, dist2 } from '../core/math';
-import { P, shade, hexToRgb, mix } from '../gfx/palette';
+import { P, shade, hexToRgb, mix, rgba } from '../gfx/palette';
 import { Pix, toCanvas } from '../gfx/pix';
 
 /**
@@ -37,6 +37,8 @@ export interface Biome {
   trees: TreeKind[];
   /** Densité d'arbres hors bosquet, 0..1. */
   treeDensity: number;
+  /** Motifs de sol possibles ici, en plus du sol nu. */
+  motifs: SolMotif[];
   /** Texte affiché à l'entrée dans le biome. */
   flavor: string;
 }
@@ -52,6 +54,18 @@ export type PropKind = 'rock' | 'grave' | 'reed' | 'stump' | 'bone';
  * qu'on cesse de reconnaître le motif.
  */
 export type TreeKind = 'pine' | 'oak' | 'willow' | 'burnt';
+
+/**
+ * Motifs de sol.
+ *
+ * Le sol n'avait que quatre variantes par biome, ne différant que par les cailloux et les
+ * touffes : à l'échelle d'une partie, on marche toujours sur la même chose. Un motif change
+ * la lecture d'une zone entière, et c'est ce qui annonce qu'on arrive quelque part.
+ *
+ * `nu` est le sol de bruit d'origine, et reste majoritaire : un motif partout n'est plus un
+ * motif.
+ */
+export type SolMotif = 'nu' | 'dallage' | 'pave' | 'labour' | 'vase' | 'cendre' | 'fouille';
 
 export interface Tree {
   x: number;
@@ -74,6 +88,7 @@ export const BIOMES: Biome[] = [
     propKind: 'rock',
     trees: ['oak'],
     treeDensity: 0.42,
+    motifs: ['labour', 'dallage'],
     flavor: 'rien que de la bruyère morte',
   },
   {
@@ -87,6 +102,7 @@ export const BIOMES: Biome[] = [
     propKind: 'grave',
     trees: ['oak', 'pine'],
     treeDensity: 0.55,
+    motifs: ['fouille', 'dallage'],
     flavor: 'on y a enterré trop de monde',
   },
   {
@@ -101,6 +117,7 @@ export const BIOMES: Biome[] = [
     propKind: 'reed',
     trees: ['willow'],
     treeDensity: 0.6,
+    motifs: ['vase'],
     flavor: 'la boue vous retient',
   },
   {
@@ -115,6 +132,7 @@ export const BIOMES: Biome[] = [
     propKind: 'bone',
     trees: ['burnt'],
     treeDensity: 0.48,
+    motifs: ['cendre', 'pave'],
     flavor: 'quelque chose a brûlé ici, longtemps',
   },
   {
@@ -128,6 +146,7 @@ export const BIOMES: Biome[] = [
     propKind: 'stump',
     trees: ['pine', 'burnt'],
     treeDensity: 0.92,
+    motifs: ['labour'],
     flavor: 'les arbres sont morts debout',
   },
 ];
@@ -271,8 +290,18 @@ export const GROUND_TILE = 128;
  *   – **peu de détails contrastés**, sinon le sol concurrence les ennemis. Le décor doit
  *     être une texture, pas une information.
  */
-export function groundTile(biome: Biome, variant = 0): HTMLCanvasElement {
-  const key = `${biome.id}:${variant}`;
+/**
+ * Plafond de la cache de tuiles.
+ *
+ * Cinq biomes × quatre variantes × sept motifs feraient 140 tuiles de 128 pixels, soit une
+ * dizaine de mégaoctets une fois rastérisées — pour un jeu dont le tas mesuré tient en sept.
+ * La génération est donc **paresseuse** et la cache bornée : seules les tuiles réellement
+ * traversées existent, et les plus anciennes sortent.
+ */
+const GROUND_CACHE_MAX = 40;
+
+export function groundTile(biome: Biome, variant = 0, motif: SolMotif = 'nu'): HTMLCanvasElement {
+  const key = `${biome.id}:${variant}:${motif}`;
   const hit = groundCache.get(key);
   if (hit) return hit;
 
@@ -332,6 +361,8 @@ export function groundTile(biome: Biome, variant = 0): HTMLCanvasElement {
   }
   ctx.putImageData(img, 0, 0);
 
+  dessinerMotif(ctx, motif, S, biome, rng);
+
   // Quelques cailloux seulement – le détail ponctue, il ne meuble pas.
   for (let i = 0; i < 18; i++) {
     const x = rng.int(1, S - 3);
@@ -350,6 +381,12 @@ export function groundTile(biome: Biome, variant = 0): HTMLCanvasElement {
     for (let k = -1; k <= 1; k++) ctx.fillRect(x + k, y - Math.abs(k), 1, 2);
   }
 
+  // Éviction : la première clé insérée est la plus ancienne, les Map de JavaScript
+  // conservant l'ordre d'insertion.
+  if (groundCache.size >= GROUND_CACHE_MAX) {
+    const vieille = groundCache.keys().next().value;
+    if (vieille !== undefined) groundCache.delete(vieille);
+  }
   groundCache.set(key, c);
   return c;
 }
@@ -386,6 +423,160 @@ function periodicNoise(x: number, y: number, period: number, seed: number): numb
 }
 
 /** Variante de tuile à une position de grille – stable, donc sans scintillement au scroll. */
+/**
+ * Motif du sol à une tuile donnée.
+ *
+ * Le choix se fait sur un bruit **grossier** — période de 9 tuiles, soit un peu plus de
+ * 1 100 pixels — pour que les zones à motif fassent la taille d'un lieu et non d'un carré.
+ * Un motif qui changerait à chaque tuile se lirait comme du damier, pas comme un terrain.
+ *
+ * Le sol nu reste majoritaire : au-delà d'un seuil, le motif cesse d'être un événement.
+ */
+export function motifAt(tx: number, ty: number): SolMotif {
+  const biome = biomeAtTile(tx, ty);
+  if (biome.motifs.length === 0) return 'nu';
+  const n = valueNoise2(tx / 9, ty / 9, 0x3a1f);
+  if (n < 0.62) return 'nu';
+  const i = Math.floor(valueNoise2(tx / 23 + 11, ty / 23 - 7, 0x77c2) * biome.motifs.length);
+  return biome.motifs[Math.min(biome.motifs.length - 1, i)] ?? 'nu';
+}
+
+/**
+ * Applique un motif par-dessus le sol de bruit.
+ *
+ * Le motif n'efface pas la texture dessous : il la recouvre partiellement, en gardant sa
+ * variation. Un aplat parfaitement régulier trahirait la tuile et ferait réapparaître la
+ * grille de 128 pixels que tout le reste s'emploie à cacher.
+ */
+function dessinerMotif(
+  ctx: CanvasRenderingContext2D, motif: SolMotif, S: number, biome: Biome, rng: Rng,
+): void {
+  const [, dark, light, detail] = biome.ground;
+
+  switch (motif) {
+    case 'dallage': {
+      // Carreaux de 16 px, joints creusés, un quart d'entre eux fêlés.
+      const D = 16;
+      for (let y = 0; y < S; y += D) {
+        for (let x = 0; x < S; x += D) {
+          ctx.fillStyle = rgba(light, 0.1 + rng.range(0, 0.07));
+          ctx.fillRect(x + 1, y + 1, D - 2, D - 2);
+          ctx.fillStyle = rgba(dark, 0.5);
+          ctx.fillRect(x, y, D, 1);
+          ctx.fillRect(x, y, 1, D);
+          if (rng.next() < 0.26) {
+            // Fêlure : une diagonale brisée, jamais une droite.
+            ctx.fillStyle = rgba(dark, 0.6);
+            let fx = x + rng.int(2, D - 3);
+            let fy = y + 2;
+            for (let k = 0; k < D - 4; k++) {
+              ctx.fillRect(fx, fy + k, 1, 1);
+              fx += rng.next() < 0.4 ? (rng.next() < 0.5 ? -1 : 1) : 0;
+            }
+          }
+        }
+      }
+      break;
+    }
+
+    case 'pave': {
+      // Galets irréguliers en rangs décalés : l'appareil en quinconce évite la grille.
+      const D = 9;
+      for (let ry = 0, r = 0; ry < S; ry += D, r++) {
+        const dec = (r % 2) * (D / 2);
+        for (let x = -D; x < S + D; x += D) {
+          const cx = x + dec + rng.spread(1.2);
+          const cy = ry + rng.spread(1.2);
+          ctx.fillStyle = rgba(light, 0.12 + rng.range(0, 0.1));
+          ctx.fillRect(cx + 1, cy + 1, D - 2, D - 2);
+          ctx.fillStyle = rgba(dark, 0.45);
+          ctx.fillRect(cx, cy, D - 1, 1);
+          ctx.fillRect(cx, cy, 1, D - 1);
+        }
+      }
+      break;
+    }
+
+    case 'labour': {
+      // Sillons parallèles, légèrement obliques. L'obliquité est ce qui les empêche de se
+      // confondre avec les bords de la tuile.
+      for (let i = -S; i < S * 2; i += 7) {
+        ctx.fillStyle = rgba(dark, 0.34);
+        for (let y = 0; y < S; y++) ctx.fillRect(i + y * 0.28, y, 3, 1);
+        ctx.fillStyle = rgba(light, 0.14);
+        for (let y = 0; y < S; y++) ctx.fillRect(i + 3 + y * 0.28, y, 1, 1);
+      }
+      break;
+    }
+
+    case 'vase': {
+      // Flaques sombres à reflet clair, et herbes couchées.
+      for (let i = 0; i < 7; i++) {
+        const x = rng.int(0, S);
+        const y = rng.int(0, S);
+        const rx = rng.range(7, 18);
+        const ry = rx * rng.range(0.4, 0.7);
+        ctx.fillStyle = rgba(dark, 0.5);
+        ctx.beginPath();
+        ctx.ellipse(x, y, rx, ry, 0, 0, TAU);
+        ctx.fill();
+        ctx.fillStyle = rgba(light, 0.22);
+        ctx.fillRect(x - rx * 0.5, y - ry * 0.35, rx * 0.8, 1);
+      }
+      for (let i = 0; i < 26; i++) {
+        const x = rng.int(0, S);
+        const y = rng.int(0, S);
+        ctx.fillStyle = rgba(detail, 0.3);
+        ctx.fillRect(x, y, rng.int(3, 7), 1);
+      }
+      break;
+    }
+
+    case 'cendre': {
+      // Croûte craquelée : un réseau de fissures claires qui se ramifient.
+      for (let i = 0; i < 9; i++) {
+        let x = rng.int(0, S);
+        let y = rng.int(0, S);
+        let a = rng.range(0, TAU);
+        ctx.fillStyle = rgba(light, 0.3);
+        for (let k = 0; k < 40; k++) {
+          x += Math.cos(a);
+          y += Math.sin(a);
+          a += rng.spread(0.35);
+          ctx.fillRect(((x % S) + S) % S, ((y % S) + S) % S, 1, 1);
+        }
+      }
+      for (let i = 0; i < 14; i++) {
+        ctx.fillStyle = rgba(dark, 0.3);
+        ctx.fillRect(rng.int(0, S), rng.int(0, S), rng.int(3, 8), rng.int(2, 5));
+      }
+      break;
+    }
+
+    case 'fouille': {
+      // Terre retournée : monticules irréguliers, ombre en bas, lumière en haut.
+      for (let i = 0; i < 16; i++) {
+        const x = rng.int(0, S);
+        const y = rng.int(0, S);
+        const w = rng.int(6, 16);
+        const h = rng.int(3, 7);
+        ctx.fillStyle = rgba(dark, 0.4);
+        ctx.beginPath();
+        ctx.ellipse(x, y + 1, w / 2, h / 2, 0, 0, TAU);
+        ctx.fill();
+        ctx.fillStyle = rgba(light, 0.2);
+        ctx.beginPath();
+        ctx.ellipse(x, y - 1, w / 2.4, h / 2.6, 0, 0, TAU);
+        ctx.fill();
+      }
+      break;
+    }
+
+    case 'nu':
+      break;
+  }
+}
+
 export function groundVariantAt(tx: number, ty: number): number {
   return cellSeed(tx, ty, 0x51ed) % GROUND_VARIANTS;
 }

@@ -25,6 +25,7 @@ import { Screens, type RunSummary } from './ui/screens';
 import { Backdrop } from './ui/backdrop';
 import { installDecor, applyTheme, applyCursor } from './ui/decor';
 import { COSMETIC_BY_ID } from './data/cosmetics';
+import { motifAt } from './game/terrain';
 import { Mobile } from './ui/mobile';
 
 /**
@@ -721,6 +722,8 @@ Object.defineProperty(window, 'sanguine', {
     get loop(): Loop { return loop; },
     /** Vue logique et cadrage physique — ce qu'il faut pour vérifier la netteté et les bandes. */
     get view(): { w: number; h: number } { return { w: VIEW.w, h: VIEW.h }; },
+    /** Motif de sol d'une tuile — sert à vérifier la répartition sans jouer des heures. */
+    motifAt,
     get blit(): { scale: number; x: number; y: number } {
       return { scale: blitScale, x: blitX, y: blitY };
     },
