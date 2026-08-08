@@ -156,7 +156,9 @@ footer a:hover{color:var(--gold)}
   <a href="#reliques">Reliques</a>
   <a href="#monde">Monde</a>
   <a href="#bestiaire">Bestiaire</a>
+  <a href="#danger">Danger</a>
   <a href="#meta">Sanctuaire</a>
+  <a href="#monde2">Domaine</a>
   <a href="#confort">Confort</a>
   <a href="#technique">Technique</a>
   <a class="play" href="https://sanguine.ascencia.re">▶ Jouer</a>
@@ -336,6 +338,86 @@ footer a:hover{color:var(--gold)}
   </div>
 </div></section>
 
+<!-- -------------------------------------------------------- DANGER -->
+<section id="danger"><div class="wrap">
+  <h2>Ce qui monte contre vous</h2>
+  <p class="lead">Le temps n’est pas le seul adversaire. Deux mécanismes décident de la
+  pression, et tous deux ont été réglés à la mesure plutôt qu’à l’intuition.</p>
+
+  <h3>Les ennemis suivent votre puissance</h3>
+  <p>Les points de vie des créatures ne suivent pas que l’horloge&nbsp;: ils suivent aussi
+  <strong>votre niveau</strong>. Votre puissance monte par paliers – niveaux d’arme, passifs,
+  reliques, évolutions – et bien plus vite qu’une courbe de temps. Sans ce second facteur,
+  un build solide de douze minutes permettait de <b>poser la manette et rester immobile</b>
+  sans perdre un point de vie.</p>
+  <div class="note">Les huit premiers niveaux en sont exemptés&nbsp;: le début de partie sert
+  à se mettre en jambes, pas à être puni d’avoir ramassé trois gemmes. Et le niveau est lu à
+  l’apparition de l’ennemi – un adversaire déjà sur le terrain ne durcit pas parce que vous
+  venez de monter.</div>
+  <table style="border-collapse:collapse;font-size:.9rem;margin-top:1rem">
+    <tr><td style="padding:.2rem 1.4rem .2rem 0"></td>
+        <td style="padding:.2rem 1.4rem .2rem 0;color:#8a93ad">immobile, avant</td>
+        <td style="padding:.2rem 1.4rem .2rem 0;color:var(--or)">immobile, après</td>
+        <td style="padding:.2rem 0;color:#8a93ad">en fuite</td></tr>
+    <tr><td style="padding:.2rem 1.4rem .2rem 0">12ᵉ minute</td><td>74 s</td><td><b>18 s</b></td><td>survit</td></tr>
+    <tr><td style="padding:.2rem 1.4rem .2rem 0">16ᵉ minute</td><td>12 s</td><td>9 s</td><td>30 s</td></tr>
+    <tr><td style="padding:.2rem 1.4rem .2rem 0">20ᵉ minute</td><td>7 s</td><td>5 s</td><td>13 s</td></tr>
+  </table>
+
+  <h3>Les boss errants</h3>
+  <p>Les quatre boss scriptés tombent toujours aux mêmes minutes&nbsp;: au troisième run, on
+  sait ce qui arrive et quand. Trois <strong>rôdeurs</strong> s’y ajoutent au hasard – une
+  Matrone dès la 7ᵉ minute, un Chevalier Exsangue dès la 12ᵉ, un Chœur de Cendres dès la
+  17ᵉ. Cinq au maximum par partie.</p>
+  <div class="note">Le tirage se fait sur le générateur de la partie&nbsp;: deux parties de
+  même graine voient les mêmes rôdeurs aux mêmes instants. La surprise ne coûte pas la
+  rejouabilité à la graine. Aucun rôdeur ne paraît pendant un boss scripté – deux barres de
+  vie et deux musiques superposées ne se lisent pas.</div>
+</div></section>
+
+<!-- -------------------------------------------------------- LE MONDE -->
+<section id="monde2"><div class="wrap">
+  <h2>Le domaine</h2>
+  <p class="lead">Le terrain n’est pas un fond. Il porte de la végétation, des ruines qui
+  arrêtent, des routes qui servent de repère, et des bourgs qu’on choisit d’aborder ou de
+  contourner.</p>
+
+  <h3>Végétation</h3>
+  <p>Quatre essences – pin mort, chêne noueux, saule noyé, tronc calciné – en seize
+  silhouettes. Elles se distinguent par le <strong>contour</strong> avant la couleur&nbsp;:
+  un arbre vu de haut et à distance se reconnaît à sa forme, et vous devez pouvoir les trier
+  en niveaux de gris.</p>
+  <p>Elles ne sont pas semées régulièrement. Un second tirage décide qu’une zone est un
+  <b>bosquet</b> et y triple la densité, ce qui crée des futaies et des clairières là où un
+  semis uniforme ne donnerait qu’une moyenne partout.</p>
+  <div class="note">Les arbres sont dessinés <b>derrière</b> vous et derrière les ennemis.
+  C’est un choix&nbsp;: dans un jeu où l’on esquive en permanence, un arbre qui masque une
+  silhouette coûte une vie.</div>
+
+  <h3>Ruines et collision</h3>
+  <p>Six bâtiments de 84 à 216 pixels – pan de mur, angle de maison, nef effondrée, tour
+  tronquée, ferme brûlée, pontons rompus. Ils <strong>vous arrêtent</strong>, ainsi que les
+  ennemis terrestres. Les volants passent au-dessus.</p>
+  <div class="note"><b>Toute ruine a au moins deux ouvertures.</b> Vous ne devez jamais
+  pouvoir être coincé entre un mur et la horde sans issue&nbsp;: ce serait une mort que vous
+  n’auriez pas commise. Et les blocs sont dessinés à l’aplomb exact de ce qui bloque – un
+  décor qui ment sur sa collision est pire que pas de collision du tout.</div>
+
+  <h3>Routes, sols, bourgs</h3>
+  <p>Les routes suivent une ligne de niveau du terrain, donc serpentent. Dans un monde infini
+  et sans carte, savoir qu’on en suit une donne un sens à la marche. Six motifs de sol –   dallage, pavé, labour, vase, cendre craquelée, terre retournée – changent la lecture d’une
+  zone entière.</p>
+  <p>Un <strong>village abandonné</strong> aligne quatre à neuf maisons le long d’une rue
+  dallée. La pression y monte de 40&nbsp;%, et un coffre vous y attend. Il doit être
+  désirable <em>et</em> dangereux&nbsp;: sans récompense certaine, le bon calcul serait de
+  passer au large.</p>
+
+  <h3>Décor destructible</h3>
+  <p>Brasero, jarre, reliquaire brisé, sarcophage. Les trois premiers donnent leur contenu
+  sans rien demander. Le <b>sarcophage</b> libère ce qu’il gardait avant de livrer son coffre
+  – c’est le seul qui coûte quelque chose, et donc le seul dont l’ouverture soit un choix.</p>
+</div></section>
+
 <!-- -------------------------------------------------------- CONFORT -->
 <section id="confort"><div class="wrap">
   <h2>Confort &amp; durée de vie</h2>
@@ -410,7 +492,7 @@ footer a:hover{color:var(--gold)}
 <section id="technique"><div class="wrap">
   <h2>Sous le capot</h2>
   <p class="lead">Tout ce que vous voyez et entendez est <strong>généré par le code au
-  démarrage</strong>. Aucun PNG, aucun fichier audio, aucune police. Le jeu entier pèse 71 ko
+  démarrage</strong>. Aucun PNG, aucun fichier audio, aucune police. Le jeu entier pèse 79 ko
   compressés et fonctionne hors ligne.</p>
 
   <div class="grid g3">

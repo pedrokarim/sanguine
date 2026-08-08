@@ -3,6 +3,10 @@
 > Document de conception. Décrit ce qu’il manque au terrain pour qu’il cesse d’être un fond
 > et devienne un lieu : végétation variée, ruines à l’échelle de bâtiments, routes, villages
 > abandonnés, sols à motifs, props destructibles, et les ornements d’interface qui vont avec.
+>
+> **Les sept points sont réalisés.** Ce document reste la référence de conception ; la
+> section 12 relève ce qui a été mesuré à la livraison, y compris là où la mesure a
+> contredit la prévision.
 
 ---
 
@@ -264,3 +268,42 @@ considéré comme acquis, exactement comme l’a été la mise à l’échelle d
   ne doit pas dériver.
 - **Lecture du sol.** Une route doit se voir à un écran de distance, sinon elle ne sert à rien
   comme repère.
+
+
+---
+
+## 12. Ce qui a été mesuré à la livraison
+
+| Point | Prévu | Mesuré |
+|---|---|---|
+| Végétation | 4 essences, 3 à 4 variantes | 4 essences, 4 variantes, 2 tailles – **16 silhouettes** |
+| Sols | 6 motifs, cache bornée | 6 motifs, cache à 40 entrées, **+1 ms** de rendu |
+| Destructibles | 4 props | 4 props, implémentés en ennemis immobiles |
+| Ornements | 4 montures | 4 montures – posées au Codex et sur les pastilles du HUD |
+| Routes | un réseau | **4,3 %** des tuiles |
+| Collision | risque de chute d’images | **aucun coût mesurable** |
+| Villages | 4 à 9 maisons | 4 à 9 maisons, pression **+40 %** |
+
+### Là où la mesure a corrigé la prévision
+
+**La collision ne coûte rien.** Le document la présentait comme le seul point risqué, à
+mesurer avant de conclure. Relevé : **60 images par seconde avec 993 ennemis** sur une nef à
+huit rectangles, `update` à 0,5 ms. Les trois précautions écrites – rassemblement des murs
+quatre fois par seconde, volants exemptés, plafond à 420 ennemis – étaient probablement
+excessives. Elles restent en place : le coût d’une précaution inutile est nul, celui d’une
+précaution manquante ne l’est pas.
+
+**Le seuil des routes était dix fois trop large.** À la valeur choisie sur le papier, **11 %**
+des tuiles portaient une route – un quadrillage, pas un chemin. Il a fallu descendre à 4,3 %
+pour qu’une route redevienne un événement.
+
+**La densité d’arbres était trois fois trop faible.** À 0,3 dans le Cimetière, on croisait
+deux arbres par écran et l’ajout ne se remarquait pas. Montée entre 0,42 et 0,92 selon le
+biome.
+
+### Ce que le document annonçait et qui n’avait pas lieu d’être
+
+Les ornements devaient s’appliquer « aux cartes d’amélioration, aux cases de la boutique et à
+celles de l’Archive ». Ni la boutique ni l’Archive n’ont de notion de rareté, et les reliques
+ne sont pas proposées en cartes – elles tombent au sol. La monture n’est donc posée qu’au
+Codex et sur les pastilles du HUD, seuls endroits où une rareté existe.

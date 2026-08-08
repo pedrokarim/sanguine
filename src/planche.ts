@@ -10,7 +10,10 @@ import { CHARACTERS } from './data/characters';
 import { WEAPONS } from './data/weapons';
 import { PASSIVES } from './data/passives';
 import { RELICS } from './data/relics';
-import { poiSprite, treeSprite, TREE_VARIANTS, BIOME_BY_ID, type PoiType, type TreeKind } from './game/terrain';
+import {
+  poiSprite, treeSprite, ruineSprite, TREE_VARIANTS, BIOME_BY_ID, RUINE_DEFS,
+  type PoiType, type TreeKind,
+} from './game/terrain';
 import { installDecor } from './ui/decor';
 
 /**
@@ -186,6 +189,12 @@ section('Végétation', 'Quatre essences, quatre silhouettes par essence, deux t
       const c = treeSprite(k, v, true, b);
       return { nom: `${k} ${v + 1}`, frames: [c], w: c.width, h: c.height };
     })), 3);
+
+section('Ruines', 'Six bâtiments de 84 à 216 pixels. Les blocs sont dessinés à l’aplomb exact de leur rectangle de collision : ce qu’on voit est ce qui arrête.',
+  RUINE_DEFS.map((d) => {
+    const c = ruineSprite(d, BIOME_BY_ID.get('graveyard')!);
+    return { nom: `${d.type} · ${d.murs.length} murs`, frames: [c], w: c.width, h: c.height };
+  }), 2);
 
 section('Structures', 'Points d’intérêt posés dans le monde. Générés par le terrain, pas par la fabrique de sprites.',
   (['altar', 'pyre', 'obelisk', 'well', 'ossuary', 'chapel', 'cairn'] as PoiType[]).map((t) => {

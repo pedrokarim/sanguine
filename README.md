@@ -12,7 +12,7 @@
 ![Vite](https://img.shields.io/badge/Vite-6-646cff?logo=vite&logoColor=white)
 ![Dépendances runtime](https://img.shields.io/badge/dépendances%20runtime-0-4ee88a)
 ![Assets binaires](https://img.shields.io/badge/assets%20binaires-0-4ee88a)
-![Bundle](https://img.shields.io/badge/bundle-72%20ko%20gzip-4ea9e8)
+![Bundle](https://img.shields.io/badge/bundle-79%20ko%20gzip-4ea9e8)
 ![Docker](https://img.shields.io/badge/Docker-prêt-2496ed?logo=docker&logoColor=white)
 
 </div>
@@ -28,7 +28,7 @@ Une partie dure **30 minutes**. Le temps est le seul véritable adversaire.
 
 > **Aucune dépendance runtime. Aucun fichier binaire.**
 > Sprites, animations, décor, biomes, illustration des menus, ornements d’interface, logo,
-> curseur et sons sont **générés par le code** au démarrage. Le jeu entier tient en 72 ko
+> curseur et sons sont **générés par le code** au démarrage. Le jeu entier tient en 79 ko
 > compressés et fonctionne hors ligne.
 
 ![Une partie à la quinzième minute](docs/screenshots/03-jeu.png)
@@ -103,6 +103,11 @@ AZERTY et QWERTY fonctionnent simultanément : les touches sont lues par **code 
 | `F4` | Tue tout à l’écran · `F5` +10 000 or |
 | `F6` | Fait tomber une relique · `F7` fait tomber un coffre |
 | `F8` | Bascule entre le héros détaillé et l’ancien, pour comparer |
+
+**Planche des sprites** : `pnpm planche` écrit `dist-planche/planche.html`, qui affiche les
+116 sprites du jeu générés à l’instant par ses propres fonctions – avec leur taille et leur
+nombre de teintes réelles. Elle est aussi servie en ligne à
+[`/planche.html`](https://sanguine.ascencia.re/planche.html).
 
 La console expose `window.sanguine` : `.snapshot()`, `.world`, `.startRun(id)`, `.exportSprites()`.
 
