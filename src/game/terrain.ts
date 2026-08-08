@@ -263,6 +263,9 @@ const TREE_CELL = 220;
 const GROVE_CELL = 900;
 const GROVE_RADIUS = 250;
 
+/** Cellule du décor destructible. Large : ces objets doivent se croiser rarement. */
+const DESTR_CELL = 260;
+
 // ---------------------------------------------------------------------------
 // Sprites du terrain
 // ---------------------------------------------------------------------------
@@ -1102,6 +1105,39 @@ export class Terrain {
     }
     this.treeBuf.sort((a, b) => a.y - b.y);
     return this.treeBuf;
+  }
+
+  /**
+   * Décor destructible : brasero, jarre, reliquaire, sarcophage.
+   *
+   * Semé comme les props, mais bien plus rare et sur une cellule large : ces objets doivent
+   * se remarquer, donc se croiser rarement. La clé de cellule sert d'identité — c'est elle
+   * que le monde retient une fois l'objet brisé, pour qu'il ne repousse pas.
+   */
+  destructiblesNear(x: number, y: number, radius: number): { x: number; y: number; kind: string; key: string }[] {
+    const out: { x: number; y: number; kind: string; key: string }[] = [];
+    const c0x = Math.floor((x - radius) / DESTR_CELL);
+    const c1x = Math.floor((x + radius) / DESTR_CELL);
+    const c0y = Math.floor((y - radius) / DESTR_CELL);
+    const c1y = Math.floor((y + radius) / DESTR_CELL);
+    for (let cy = c0y; cy <= c1y; cy++) {
+      for (let cx = c0x; cx <= c1x; cx++) {
+        const rng = new Rng(cellSeed(cx, cy, this.seed ^ 0x6d3ac71f));
+        if (rng.next() > 0.34) continue;
+        const px = cx * DESTR_CELL + rng.range(0, DESTR_CELL);
+        const py = cy * DESTR_CELL + rng.range(0, DESTR_CELL);
+        const biome = biomeAt(px, py);
+        // Le sarcophage n'appartient qu'au Cimetière : c'est ce qui donne à ce biome une
+        // récompense propre, et une raison d'y rester malgré le danger.
+        const t = rng.next();
+        const kind = biome.id === 'graveyard' && t < 0.22 ? 'sarcophagus'
+          : t < 0.12 ? 'reliquary'
+          : t < 0.56 ? 'brazier'
+          : 'jar';
+        out.push({ x: px, y: py, kind, key: `${cx},${cy}` });
+      }
+    }
+    return out;
   }
 
   private propsAt(cx: number, cy: number): Prop[] {

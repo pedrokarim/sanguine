@@ -23,7 +23,10 @@ export interface SpriteSet {
 }
 
 export interface BodyArt {
-  plan: 'humanoid' | 'beast' | 'flying' | 'spider' | 'blob' | 'ghost' | 'rider' | 'armored';
+  plan: 'humanoid' | 'beast' | 'flying' | 'spider' | 'blob' | 'ghost' | 'rider' | 'armored'
+    | 'objet';
+  /** Forme précise, pour le plan `objet`. Les plans corporels l'ignorent. */
+  forme?: 'brasero' | 'jarre' | 'reliquaire' | 'sarcophage';
   w: number;
   h: number;
   /** [ombre, principale, lumière] */
@@ -260,6 +263,85 @@ function rider(p: Pix, a: BodyArt, t: number): void {
   p.line(cx + 1, shY - 1, p.w - 1, shY + p.h * 0.16, 3);
 }
 
+/**
+ * Décor destructible.
+ *
+ * Les plans corporels dessinent tous des créatures — silhouette organique et deux yeux. Un
+ * brasero tracé avec le plan `blob` sortait en flaque à regard, ce qui est exactement ce
+ * qu'un objet ne doit pas être.
+ *
+ * L'indice 4, réservé à l'œil chez les créatures, sert ici de teinte vive : la flamme du
+ * brasero, l'or du reliquaire. C'est cohérent — dans les deux cas, c'est ce qui accroche
+ * l'œil du joueur.
+ */
+function objet(p: Pix, a: BodyArt, t: number): void {
+  const W = p.w;
+  const H = p.h;
+  const cx = W / 2 - 0.5;
+  const bat = Math.sin(t * TAU);
+
+  switch (a.forme) {
+    case 'brasero': {
+      // Vasque sur trépied, flamme qui vacille.
+      p.limb(cx - W * 0.24, H - 1, cx - W * 0.1, H * 0.55, 1.6, 1);
+      p.limb(cx + W * 0.24, H - 1, cx + W * 0.1, H * 0.55, 1.6, 1);
+      p.limb(cx, H - 1, cx, H * 0.55, 1.6, 2);
+      p.ellipse(cx, H * 0.5, W * 0.42, H * 0.14, 2);
+      p.rect(cx - W * 0.42, H * 0.44, W * 0.84, 2, 3);
+      // Flamme : trois langues de hauteurs inégales, la centrale la plus haute.
+      for (const [dx, h] of [[-0.16, 0.2], [0, 0.32], [0.16, 0.22]] as const) {
+        const ht = H * h * (0.8 + bat * 0.2);
+        for (let k = 0; k < ht; k++) {
+          const l = Math.max(0, (1 - k / ht) * W * 0.12);
+          for (let x = -l; x <= l; x++) p.set(cx + dx * W + x, H * 0.44 - k, 4);
+        }
+      }
+      break;
+    }
+
+    case 'jarre': {
+      // Panse ronde, col étroit, deux anses. Le col est ce qui la distingue d'un caillou.
+      p.ellipse(cx, H * 0.62, W * 0.42, H * 0.34, 2);
+      p.rect(cx - W * 0.16, H * 0.2, W * 0.32, H * 0.2, 2);
+      p.ellipse(cx, H * 0.2, W * 0.24, H * 0.07, 3);
+      p.limb(cx - W * 0.4, H * 0.42, cx - W * 0.2, H * 0.28, 1.4, 1);
+      p.limb(cx + W * 0.4, H * 0.42, cx + W * 0.2, H * 0.28, 1.4, 1);
+      p.ellipse(cx - W * 0.16, H * 0.5, W * 0.12, H * 0.1, 3);
+      break;
+    }
+
+    case 'reliquaire': {
+      // Coffret sur pieds, couvercle à deux pentes, serrure au centre.
+      p.rect(cx - W * 0.38, H * 0.45, W * 0.76, H * 0.4, 2);
+      p.rect(cx - W * 0.38, H * 0.45, W * 0.76, 2, 3);
+      for (let k = 0; k <= H * 0.2; k++) {
+        const l = W * 0.4 * (1 - k / (H * 0.24));
+        for (let x = -l; x <= l; x++) p.set(cx + x, H * 0.45 - k, k < 2 ? 4 : 3);
+      }
+      p.rect(cx - 1, H * 0.55, 3, H * 0.14, 4);
+      p.rect(cx - W * 0.34, H - 3, 3, 3, 1);
+      p.rect(cx + W * 0.24, H - 3, 3, 3, 1);
+      break;
+    }
+
+    case 'sarcophage': {
+      // Cuve trapézoïdale et couvercle décalé : c'est le décalage qui dit « entrouvert ».
+      for (let k = 0; k < H * 0.5; k++) {
+        const l = W * 0.4 - k * W * 0.006;
+        for (let x = -l; x <= l; x++) p.set(cx + x, H * 0.48 + k, 2);
+      }
+      p.rect(cx - W * 0.42, H * 0.34, W * 0.84, H * 0.14, 3);
+      p.rect(cx - W * 0.42 + 2, H * 0.3, W * 0.84, 3, 1);
+      // Effigie sommaire sur le couvercle : deux traits croisés.
+      p.limb(cx, H * 0.36, cx, H * 0.46, 1.4, 4);
+      p.limb(cx - W * 0.16, H * 0.4, cx + W * 0.16, H * 0.4, 1.2, 4);
+      break;
+    }
+  }
+
+  p.shadeVertical(2, 3, 1);
+}
+
 const PLANS: Record<BodyArt['plan'], (p: Pix, a: BodyArt, t: number) => void> = {
   humanoid,
   armored,
@@ -269,6 +351,7 @@ const PLANS: Record<BodyArt['plan'], (p: Pix, a: BodyArt, t: number) => void> = 
   blob,
   ghost,
   rider,
+  objet,
 };
 
 // ---------------------------------------------------------------------------
