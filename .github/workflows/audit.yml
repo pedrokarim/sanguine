@@ -167,7 +167,11 @@ jobs:
 
       - name: Vérifier chaque en-tête sur chaque type de réponse
         run: |
-          asset=$(docker exec sanguine-ci sh -c 'ls /usr/share/nginx/html/*.js' | xargs -n1 basename)
+          # L'image sert deux pages depuis la même racine — le jeu et la planche des
+          # sprites — donc deux fichiers JS. Prendre la liste entière produisait une URL
+          # malformée : on cible explicitement le bundle du jeu.
+          asset=$(docker exec sanguine-ci sh -c 'ls /usr/share/nginx/html/sanguine.*.js' \
+            | head -1 | xargs -n1 basename)
           fail=0
           for chemin in "/" "/index.html" "/$asset"; do
             entetes=$(curl -sSI "http://127.0.0.1:8099$chemin")
