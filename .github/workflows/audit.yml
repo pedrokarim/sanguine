@@ -194,6 +194,50 @@ jobs:
           exit $fail
 
   # ---------------------------------------------------------------------------
+  convention:
+    name: Convention des commits
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+
+      - name: Vérifier les messages de la poussée
+        run: |
+          # Conventional Commits. Le type est en anglais parce que c'est la convention ; le
+          # corps du message reste en français, comme tout le reste du dépôt.
+          motif='^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\([a-z0-9-]+\))?!?: .+'
+
+          # Sur une poussée, on ne juge que les commits **nouveaux**. Reprendre l'historique
+          # entier ferait échouer la chaîne sur des messages écrits avant la règle, ce qui
+          # transformerait un garde-fou en bruit permanent.
+          avant='${{ github.event.before }}'
+          if [ -z "$avant" ] || [ "$avant" = "0000000000000000000000000000000000000000" ] \
+             || ! git cat-file -e "$avant^{commit}" 2>/dev/null; then
+            plage="$(git rev-parse HEAD)~1..$(git rev-parse HEAD)"
+          else
+            plage="$avant..$(git rev-parse HEAD)"
+          fi
+
+          echo "Plage examinée : $plage"
+          fail=0
+          while read -r sha; do
+            # `&&` ici sortirait de l'étape sous `set -e` dès le premier SHA non vide.
+            if [ -z "$sha" ]; then continue; fi
+            titre=$(git log -1 --format=%s "$sha")
+            # Un commit de fusion n'a pas à suivre la convention : son message est engendré.
+            if [ "$(git cat-file -p "$sha" | grep -c '^parent ')" -gt 1 ]; then continue; fi
+            if printf '%s' "$titre" | grep -qE "$motif"; then
+              echo "  ok   $titre"
+            else
+              echo "::error::Hors convention : $titre"
+              fail=1
+            fi
+          done < <(git rev-list "$plage")
+          if [ "$fail" -eq 0 ]; then echo 'Tous les messages suivent la convention.'; fi
+          exit $fail
+
+  # ---------------------------------------------------------------------------
   secrets:
     name: Secrets et fichiers privés
     runs-on: ubuntu-latest
