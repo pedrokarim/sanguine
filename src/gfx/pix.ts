@@ -216,6 +216,94 @@ export class Pix {
    * Lumière zénithale implicite : la rangée supérieure de chaque colonne pleine est éclaircie,
    * la rangée inférieure assombrie. `hi` et `lo` sont des index de palette.
    */
+  /**
+   * Masque du vide accessible depuis le bord, par remplissage par diffusion.
+   *
+   * Sert à distinguer l'extérieur d'un sprite de ses trous internes — entre un bras et le
+   * torse, sous une aisselle. Les passes d'éclairage doivent traiter les deux autrement.
+   */
+  exterieur(): boolean[] {
+    const ext = new Array<boolean>(this.w * this.h).fill(false);
+    const pile: number[] = [];
+    const pousser = (x: number, y: number): void => {
+      if (x < 0 || y < 0 || x >= this.w || y >= this.h) return;
+      const i = y * this.w + x;
+      if (ext[i] || this.data[i] !== EMPTY) return;
+      ext[i] = true;
+      pile.push(x, y);
+    };
+    for (let x = 0; x < this.w; x++) { pousser(x, 0); pousser(x, this.h - 1); }
+    for (let y = 0; y < this.h; y++) { pousser(0, y); pousser(this.w - 1, y); }
+    while (pile.length) {
+      const y = pile.pop()!;
+      const x = pile.pop()!;
+      pousser(x + 1, y); pousser(x - 1, y); pousser(x, y + 1); pousser(x, y - 1);
+    }
+    return ext;
+  }
+
+  /**
+   * Lumière rasante sur un bord.
+   *
+   * `dx, dy` désigne la direction d'où vient la lumière secondaire : un pixel s'éclaire s'il
+   * est plein et que son voisin de ce côté est du vide **extérieur**. La distinction compte —
+   * sans elle, le moindre trou intérieur reçoit sa ligne claire et la silhouette se couvre
+   * de moucheture.
+   */
+  rimLight(dx: number, dy: number, c: number): void {
+    const copie = Int8Array.from(this.data);
+    const ext = this.exterieur();
+    for (let y = 0; y < this.h; y++) {
+      for (let x = 0; x < this.w; x++) {
+        if (copie[y * this.w + x] === EMPTY) continue;
+        const nx = x + dx;
+        const ny = y + dy;
+        const dehors = nx < 0 || ny < 0 || nx >= this.w || ny >= this.h || ext[ny * this.w + nx];
+        if (dehors) this.set(x, y, c);
+      }
+    }
+  }
+
+  /**
+   * Ombre de contact : le pixel est juste sous un **rebord**.
+   *
+   * C'est-à-dire sous du plein qui, lui, a du vide au-dessus — dessous d'une capuche, d'une
+   * mâchoire, d'une épaulière. Une règle qui compterait simplement les voisins pleins
+   * assombrirait presque tout l'intérieur de la silhouette.
+   */
+  occlusion(c: number): void {
+    const copie = Int8Array.from(this.data);
+    const plein = (x: number, y: number): boolean =>
+      x >= 0 && y >= 0 && x < this.w && y < this.h && copie[y * this.w + x] !== EMPTY;
+    for (let y = 0; y < this.h; y++) {
+      for (let x = 0; x < this.w; x++) {
+        if (copie[y * this.w + x] === EMPTY) continue;
+        if (plein(x, y - 1) && !plein(x, y - 2)) this.set(x, y, c);
+      }
+    }
+  }
+
+  /**
+   * Contour à deux teintes.
+   *
+   * Un contour d'une seule couleur sombre aplatit ce qu'il entoure. Ici il s'éclaircit là où
+   * la lumière frappe — en haut et à gauche — et reste sombre ailleurs : la silhouette
+   * demeure nette sans que le volume soit écrasé.
+   */
+  outlineDouble(sombre: number, clair: number): void {
+    const copie = Int8Array.from(this.data);
+    const plein = (x: number, y: number): boolean =>
+      x >= 0 && y >= 0 && x < this.w && y < this.h && copie[y * this.w + x] !== EMPTY;
+    for (let y = 0; y < this.h; y++) {
+      for (let x = 0; x < this.w; x++) {
+        if (plein(x, y)) continue;
+        if (!plein(x, y - 1) && !plein(x, y + 1) && !plein(x - 1, y) && !plein(x + 1, y)) continue;
+        // Le pixel borde le haut ou la gauche de la forme s'il a du plein dessous ou à droite.
+        this.set(x, y, plein(x, y + 1) || plein(x + 1, y) ? clair : sombre);
+      }
+    }
+  }
+
   shadeVertical(from: number, hi: number, lo: number): void {
     for (let x = 0; x < this.w; x++) {
       let top = -1;
