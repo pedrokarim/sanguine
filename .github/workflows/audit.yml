@@ -1,0 +1,222 @@
+# Audit de sécurité — NE DÉPLOIE RIEN.
+#
+# Ce dépôt se déploie à la main (voir DEPLOY.md). Cette chaîne ne fait que constater et
+# signaler. Deux garde-fous rendent un déploiement accidentel impossible plutôt
+# qu'improbable : le jeton n'a que le droit de lecture (`permissions`), et aucun secret
+# n'est déclaré — il n'existe donc ni clé SSH, ni jeton de registre à voler si une
+# dépendance devenait hostile.
+name: Audit
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  # Une CVE peut être publiée sans qu'une seule ligne du dépôt ne change. Sans passage
+  # périodique, un projet stable ne découvre jamais qu'il est devenu vulnérable.
+  schedule:
+    - cron: '17 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: audit-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '22'
+
+jobs:
+  # ---------------------------------------------------------------------------
+  dependances:
+    name: Dépendances
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      # corepack est fourni avec Node : installer pnpm par une action tierce ajouterait
+      # au projet exactement le genre de dépendance que cet audit cherche à surveiller.
+      - name: Activer pnpm
+        run: corepack enable
+
+      # --frozen-lockfile échoue si package.json et le lockfile divergent. C'est ce qui
+      # empêche une version non auditée d'entrer en douce lors d'une réinstallation.
+      - name: Installer à lockfile figé
+        run: pnpm install --frozen-lockfile
+
+      - name: Vulnérabilités connues
+        run: pnpm audit --audit-level=low
+
+      - name: Tout provient-il du registre officiel ?
+        run: |
+          if grep -nE "resolution:.*(git\+|http://|file:|link:)" pnpm-lock.yaml; then
+            echo "::error::Une dépendance est résolue hors du registre npm."
+            exit 1
+          fi
+          echo "OK — aucune résolution git, http, file ou link."
+
+      - name: Inventaire des scripts de cycle de vie
+        run: |
+          # Un preinstall/postinstall s'exécute sur la machine qui installe. C'est le
+          # vecteur de compromission le plus courant de l'écosystème npm : on l'affiche
+          # pour qu'un ajout se remarque en relecture.
+          node -e '
+            const fs=require("fs"),path=require("path"),root="node_modules/.pnpm";
+            let n=0;
+            for (const d of fs.readdirSync(root)) {
+              const p=path.join(root,d,"node_modules");
+              if(!fs.existsSync(p)) continue;
+              for (const m of fs.readdirSync(p)) {
+                const pj=path.join(p,m,"package.json");
+                if(!fs.existsSync(pj)) continue;
+                try {
+                  const j=JSON.parse(fs.readFileSync(pj,"utf8")), s=j.scripts||{};
+                  for (const k of ["preinstall","install","postinstall","prepare"])
+                    if (s[k]) { console.log(`${j.name}@${j.version} → ${k}: ${s[k]}`); n++; }
+                } catch {}
+              }
+            }
+            console.log(`\n${n} script(s) de cycle de vie dans tout l arbre.`);
+          '
+
+      - name: Aucune dépendance runtime
+        run: |
+          # La promesse du projet est vérifiable : si "dependencies" apparaît un jour,
+          # l'artefact envoyé au navigateur cesse d'être uniquement du code maison.
+          n=$(node -p "Object.keys(require('./package.json').dependencies||{}).length")
+          echo "dependencies : $n"
+          [ "$n" -eq 0 ] || { echo "::error::Une dépendance runtime est apparue."; exit 1; }
+
+  # ---------------------------------------------------------------------------
+  artefact:
+    name: Code et artefact
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm build
+
+      - name: Le bundle ne joint personne
+        run: |
+          # Le jeu revendique de fonctionner hors ligne. On le vérifie sur l'artefact
+          # réellement produit, pas sur les sources : c'est le fichier livré qui compte.
+          if grep -ohE "https?://[^\"' )]+" dist/*.js dist/*.css dist/index.html \
+             | grep -vE "^http://www\.w3\.org/" | sort -u | grep .; then
+            echo "::error::Le bundle référence une URL externe."
+            exit 1
+          fi
+          echo "OK — aucune URL externe."
+
+      - name: "Ni eval, ni Function, ni javascript:"
+        run: |
+          fail=0
+          for motif in "eval(" "new Function(" "javascript:"; do
+            if grep -qF "$motif" dist/*.js; then
+              echo "::error::$motif présent dans le bundle."; fail=1
+            fi
+          done
+          if [ "$fail" -eq 0 ]; then echo "OK — aucune exécution dynamique."; fi
+          exit $fail
+
+      - name: Aucun script inline dans la page
+        run: |
+          # Un seul script inline obligerait à relâcher script-src en 'unsafe-inline',
+          # ce qui viderait la politique de sécurité de sa substance.
+          # Tout <script> doit porter un src=. `grep -E` et `grep -P` ne se combinent pas ;
+          # on extrait les balises puis on cherche celles qui n'ont pas d'attribut src.
+          if grep -o '<script[^>]*>' dist/index.html | grep -qv 'src='; then
+            echo "::error::index.html contient un script inline."
+            exit 1
+          fi
+          echo "OK — les scripts sont tous externes."
+
+  # ---------------------------------------------------------------------------
+  entetes:
+    name: En-têtes de sécurité
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      # On teste l'image réelle, pas le fichier de conf. `add_header` n'est pas hérité
+      # par un `location` qui déclare le sien : la conf peut sembler juste et ne rien
+      # envoyer sur les fichiers hachés. Seule une requête le prouve.
+      - name: Construire et lancer l'image
+        run: |
+          docker build -t sanguine:ci .
+          docker run -d --name sanguine-ci -p 127.0.0.1:8099:80 sanguine:ci
+          for i in $(seq 1 40); do
+            curl -sf -o /dev/null http://127.0.0.1:8099/healthz && break
+            sleep 0.5
+          done
+
+      - name: Vérifier chaque en-tête sur chaque type de réponse
+        run: |
+          asset=$(docker exec sanguine-ci sh -c 'ls /usr/share/nginx/html/*.js' | xargs -n1 basename)
+          fail=0
+          for chemin in "/" "/index.html" "/$asset"; do
+            entetes=$(curl -sSI "http://127.0.0.1:8099$chemin")
+            for h in "content-security-policy" "x-content-type-options" \
+                     "referrer-policy" "permissions-policy" \
+                     "cross-origin-opener-policy" "cross-origin-resource-policy"; do
+              if ! printf '%s' "$entetes" | grep -qi "^$h:"; then
+                echo "::error::$h manquant sur $chemin"; fail=1
+              fi
+            done
+            # script-src doit rester strict : c'est la directive qui protège vraiment.
+            if printf '%s' "$entetes" | grep -i "^content-security-policy:" \
+               | grep -qE "script-src[^;]*(unsafe-inline|unsafe-eval)"; then
+              echo "::error::script-src relâché sur $chemin"; fail=1
+            fi
+          done
+          # `&&` ici sortirait avant le nettoyage sous `set -e`, qui est actif par défaut.
+          if [ "$fail" -eq 0 ]; then echo "OK — en-têtes présents et script-src strict."; fi
+          docker rm -f sanguine-ci >/dev/null
+          exit $fail
+
+  # ---------------------------------------------------------------------------
+  secrets:
+    name: Secrets et fichiers privés
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0   # l'historique entier : un secret retiré reste dans les commits
+
+      - name: Aucun secret dans l'historique
+        run: |
+          motif='(-----BEGIN [A-Z ]*PRIVATE KEY|ghp_[A-Za-z0-9]{36}|github_pat_[A-Za-z0-9_]{22,}|AKIA[0-9A-Z]{16}|xox[baprs]-[A-Za-z0-9-]{10,})'
+          # Restreint aux fichiers du projet : node_modules a déjà été publié une fois par
+          # erreur sur gh-pages, et son contenu déclenche des faux positifs en cascade.
+          if git grep -InE "$motif" $(git rev-list --all) -- \
+               ':!node_modules' ':!pnpm-lock.yaml' 2>/dev/null | head -20 | grep .; then
+            echo "::error::Un secret figure dans l'historique."
+            exit 1
+          fi
+          echo "OK — aucun secret."
+
+      - name: La bible narrative n'a jamais été publiée
+        run: |
+          # lore/ contient les révélations du scénario. Publié une seule fois, il l'est
+          # pour toujours : l'historique git ne s'oublie pas.
+          if git log --all --name-only --format='' | sort -u | grep -q '^lore/'; then
+            echo "::error::Un fichier de lore/ figure dans l'historique."
+            exit 1
+          fi
+          echo "OK — lore/ absent de tout commit."
+
+      - name: lore/ et .env restent ignorés
+        run: |
+          for chemin in "lore/00-bible.md" ".env"; do
+            git check-ignore -q "$chemin" || {
+              echo "::error::$chemin n'est plus ignoré."; exit 1; }
+          done
+          echo "OK — les règles d'exclusion tiennent."

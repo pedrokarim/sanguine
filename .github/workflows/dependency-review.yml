@@ -1,0 +1,24 @@
+# Contrôle des dépendances entrantes — NE DÉPLOIE RIEN.
+#
+# `pnpm audit` constate l'état du dépôt ; celui-ci bloque en amont. Sur une proposition de
+# modification, il compare les deux arbres de dépendances et refuse l'ajout d'un paquet
+# vulnérable ou sous licence incompatible — avant la fusion, pas après.
+name: Revue des dépendances
+
+on: pull_request
+
+permissions:
+  contents: read
+
+jobs:
+  revue:
+    name: Dépendances ajoutées
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+        with:
+          fail-on-severity: low
+          # Le projet est sous MIT. Une dépendance sous licence contaminante changerait
+          # les obligations du dépôt sans que personne ne s'en aperçoive.
+          deny-licenses: GPL-2.0, GPL-3.0, AGPL-3.0, LGPL-3.0
