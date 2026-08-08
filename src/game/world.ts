@@ -583,6 +583,26 @@ export class World {
    * à chaque image serait du gaspillage. Une cellule déjà posée est retenue définitivement,
    * ce qui empêche un brasero de repousser dès qu'on s'éloigne et revient.
    */
+  /** Villages dont le coffre a déjà été posé. Un village ne se pille qu'une fois. */
+  private villagesPilles = new Set<string>();
+
+  /**
+   * Coffre du village.
+   *
+   * Posé une seule fois, quand le joueur atteint le cœur du bourg. C'est la contrepartie de
+   * la pression majorée : sans récompense garantie, entrer dans un village serait une prise
+   * de risque sans contrepartie, et le bon calcul serait de le contourner.
+   */
+  private updateVillage(): void {
+    const f = this.terrain.villageForce(this.player.x, this.player.y);
+    if (f < 0.72) return;
+    const key = `${Math.round(this.player.x / 400)},${Math.round(this.player.y / 400)}`;
+    if (this.villagesPilles.has(key)) return;
+    this.villagesPilles.add(key);
+    this.spawnPickup('chest', this.player.x + this.rng.spread(60), this.player.y + this.rng.spread(60), 0, 0);
+    this.announce('Un bourg abandonné', 'quelque chose y est resté');
+  }
+
   private updateDecor(dt: number): void {
     this.decorTimer -= dt;
     if (this.decorTimer > 0) return;
@@ -931,6 +951,7 @@ export class World {
     this.rebuildGrid();
     this.updateMurs(sdt);
     this.updateDecor(sdt);
+    this.updateVillage();
     // Le joueur est repoussé après son déplacement, jamais avant : sinon il traverserait
     // d'une image sur l'autre à grande vitesse.
     /*

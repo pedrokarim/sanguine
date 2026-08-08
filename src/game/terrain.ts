@@ -344,6 +344,47 @@ const DESTR_CELL = 260;
  */
 const RUINE_CELL = 1100;
 
+/**
+ * Villages abandonnés.
+ *
+ * Une grappe de ruines le long d'une voie pavée, avec un point d'eau au centre. Un village
+ * doit être **désirable et dangereux** : s'il n'offrait qu'un décor, on le contournerait ;
+ * s'il n'offrait que du danger, on le fuirait. D'où la densité d'ennemis majorée et le
+ * coffre garanti.
+ */
+const VILLAGE_CELL = 2400;
+const VILLAGE_RAYON = 400;
+
+/**
+ * Emprise des villages, accessible sans instance de terrain.
+ *
+ * `motifAt` et le semis des arbres sont des fonctions libres, appelées avant qu'un terrain
+ * existe. La graine du monde est donc posée une fois au démarrage de la partie.
+ */
+let villageSeed = 0;
+export function setVillageSeed(v: number): void {
+  villageSeed = v;
+}
+
+export function villageForceGlobal(x: number, y: number): number {
+  const c0x = Math.floor((x - VILLAGE_RAYON) / VILLAGE_CELL);
+  const c1x = Math.floor((x + VILLAGE_RAYON) / VILLAGE_CELL);
+  const c0y = Math.floor((y - VILLAGE_RAYON) / VILLAGE_CELL);
+  const c1y = Math.floor((y + VILLAGE_RAYON) / VILLAGE_CELL);
+  let f = 0;
+  for (let cy = c0y; cy <= c1y; cy++) {
+    for (let cx = c0x; cx <= c1x; cx++) {
+      const rng = new Rng(cellSeed(cx, cy, villageSeed ^ 0x7a3e11c5));
+      if (rng.next() >= 0.28) continue;
+      const vx = cx * VILLAGE_CELL + rng.range(VILLAGE_RAYON, VILLAGE_CELL - VILLAGE_RAYON);
+      const vy = cy * VILLAGE_CELL + rng.range(VILLAGE_RAYON, VILLAGE_CELL - VILLAGE_RAYON);
+      const d = Math.hypot(x - vx, y - vy);
+      if (d < VILLAGE_RAYON) f = Math.max(f, 1 - d / VILLAGE_RAYON);
+    }
+  }
+  return f;
+}
+
 // ---------------------------------------------------------------------------
 // Sprites du terrain
 // ---------------------------------------------------------------------------
@@ -541,6 +582,9 @@ export function routeAt(tx: number, ty: number): number {
 export function motifAt(tx: number, ty: number): SolMotif {
   // Une route prime sur le motif du biome : c'est elle qu'on doit voir.
   if (routeAt(tx, ty) > 0.35) return 'pave';
+  // Un village est dallé. Le changement sous les pieds annonce qu'on entre quelque part,
+  // avant même qu'on distingue la première maison.
+  if (villageForceGlobal(tx * GROUND_TILE, ty * GROUND_TILE) > 0.25) return 'dallage';
   const biome = biomeAtTile(tx, ty);
   if (biome.motifs.length === 0) return 'nu';
   const n = valueNoise2(tx / 9, ty / 9, 0x3a1f);
@@ -1162,7 +1206,11 @@ export class Terrain {
   /** POI découverts et activés, seulement pour les statistiques de fin. */
   activated = 0;
 
-  constructor(private readonly seed: number) {}
+  constructor(private readonly seed: number) {
+    // Les fonctions libres — motif du sol, densité d'arbres — interrogent les villages sans
+    // avoir accès au terrain. La graine leur est donnée ici, une fois par partie.
+    setVillageSeed(seed);
+  }
 
   /** POI d'une cellule, généré paresseusement et mémorisé. */
   private poiAt(cx: number, cy: number): Poi | null {
@@ -1241,7 +1289,10 @@ export class Terrain {
 
     const out: Tree[] = [];
     if (biome.trees.length > 0) {
-      const densite = Math.min(0.96, biome.treeDensity * this.groveMul(bx, by));
+      // Un village dégage la vue : trois fois moins d'arbres au centre. Sans cela, les
+      // maisons disparaîtraient derrière la végétation et le lieu ne se lirait pas.
+      const vil = 1 - this.villageForce(bx, by) * 0.72;
+      const densite = Math.min(0.96, biome.treeDensity * this.groveMul(bx, by) * vil);
       const n = rng.next() < densite ? rng.int(1, 3) : 0;
       for (let i = 0; i < n; i++) {
         const x = cx * TREE_CELL + rng.range(0, TREE_CELL);
@@ -1313,6 +1364,83 @@ export class Terrain {
     return out;
   }
 
+  private villages = new Map<string, { x: number; y: number } | null>();
+
+  /** Centre du village de cette cellule, s'il y en a un. */
+  private villageAt(cx: number, cy: number): { x: number; y: number } | null {
+    const key = `${cx},${cy}`;
+    const hit = this.villages.get(key);
+    if (hit !== undefined) return hit;
+    const rng = new Rng(cellSeed(cx, cy, this.seed ^ 0x7a3e11c5));
+    const out = rng.next() < 0.28
+      ? {
+        x: cx * VILLAGE_CELL + rng.range(VILLAGE_RAYON, VILLAGE_CELL - VILLAGE_RAYON),
+        y: cy * VILLAGE_CELL + rng.range(VILLAGE_RAYON, VILLAGE_CELL - VILLAGE_RAYON),
+      }
+      : null;
+    this.villages.set(key, out);
+    return out;
+  }
+
+  /**
+   * Emprise du village en un point, de 0 (dehors) à 1 (au centre).
+   *
+   * On interroge les neuf cellules voisines : un village dont le centre tombe à côté doit
+   * déborder ici, sinon les bourgs s'arrêtent net sur une frontière invisible — le même
+   * piège que pour les bosquets.
+   */
+  villageForce(x: number, y: number): number {
+    const c0x = Math.floor((x - VILLAGE_RAYON) / VILLAGE_CELL);
+    const c1x = Math.floor((x + VILLAGE_RAYON) / VILLAGE_CELL);
+    const c0y = Math.floor((y - VILLAGE_RAYON) / VILLAGE_CELL);
+    const c1y = Math.floor((y + VILLAGE_RAYON) / VILLAGE_CELL);
+    let f = 0;
+    for (let cy = c0y; cy <= c1y; cy++) {
+      for (let cx = c0x; cx <= c1x; cx++) {
+        const v = this.villageAt(cx, cy);
+        if (!v) continue;
+        const d = Math.hypot(x - v.x, y - v.y);
+        if (d < VILLAGE_RAYON) f = Math.max(f, 1 - d / VILLAGE_RAYON);
+      }
+    }
+    return f;
+  }
+
+  private villageRuines = new Map<string, Ruine[]>();
+
+  /** Les maisons d'un village, alignées le long d'une rue. */
+  private ruinesDuVillage(cx: number, cy: number): Ruine[] {
+    const key = `${cx},${cy}`;
+    const hit = this.villageRuines.get(key);
+    if (hit) return hit;
+
+    const out: Ruine[] = [];
+    const v = this.villageAt(cx, cy);
+    if (v) {
+      const rng = new Rng(cellSeed(cx, cy, this.seed ^ 0x11f7c209));
+      const n = rng.int(4, 9);
+      // Une rue : les maisons se rangent de part et d'autre d'un axe, pas au hasard. C'est
+      // l'alignement qui distingue un village d'un champ de ruines.
+      const a = rng.range(0, TAU);
+      const ux = Math.cos(a);
+      const uy = Math.sin(a);
+      const maisons = RUINE_DEFS.filter((d) => d.type === 'angle' || d.type === 'ferme' || d.type === 'mur');
+      for (let i = 0; i < n; i++) {
+        const t = (i / Math.max(1, n - 1) - 0.5) * VILLAGE_RAYON * 1.5;
+        const cote = i % 2 === 0 ? 1 : -1;
+        const ecart = 70 + rng.range(0, 50);
+        const def = maisons[rng.int(0, maisons.length - 1)]!;
+        out.push({
+          x: v.x + ux * t - uy * ecart * cote - def.w / 2,
+          y: v.y + uy * t + ux * ecart * cote - def.h / 2,
+          def,
+        });
+      }
+    }
+    this.villageRuines.set(key, out);
+    return out;
+  }
+
   private ruines = new Map<string, Ruine | null>();
 
   private ruineAt(cx: number, cy: number): Ruine | null {
@@ -1350,6 +1478,20 @@ export class Terrain {
       for (let cx = c0x; cx <= c1x; cx++) {
         const r = this.ruineAt(cx, cy);
         if (r) this.ruineBuf.push(r);
+      }
+    }
+    // Les maisons de village s'ajoutent aux ruines isolées.
+    const v0x = Math.floor((x - radius - VILLAGE_RAYON) / VILLAGE_CELL);
+    const v1x = Math.floor((x + radius + VILLAGE_RAYON) / VILLAGE_CELL);
+    const v0y = Math.floor((y - radius - VILLAGE_RAYON) / VILLAGE_CELL);
+    const v1y = Math.floor((y + radius + VILLAGE_RAYON) / VILLAGE_CELL);
+    for (let cy = v0y; cy <= v1y; cy++) {
+      for (let cx = v0x; cx <= v1x; cx++) {
+        for (const r of this.ruinesDuVillage(cx, cy)) {
+          if (Math.abs(r.x - x) < radius + 240 && Math.abs(r.y - y) < radius + 240) {
+            this.ruineBuf.push(r);
+          }
+        }
       }
     }
     return this.ruineBuf;

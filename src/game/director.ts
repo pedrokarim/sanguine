@@ -63,7 +63,14 @@ export class Director {
     const alive = w.aliveEnemies;
     if (alive >= spawnCap(m)) return;
 
-    this.accum += spawnRate(m) * w.surgeMult * dt;
+    /*
+     * Un village majore la pression de 40 % à son centre.
+     *
+     * C'est ce qui le rend **dangereux autant que désirable**. S'il n'offrait qu'un décor,
+     * on le contournerait ; s'il n'offrait que du danger, on le fuirait.
+     */
+    const vil = 1 + w.terrain.villageForce(w.player.x, w.player.y) * 0.4;
+    this.accum += spawnRate(m) * w.surgeMult * vil * dt;
     // Plafond par frame : évite un pic de 300 spawns après un ralenti ou un onglet en fond.
     let budget = 24;
     while (this.accum >= 1 && budget-- > 0) {
