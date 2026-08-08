@@ -349,3 +349,41 @@ Trois points qui font la différence entre un curseur personnalisé réussi et u
 Le jeu vise seul : en partie, la souris ne sert à rien. Le curseur s'efface après 1,6 s
 d'immobilité et revient au moindre mouvement. Il n'est **jamais** masqué dans les menus, où il
 reste le principal moyen d'interaction.
+
+## 15. Typographie
+
+Deux familles, deux rôles, **aucune téléchargée** — le jeu ne fait aucune requête réseau, une
+webfont romprait cette garantie et ajouterait un flash de texte non stylé au chargement.
+
+| Rôle | Famille | Usage |
+|---|---|---|
+| **Nommer** | Serif de labeur (`Iowan Old Style`, `Palatino`, `Georgia`, `serif`) | Titres, noms de personnages, d'armes et de reliques, phrases d'ambiance |
+| **Informer** | Monospace (`ui-monospace`, `SF Mono`, `Cascadia Mono`, `Consolas`) | Boutons, libellés, chiffres, HUD, infobulles |
+
+Le serif apporte le registre de manuscrit que le monospace seul ne donne pas : un nom de
+relique en chasse fixe se lit comme une clé de configuration, pas comme un objet.
+
+Le monospace, lui, est **obligatoire pour tout chiffre**. Une valeur en police
+proportionnelle change de largeur à chaque incrément, et un compteur qui sautille attire
+l'œil en permanence pour aucune information. Tous les nombres portent en plus
+`font-variant-numeric: tabular-nums`.
+
+Option d'accessibilité **« Police uniforme »** : une seule famille sans empattement, plus
+espacée, pour les lecteurs que les empattements gênent.
+
+## 16. Sprites dans le texte
+
+Écrire « 900 OR » quand la pièce existe déjà en sprite oblige à lire là où l'on pourrait
+reconnaître. Les valeurs de jeu portent donc leur sprite : l'or dans le HUD, dans la boutique,
+au Sanctuaire et sur les cartes ; les morts dans le HUD. L'icône étant la même partout, elle
+finit par se lire seule.
+
+Les icônes sont dimensionnées en **em**, donc elles suivent l'échelle d'interface choisie dans
+les options.
+
+### Un piège de `background-position`
+L'animation des planches doit défiler en **longueurs**, jamais en pourcentages. Un
+`background-position` en pourcentage se résout contre `taille de l'élément − taille de
+l'image` : sur une planche plus large que sa boîte, cette différence est négative, le sens
+s'inverse et l'image sort du cadre. L'icône disparaissait cinq frames sur six — et restait
+invisible sur une capture prise au mauvais moment.
