@@ -205,8 +205,22 @@ body.cursor-hidden #game { cursor: none; }
 
 /* ------------------------------------------------------------------- écrans */
 
+/*
+ * Les écrans se calent sur la **fenêtre**, pas sur `#ui`.
+ *
+ * `#ui` épouse la zone de jeu, dont la surface est plafonnée pour qu'un grand écran ne
+ * donne pas l'avantage de voir venir de plus loin. Sur un téléphone tenu droit ce plafond
+ * laisse des bandes noires : mesuré, la couche d'interface n'y faisait que 330 px de haut
+ * pour une fenêtre de 852 — un menu de huit entrées ne pouvait pas y tenir, quelle que
+ * soit la compression appliquée. Le bornage sert l'équité du jeu ; il n'a aucune raison de
+ * s'appliquer à un menu.
+ *
+ * Sur tous les autres formats mesurés, `#ui` couvre déjà la fenêtre entière et ce
+ * positionnement ne change rien. Aucun ancêtre ne porte de `transform`, `filter` ni
+ * `contain` : le `overflow: hidden` de `#ui` ne rogne donc pas un descendant fixe.
+ */
 .screen {
-  position: absolute;
+  position: fixed;
   inset: 0;
   display: flex;
   flex-direction: column;
@@ -312,6 +326,43 @@ body.cursor-hidden #game { cursor: none; }
 }
 
 .menu-list { display: flex; flex-direction: column; gap: .5em; min-width: 17em; }
+.menu-resume { display: flex; flex-direction: column; align-items: center; gap: .15em }
+.menu-resume .btn { width: 100% }
+/* La légende appartient au bouton qu'elle commente : elle se centre sous lui, et non sur
+   le bord gauche de la colonne. */
+.menu-resume .hint { text-align: center }
+
+/*
+ * L'écran-titre est en deux morceaux : un corps qui prend toute la place disponible et
+ * centre le logo, la devise et le menu ; un pied qui porte la mention légale et le
+ * copyright. Le pied étant *dans le flux*, il ne peut jamais recouvrir le menu — le
+ * problème que créait sa version en absolu, où le menu passait dessous dès qu'il gagnait
+ * une entrée ou que le joueur poussait la taille de l'interface.
+ */
+.screen.title { justify-content: stretch; gap: 0 }
+.title-corps {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.1em;
+  /*
+   * `safe` fait retomber le centrage sur un alignement en haut dès qu'il y a débordement.
+   * Sans lui, le haut du logo passerait au-dessus du bord et resterait inaccessible au
+   * défilement — c'est le comportement connu du centrage en boîte flexible.
+   */
+  justify-content: safe center;
+  overflow-y: auto;
+  width: 100%;
+}
+.title-pied {
+  flex: 0 0 auto;
+  display: flex; flex-direction: column; align-items: center; gap: .35em;
+  padding-top: .8em;
+}
+/* Rendues au flux : leur place est décidée par le pied, plus par des coordonnées. */
+.screen.title .title-mark, .screen.title .copyright { position: static; bottom: auto }
 
 /* -------------------------------------------------------------------- HUD */
 
@@ -1095,6 +1146,100 @@ body.is-touch .card { min-height: 0 }
   .blood-logo { height: clamp(56px, 22vh, 96px) }
   .flourish { display: none }
   .minimap { transform: scale(.72); transform-origin: bottom right }
+}
+
+/*
+ * -------------------------------------------------------- écran-titre bas de plafond
+ *
+ * Le menu principal a huit entrées quand une partie est en cours. Empilées, elles
+ * réclament plus de hauteur qu'un téléphone couché ou une petite fenêtre n'en offrent —
+ * mesuré : 576 px de menu pour 393 px de fenêtre. La place manque en hauteur ; elle est
+ * disponible en largeur. On plie donc le menu en deux colonnes plutôt que de rapetisser
+ * le texte jusqu'à l'illisible.
+ *
+ * Le seuil porte sur la **hauteur** et non sur le type de pointeur : une fenêtre de
+ * bureau écrasée à 600 px souffre exactement du même mal qu'un téléphone couché, et se
+ * soigne pareil. Il est haut — 880 px — parce que la colonne unique cesse de tenir bien
+ * avant le format des téléphones : un portable 1366 × 768 débordait déjà.
+ */
+@media (max-height: 880px) and (min-width: 620px) {
+  .title-corps { gap: .7em }
+  .screen.title .menu-list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: .4em .7em;
+    min-width: 0; width: min(34em, 88vw);
+  }
+  /* La reprise commande le menu : elle tient la première ligne entière. */
+  .screen.title .menu-resume { grid-column: 1 / -1 }
+  .screen.title .btn { width: 100%; padding-left: .6em; padding-right: .6em }
+  /* Le logo cède avant le menu : il porte l'identité, le menu porte la fonction. */
+  .screen.title .blood-logo { height: clamp(72px, 13vh, 120px) }
+}
+
+/*
+ * Plus bas encore — téléphone couché. Deux colonnes ne suffisent plus : il faut aussi
+ * reprendre la hauteur des boutons, élargie plus haut pour le doigt, et le bandeau du
+ * bas. La cible tactile reste au-dessus de 44 px physiques, seuil en deçà duquel un
+ * appui devient incertain.
+ */
+@media (max-height: 500px) {
+  .title-corps { gap: .45em }
+  .title-pied { padding-top: .35em }
+  .screen.title .menu-list { gap: .3em .6em }
+  .screen.title .btn,
+  body.is-touch .screen.title .btn { padding: .38em .7em; min-height: 2.3em; font-size: .92em }
+  .screen.title .menu-resume { gap: 0 }
+  .screen.title .menu-resume .hint { font-size: .78em }
+  /* Le fleuron et la mention légale cèdent la place avant le menu : ils décorent, ils
+     n'informent pas. Le copyright, lui, reste. */
+  .screen.title .flourish, .screen.title .title-mark { display: none }
+  .screen.title .tagline { font-size: .92em }
+  .screen.title .blood-logo { height: clamp(40px, 13vh, 60px) }
+  .screen.title .copyright { font-size: .72em }
+}
+
+/*
+ * Téléphone couché tenu à l'horizontale : très large pour ce qu'il est haut. Une troisième
+ * colonne fait tomber le menu de cinq lignes à quatre — c'est la hauteur qui manque, et
+ * elle se paie en largeur, qui abonde. En deçà de 780 px la troisième colonne rendrait les
+ * libellés trop serrés pour rester lisibles ; on en reste alors à deux.
+ */
+@media (max-height: 500px) and (min-width: 780px) {
+  .screen.title .menu-list { grid-template-columns: repeat(3, minmax(0, 1fr)) }
+}
+
+/*
+ * Les puces de statistiques des coins bas encadrent le menu et finissent par le mordre :
+ * en écran étroit parce qu'il ne reste rien de part et d'autre, en écran bas de plafond
+ * parce que le menu s'y étale sur deux colonnes larges. Elles sont un ornement chiffré,
+ * le menu est la fonction — on les retire dans les deux cas.
+ */
+/* Le seuil de 1040 px est relevé d'une mesure et non choisi au jugé : sur une tablette
+   4:3 en portrait (768 × 1024), la colonne de huit entrées descend jusqu'à 902 px quand
+   la puce du coin bas commence à 892. Un bureau en 1080 garde l'ornement, qui n'y gêne
+   rien. */
+@media (max-width: 620px), (max-height: 1040px) {
+  .screen.title .stat-corner.bl, .screen.title .stat-corner.br { display: none }
+}
+/* Posée depuis le code quand le corps déborde : tout l'ornement cède, y compris en haut. */
+.screen.title.serre .stat-corner { display: none }
+
+/*
+ * Portrait sur téléphone — le joueur a refusé la rotation, ce qui est son droit. Deux
+ * colonnes sont impossibles à cette largeur : c'est la hauteur des entrées qu'il faut
+ * reprendre. Le mobilier décoratif s'efface d'abord, le menu ensuite, et jamais en deçà
+ * de la cible tactile confortable.
+ */
+@media (max-width: 620px) {
+  .title-corps { gap: .5em }
+  .screen.title .menu-list { gap: .34em; min-width: 15em; width: min(20em, 86vw) }
+  .screen.title .btn,
+  body.is-touch .screen.title .btn { padding: .42em 1em; min-height: 2.5em; width: 100% }
+  .screen.title .flourish, .screen.title .title-mark { display: none }
+  .screen.title .menu-resume { gap: 0 }
+  .screen.title .menu-resume .hint { font-size: .78em }
+  .screen.title .blood-logo { height: clamp(56px, 12vh, 96px) }
 }
 
 /*
