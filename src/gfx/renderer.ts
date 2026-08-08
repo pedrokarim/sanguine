@@ -514,9 +514,11 @@ export class Renderer {
         add(p.x, p.y, P.bloodHi, f, 4, 700);
       }
     }
-    // Structures encore actives : plus discrètes, et seulement à courte portée.
+    // Structures encore actives : plus discrètes, et seulement à courte portée. Elles
+    // portent leur propre sprite comme le reste — une pastille avec un simple point paraît
+    // vide et ne dit pas ce qui attend là-bas.
     for (const poi of w.terrain.poisNear(cam.x, cam.y, 620)) {
-      if (!poi.used) add(poi.x, poi.y, poi.def.color, null, 5, 620);
+      if (!poi.used) add(poi.x, poi.y, poi.def.color, poiSprite(poi.type)[0] ?? null, 5, 620);
     }
 
     if (marks.length === 0) return;
