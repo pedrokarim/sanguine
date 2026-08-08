@@ -807,7 +807,14 @@ export class Screens {
               });
               audio.play('unlock');
             } else {
-              update((x) => { x.cosmetics.equipped[slot] = item.id; });
+              // On inscrit aussi les articles gratuits ou mérités dans `owned` : sans cela,
+              // `owned` ne signifiait « débloqué » que pour les achats, et une teinte
+              // équipée mais non listée était ignorée à l'application. Elle s'affichait
+              // « Équipé » sans le moindre effet en jeu.
+              update((x) => {
+                if (!x.cosmetics.owned.includes(item.id)) x.cosmetics.owned.push(item.id);
+                x.cosmetics.equipped[slot] = item.id;
+              });
               audio.play('confirm');
             }
             onApply();

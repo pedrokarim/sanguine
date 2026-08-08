@@ -128,7 +128,9 @@ function fresh(): SaveData {
     },
     fragments: [],
     cosmetics: {
-      owned: [],
+      // Les réglages par défaut sont possédés d'emblée : `owned` veut dire « débloqué »,
+      // pas « acheté ».
+      owned: ['trail-none', 'theme-stone', 'cursor-linen'],
       equipped: { trail: 'trail-none', theme: 'theme-stone', cursor: 'cursor-linen' },
     },
   };
