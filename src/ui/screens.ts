@@ -1,4 +1,5 @@
 import { formatTime, abbrev } from '../core/math';
+import { locale, setLanguage, t } from '../i18n';
 import { load, save, update, wipe, type SaveData, type RunSave } from '../core/save';
 import { audio } from '../audio/audio';
 import {
@@ -29,16 +30,16 @@ import {
 
 /** Libellés lisibles des comportements d'IA, pour le bestiaire. */
 const AI_LABEL: Record<EnemyAI, string> = {
-  chase: 'poursuite',
-  wave: 'poursuite ondulante',
-  erratic: 'trajectoire erratique',
-  charger: 'charges répétées',
-  phase: 'traverse les corps',
-  ranged: 'crache à distance',
-  leech: 'se nourrit de vous',
-  dasher: 'ruée rectiligne',
-  static: 'immobile',
-  split: 'se scinde à la mort',
+  chase: t('poursuite', 'chases'),
+  wave: t('poursuite ondulante', 'weaving pursuit'),
+  erratic: t('trajectoire erratique', 'erratic movement'),
+  charger: t('charges répétées', 'repeated charges'),
+  phase: t('traverse les corps', 'phases through bodies'),
+  ranged: t('crache à distance', 'spits from range'),
+  leech: t('se nourrit de vous', 'feeds on you'),
+  dasher: t('ruée rectiligne', 'straight-line dash'),
+  static: t('immobile', 'stationary'),
+  split: t('se scinde à la mort', 'splits on death'),
 };
 
 /** La CSS nomme les raretés en anglais court ; la table évite d'éparpiller la correspondance. */
@@ -290,7 +291,7 @@ export class Screens {
     fl.className = 'flourish';
     const tag = document.createElement('p');
     tag.className = 'tagline';
-    tag.textContent = '« Tenez jusqu’à l’aube. Elle ne viendra pas. »';
+    tag.textContent = t('« Tenez jusqu’à l’aube. Elle ne viendra pas. »', '“Hold until dawn. It will not come.”');
     corps.append(fl, tag);
 
     const list = document.createElement('div');
@@ -301,7 +302,10 @@ export class Screens {
     let bResume: HTMLButtonElement | null = null;
     if (savedRun) {
       const c = characterById(savedRun.charId);
-      bResume = this.button(`Reprendre · ${formatTime(savedRun.time)} · niv ${savedRun.level}`, 'primary');
+      bResume = this.button(t(
+        `Reprendre · ${formatTime(savedRun.time)} · niv ${savedRun.level}`,
+        `Resume · ${formatTime(savedRun.time)} · lvl ${savedRun.level}`,
+      ), 'primary');
       bResume.addEventListener('click', () => { audio.play('confirm'); onResume(); });
       const who = document.createElement('div');
       who.className = 'hint';
@@ -315,12 +319,12 @@ export class Screens {
       list.appendChild(bloc);
     }
 
-    const bPlay = this.button(savedRun ? 'Nouvelle partie' : 'Jouer', savedRun ? '' : 'primary');
-    const bSanct = this.button('Sanctuaire');
-    const bShop = this.button('Boutique');
+    const bPlay = this.button(savedRun ? t('Nouvelle partie', 'New run') : t('Jouer', 'Play'), savedRun ? '' : 'primary');
+    const bSanct = this.button(t('Sanctuaire', 'Sanctuary'));
+    const bShop = this.button(t('Boutique', 'Shop'));
     const bArchive = this.button('Archive');
     const bCodex = this.button('Codex');
-    const bProg = this.button('Progression');
+    const bProg = this.button(t('Progression', 'Progress'));
     const bOpt = this.button('Options');
     bPlay.addEventListener('click', () => { audio.play('confirm'); onPlay(); });
     bSanct.addEventListener('click', () => { audio.play('confirm'); onSanctuary(); });
@@ -338,19 +342,19 @@ export class Screens {
       // L'écran se remplit, le logo et le menu gardent le centre, et la lune du décor
       // reste dégagée.
       el.appendChild(this.statCorner('tl', [
-        ['runs', makeHero(`hero:${lastChar}`, characterById(lastChar).art, false), String(sv.stats.runs), 'parties'],
-        ['time', makeItem('hourglass'), formatTime(sv.stats.bestTime), 'record'],
+        ['runs', makeHero(`hero:${lastChar}`, characterById(lastChar).art, false), String(sv.stats.runs), t('parties', 'runs')],
+        ['time', makeItem('hourglass'), formatTime(sv.stats.bestTime), t('record', 'best')],
       ]));
       el.appendChild(this.statCorner('tr', [
-        ['gold', makeCoin(), abbrev(sv.gold), 'or'],
-        ['gems', makeGem(2), abbrev(sv.stats.gems), 'gemmes'],
+        ['gold', makeCoin(), abbrev(sv.gold), t('or', 'gold')],
+        ['gems', makeGem(2), abbrev(sv.stats.gems), t('gemmes', 'gems')],
       ]));
       el.appendChild(this.statCorner('bl', [
-        ['kills', makeBody('enemy:ghoul', enemyById('ghoul').art), abbrev(sv.stats.kills), 'abattus'],
+        ['kills', makeBody('enemy:ghoul', enemyById('ghoul').art), abbrev(sv.stats.kills), t('abattus', 'slain')],
       ]));
       el.appendChild(this.statCorner('br', [
-        ['wins', makeChest(), String(sv.stats.wins), 'victoires'],
-        ['relics', makeRelic('epic'), `${sv.seenRelics.length}/24`, 'reliques'],
+        ['wins', makeChest(), String(sv.stats.wins), t('victoires', 'victories')],
+        ['relics', makeRelic('epic'), `${sv.seenRelics.length}/24`, t('reliques', 'relics')],
       ]));
     } else {
       const stats = document.createElement('div');
@@ -358,8 +362,8 @@ export class Screens {
       stats.style.marginTop = '1em';
       // Conseiller des touches à quelqu'un qui n'a pas de clavier ne l'aide pas.
       stats.textContent = isTouch()
-        ? 'Glissez le doigt pour vous déplacer. Les armes tirent seules.'
-        : 'ZQSD ou WASD pour se déplacer. Les armes tirent seules.';
+        ? t('Glissez le doigt pour vous déplacer. Les armes tirent seules.', 'Drag to move. Weapons fire automatically.')
+        : t('ZQSD ou WASD pour se déplacer. Les armes tirent seules.', 'Use WASD or ZQSD to move. Weapons fire automatically.');
       corps.appendChild(stats);
     }
 
@@ -373,7 +377,7 @@ export class Screens {
     if (sv.fragments.length >= TOTAL) {
       const mark = document.createElement('div');
       mark.className = 'title-mark';
-      mark.textContent = 'Quarante-deux relevés. Le formulaire est complet.';
+      mark.textContent = t('Quarante-deux relevés. Le formulaire est complet.', 'Forty-two records. The form is complete.');
       pied.appendChild(mark);
     }
 
@@ -413,7 +417,7 @@ export class Screens {
   characterSelect(onPick: (id: string) => void, onBack: () => void): void {
     const el = this.open('charselect');
     const sv = load();
-    el.innerHTML = `<h2 class="title-font">Qui entre dans le domaine ?</h2>`;
+    el.innerHTML = `<h2 class="title-font">${t('Qui entre dans le domaine ?', 'Who enters the domain?')}</h2>`;
 
     const grid = document.createElement('div');
     grid.className = 'grid-pick';
@@ -472,7 +476,7 @@ export class Screens {
     }
 
     el.appendChild(grid);
-    const back = this.button('Retour');
+    const back = this.button(t('Retour', 'Back'));
     back.addEventListener('click', onBack);
     el.appendChild(back);
     items.push(back);
@@ -494,7 +498,7 @@ export class Screens {
             : sv.stats.wins;
 
     const fmt = (v: number): string =>
-      u.kind === 'time' ? formatTime(v) : v.toLocaleString('fr-FR');
+      u.kind === 'time' ? formatTime(v) : v.toLocaleString(locale());
 
     return {
       label: u.label,
@@ -532,7 +536,7 @@ export class Screens {
   progression(onBack: () => void): void {
     const el = this.open('progress');
     const sv = load();
-    el.innerHTML = `<h2 class="title-font">Progression</h2>`;
+    el.innerHTML = `<h2 class="title-font">${t('Progression', 'Progress')}</h2>`;
 
     const scroll = document.createElement('div');
     scroll.className = 'codex-scroll';
@@ -550,7 +554,7 @@ export class Screens {
 
     // --------------------------------------------------------------- personnages
     const debloques = CHARACTERS.filter((c) => this.isUnlocked(c, sv)).length;
-    const gChars = section('Personnages', debloques, CHARACTERS.length);
+    const gChars = section(t('Personnages', 'Characters'), debloques, CHARACTERS.length);
     for (const c of CHARACTERS) {
       const ouvert = this.isUnlocked(c, sv);
       const ligne = document.createElement('div');
@@ -597,7 +601,7 @@ export class Screens {
     // --------------------------------------------------------------- évolutions
     const recettes = WEAPONS.filter((w) => w.evolvesTo && w.requires);
     const trouvees = recettes.filter((w) => sv.seenWeapons.includes(w.evolvesTo!)).length;
-    const gEvo = section('Évolutions', trouvees, recettes.length);
+    const gEvo = section(t('Évolutions', 'Evolutions'), trouvees, recettes.length);
     for (const w of recettes) {
       const connue = sv.seenWeapons.includes(w.id);
       const faite = sv.seenWeapons.includes(w.evolvesTo!);
@@ -629,14 +633,14 @@ export class Screens {
       const nom = document.createElement('div');
       nom.className = 'prog-nom';
       nom.innerHTML = connue
-        ? `<b>${faite ? evo.name : '???'}</b><span class="prog-cond">${w.name} au niveau maximal, avec ${pas.name}</span>`
-        : `<b>???</b><span class="prog-cond">Une arme que vous n’avez pas encore vue</span>`;
+        ? `<b>${faite ? evo.name : '???'}</b><span class="prog-cond">${t(`${w.name} au niveau maximal, avec ${pas.name}`, `${w.name} at max level, with ${pas.name}`)}</span>`
+        : `<b>???</b><span class="prog-cond">${t('Une arme que vous n’avez pas encore vue', 'A weapon you have not seen yet')}</span>`;
       ligne.appendChild(nom);
       gEvo.appendChild(ligne);
     }
 
     el.appendChild(scroll);
-    const back = this.button('Retour');
+    const back = this.button(t('Retour', 'Back'));
     back.addEventListener('click', onBack);
     el.appendChild(back);
     this.navigable([back]);
@@ -652,7 +656,7 @@ export class Screens {
     onSkip: () => void,
   ): void {
     const el = this.open('levelup');
-    el.innerHTML = `<h2 class="title-font">Niveau supérieur</h2>`;
+    el.innerHTML = `<h2 class="title-font">${t('Niveau supérieur', 'Level up')}</h2>`;
 
     const cards = document.createElement('div');
     cards.className = 'cards';
@@ -697,7 +701,7 @@ export class Screens {
       audio.play('confirm');
       onReroll();
     });
-    const skip = this.button('Passer');
+    const skip = this.button(t('Passer', 'Skip'));
     skip.appendChild(iconValue('gold', '+50'));
     skip.addEventListener('click', () => { audio.play('confirm'); onSkip(); });
     actions.append(reroll, skip);
@@ -711,20 +715,20 @@ export class Screens {
 
   chest(res: ChestResult, onDone: () => void): void {
     const el = this.open('chestscreen');
-    el.innerHTML = `<h2 class="title-font">Coffre</h2>`;
+    el.innerHTML = `<h2 class="title-font">${t('Coffre', 'Chest')}</h2>`;
 
     if (res.evolution) {
       const evo = document.createElement('div');
       evo.className = 'card is-evo';
       evo.style.width = '18em';
       evo.innerHTML = `
-        <div class="kind">Évolution</div>
+        <div class="kind">${t('Évolution', 'Evolution')}</div>
         <div class="name"></div>
         <div class="desc"></div>
         <div class="lvltag"></div>`;
       evo.querySelector('.name')!.textContent = res.evolution.to.name;
       evo.querySelector('.desc')!.textContent = res.evolution.to.desc;
-      evo.querySelector('.lvltag')!.textContent = `remplace ${res.evolution.from.name}`;
+      evo.querySelector('.lvltag')!.textContent = t(`remplace ${res.evolution.from.name}`, `replaces ${res.evolution.from.name}`);
       el.appendChild(evo);
     }
 
@@ -753,10 +757,10 @@ export class Screens {
 
     const gold = document.createElement('div');
     gold.className = 'gold-count';
-    gold.textContent = `+${res.gold} or${res.rerolls ? ` · +${res.rerolls} reroll` : ''}`;
+    gold.textContent = `+${res.gold} ${t('or', 'gold')}${res.rerolls ? ` · +${res.rerolls} reroll` : ''}`;
     el.appendChild(gold);
 
-    const ok = this.button('Empocher', 'primary');
+    const ok = this.button(t('Empocher', 'Collect'), 'primary');
     ok.addEventListener('click', () => { audio.play('confirm'); onDone(); });
     el.appendChild(ok);
     this.navigable([ok]);
@@ -790,7 +794,7 @@ export class Screens {
     hint.className = 'archive-hint';
     hint.textContent = next
       ? CYCLES[next.cycle]!.hint
-      : 'Le recueil est complet.';
+      : t('Le recueil est complet.', 'The collection is complete.');
     el.appendChild(hint);
 
     const scroll = document.createElement('div');
@@ -806,7 +810,7 @@ export class Screens {
       const head = document.createElement('div');
       head.className = 'codex-section';
       head.innerHTML = '<span class="t"></span><span class="c"></span>';
-      head.querySelector('.t')!.textContent = revealed ? cy.name : `Cycle ${roman(c + 1)}`;
+      head.querySelector('.t')!.textContent = revealed ? cy.name : t(`Cycle ${roman(c + 1)}`, `Cycle ${roman(c + 1)}`);
       head.querySelector('.c')!.textContent = `${got} / ${items.length}`;
       scroll.appendChild(head);
 
@@ -831,7 +835,7 @@ export class Screens {
         n.textContent = has ? f.t : '—';
         const d = document.createElement('div');
         d.className = 'codex-desc';
-        d.textContent = has ? TYPE_LABEL[f.type] : 'Introuvé';
+        d.textContent = has ? TYPE_LABEL[f.type] : t('Introuvé', 'Missing');
         cell.append(num, n, d);
 
         if (has) cell.addEventListener('click', () => this.readFragment(f));
@@ -843,13 +847,13 @@ export class Screens {
     if (complete) {
       const ep = document.createElement('div');
       ep.className = 'archive-epilogue';
-      ep.textContent = 'Lire l’épilogue';
-      ep.addEventListener('click', () => this.readText('Épilogue', EPILOGUE));
+      ep.textContent = t('Lire l’épilogue', 'Read the epilogue');
+      ep.addEventListener('click', () => this.readText(t('Épilogue', 'Epilogue'), EPILOGUE));
       scroll.appendChild(ep);
     }
 
     el.appendChild(scroll);
-    const back = this.button('Retour');
+    const back = this.button(t('Retour', 'Back'));
     back.addEventListener('click', onBack);
     el.appendChild(back);
     this.navigable([back]);
@@ -892,7 +896,7 @@ export class Screens {
       panel.appendChild(pel);
     }
 
-    const close = this.button('Fermer', 'primary');
+    const close = this.button(t('Fermer', 'Close'), 'primary');
     const shut = (): void => {
       overlay.remove();
       window.removeEventListener('keydown', onKey);
@@ -929,7 +933,7 @@ export class Screens {
     const render = (): void => {
       const el = this.open('shop');
       const sv = load();
-      el.innerHTML = `<h2 class="title-font">Boutique</h2>`;
+      el.innerHTML = `<h2 class="title-font">${t('Boutique', 'Shop')}</h2>`;
 
       const purse = document.createElement('div');
       purse.className = 'gold-count';
@@ -938,7 +942,7 @@ export class Screens {
 
       const note = document.createElement('div');
       note.className = 'hint';
-      note.textContent = 'Rien de tout ceci n’influence le jeu.';
+      note.textContent = t('Rien de tout ceci n’influence le jeu.', 'None of this affects gameplay.');
       el.appendChild(note);
 
       const scroll = document.createElement('div');
@@ -982,7 +986,7 @@ export class Screens {
           cell.append(n, d);
 
           const btn = this.button(
-            on ? 'Équipé' : has ? 'Équiper' : gated ? `${sv.fragments.length} / ${TOTAL}` : '',
+            on ? t('Équipé', 'Equipped') : has ? t('Équiper', 'Equip') : gated ? `${sv.fragments.length} / ${TOTAL}` : '',
             on ? 'primary' : '',
           );
           // Un prix s'écrit avec la monnaie, pas avec son nom.
@@ -1026,7 +1030,7 @@ export class Screens {
       group('cursor', CURSORS);
 
       el.appendChild(scroll);
-      const back = this.button('Retour');
+      const back = this.button(t('Retour', 'Back'));
       back.addEventListener('click', onBack);
       el.appendChild(back);
       this.navigable([back]);
@@ -1056,7 +1060,7 @@ export class Screens {
     const render = (): void => {
       const el = this.open('sanctuary');
       const sv = load();
-      el.innerHTML = `<h2 class="title-font">Sanctuaire</h2>`;
+      el.innerHTML = `<h2 class="title-font">${t('Sanctuaire', 'Sanctuary')}</h2>`;
 
       const gold = document.createElement('div');
       gold.className = 'gold-count';
@@ -1143,14 +1147,14 @@ export class Screens {
       const actions = document.createElement('div');
       actions.style.display = 'flex';
       actions.style.gap = '.6em';
-      const back = this.button('Retour');
+      const back = this.button(t('Retour', 'Back'));
       back.addEventListener('click', onBack);
-      const reset = this.button('Tout réinitialiser', 'danger');
+      const reset = this.button(t('Tout réinitialiser', 'Reset all'), 'danger');
       let armed = false;
       reset.addEventListener('click', () => {
         if (!armed) {
           armed = true;
-          reset.textContent = 'Confirmer ? (irréversible)';
+          reset.textContent = t('Confirmer ? (irréversible)', 'Confirm? (irreversible)');
           audio.play('deny');
           return;
         }
@@ -1232,7 +1236,7 @@ export class Screens {
     n.textContent = discovered ? name : '???';
     const d = document.createElement('div');
     d.className = 'codex-desc';
-    d.textContent = discovered ? desc : 'Non découvert';
+    d.textContent = discovered ? desc : t('Non découvert', 'Undiscovered');
     cell.append(n, d);
     return cell;
   }
@@ -1268,22 +1272,22 @@ export class Screens {
     const sheetOf = (key: string, set: SpriteSet): Sheet =>
       spriteSheet(key, set, this.fitScale(set, BOX_W, BOX_H));
 
-    const gWeapons = section('Armes', sv.seenWeapons.filter((id) => base.some((b) => b.id === id)).length, base.length);
+    const gWeapons = section(t('Armes', 'Weapons'), sv.seenWeapons.filter((id) => base.some((b) => b.id === id)).length, base.length);
     for (const def of base) {
       const seen = sv.seenWeapons.includes(def.id);
       gWeapons.appendChild(this.codexCell(
         sheetOf(`codex:w:${def.id}`, makeProjectile(def.sprite, def.color)),
-        seen, def.name, def.desc, `${def.damage} dégâts · ${def.cooldown} s`, 'var(--mist)',
+        seen, def.name, def.desc, t(`${def.damage} dégâts · ${def.cooldown} s`, `${def.damage} damage · ${def.cooldown} s`), 'var(--mist)',
       ));
     }
 
-    const gEvos = section('Évolutions', sv.seenWeapons.filter((id) => evos.some((e) => e.id === id)).length, evos.length);
+    const gEvos = section(t('Évolutions', 'Evolutions'), sv.seenWeapons.filter((id) => evos.some((e) => e.id === id)).length, evos.length);
     for (const def of evos) {
       const seen = sv.seenWeapons.includes(def.id);
       const from = WEAPONS.find((x) => x.evolvesTo === def.id);
       const recipe = from
         ? `${from.name} + ${from.requires ? PASSIVE_BY_ID.get(from.requires)?.name ?? '' : ''}`
-        : 'Évolution';
+        : t('Évolution', 'Evolution');
       gEvos.appendChild(this.codexCell(
         sheetOf(`codex:w:${def.id}`, makeProjectile(def.sprite, def.color)),
         seen, def.name, def.desc, recipe, 'var(--rar-epic)',
@@ -1292,22 +1296,22 @@ export class Screens {
 
     // -------------------------------------------------------------- bestiaire
     const all = [...ENEMIES, ...BOSSES];
-    const gBeasts = section('Bestiaire', sv.seenEnemies.length, all.length);
+    const gBeasts = section(t('Bestiaire', 'Bestiary'), sv.seenEnemies.length, all.length);
     for (const def of all) {
       const seen = sv.seenEnemies.includes(def.id);
       const isBoss = !!def.boss;
       gBeasts.appendChild(this.codexCell(
         sheetOf(`codex:e:${def.id}`, makeBody(`enemy:${def.id}`, def.art)),
         seen, def.name,
-        `${def.hp} PV · ${def.damage} dégâts · ${AI_LABEL[def.ai] ?? def.ai}`,
-        isBoss ? 'BOSS' : `dès ${def.from} min`,
+        t(`${def.hp} PV · ${def.damage} dégâts · ${AI_LABEL[def.ai] ?? def.ai}`, `${def.hp} HP · ${def.damage} damage · ${AI_LABEL[def.ai] ?? def.ai}`),
+        isBoss ? 'BOSS' : t(`dès ${def.from} min`, `from ${def.from} min`),
         isBoss ? 'var(--blood-hi)' : 'var(--mist)',
         isBoss ? 0.9 : 0.5,
       ));
     }
 
     // --------------------------------------------------------------- reliques
-    const gRelics = section('Reliques', sv.seenRelics.length, RELICS.length);
+    const gRelics = section(t('Reliques', 'Relics'), sv.seenRelics.length, RELICS.length);
     for (const r of RELICS) {
       const seen = sv.seenRelics.includes(r.id);
       gRelics.appendChild(this.codexCell(
@@ -1318,7 +1322,7 @@ export class Screens {
     }
 
     el.appendChild(scroll);
-    const back = this.button('Retour');
+    const back = this.button(t('Retour', 'Back'));
     back.addEventListener('click', onBack);
     el.appendChild(back);
     this.navigable([back]);
@@ -1392,41 +1396,68 @@ export class Screens {
       scroll.appendChild(row);
     };
 
+    const languageSelect = (): void => {
+      const row = document.createElement('div');
+      row.className = 'opt-row';
+      const label = document.createElement('label');
+      label.textContent = t('Langue', 'Language');
+      const select = document.createElement('select');
+      select.className = 'opt-select';
+      for (const [value, name] of [['fr', 'Français'], ['en', 'English']] as const) {
+        const option = document.createElement('option');
+        option.value = value;
+        option.textContent = name;
+        option.selected = sv.options.language === value;
+        select.appendChild(option);
+      }
+      select.addEventListener('change', () => {
+        sv.options.language = select.value === 'en' ? 'en' : 'fr';
+        setLanguage(sv.options.language);
+        save();
+        location.reload();
+      });
+      row.append(label, select);
+      scroll.appendChild(row);
+    };
+
     const pct = (v: number): string => `${Math.round(v * 100)} %`;
 
-    section('Son');
-    slider('Volume général', 0, 1, 0.05, () => sv.options.master, (v) => { sv.options.master = v; }, pct);
-    slider('Effets sonores', 0, 1, 0.05, () => sv.options.sfx, (v) => { sv.options.sfx = v; }, pct);
-    slider('Musique', 0, 1, 0.05, () => sv.options.music, (v) => { sv.options.music = v; }, pct);
+    section(t('Langue', 'Language'));
+    languageSelect();
 
-    section('Affichage');
-    slider('Taille de l’interface', 0.7, 2, 0.05, () => sv.options.hudScale, (v) => { sv.options.hudScale = v; }, pct);
-    slider('Secousse de caméra', 0, 1, 0.05, () => sv.options.shake, (v) => { sv.options.shake = v; }, pct);
-    toggle('Contraste renforcé', 'Textes plus clairs et mieux détourés.',
+    section(t('Son', 'Audio'));
+    slider(t('Volume général', 'Master volume'), 0, 1, 0.05, () => sv.options.master, (v) => { sv.options.master = v; }, pct);
+    slider(t('Effets sonores', 'Sound effects'), 0, 1, 0.05, () => sv.options.sfx, (v) => { sv.options.sfx = v; }, pct);
+    slider(t('Musique', 'Music'), 0, 1, 0.05, () => sv.options.music, (v) => { sv.options.music = v; }, pct);
+
+    section(t('Affichage', 'Display'));
+    slider(t('Taille de l’interface', 'Interface size'), 0.7, 2, 0.05, () => sv.options.hudScale, (v) => { sv.options.hudScale = v; }, pct);
+    slider(t('Secousse de caméra', 'Camera shake'), 0, 1, 0.05, () => sv.options.shake, (v) => { sv.options.shake = v; }, pct);
+    toggle(t('Contraste renforcé', 'High contrast'), t('Textes plus clairs et mieux détourés.', 'Brighter text with stronger outlines.'),
       () => sv.options.highContrast, (v) => { sv.options.highContrast = v; });
-    toggle('Police uniforme', 'Une seule famille sans empattement, plus espacée.',
+    toggle(t('Police uniforme', 'Uniform font'), t('Une seule famille sans empattement, plus espacée.', 'A single, more widely spaced sans-serif family.'),
       () => sv.options.plainFont, (v) => { sv.options.plainFont = v; });
 
-    section('Confort visuel');
-    toggle('Réduire les flashs', 'Supprime les flashs plein écran et les vignettes pulsées.',
+    section(t('Confort visuel', 'Visual comfort'));
+    toggle(t('Réduire les flashs', 'Reduce flashes'), t('Supprime les flashs plein écran et les vignettes pulsées.', 'Removes full-screen flashes and pulsing vignettes.'),
       () => sv.options.reduceFlash, (v) => { sv.options.reduceFlash = v; });
-    toggle('Réduire les animations', 'Coulures du logo, sprites du codex, transitions.',
+    toggle(t('Réduire les animations', 'Reduce motion'), t('Coulures du logo, sprites du codex, transitions.', 'Logo drips, Codex sprites and transitions.'),
       () => sv.options.reduceMotion, (v) => { sv.options.reduceMotion = v; });
-    toggle('Chiffres de dégâts', 'Les couper réduit beaucoup le bruit à l’écran.',
+    toggle(t('Chiffres de dégâts', 'Damage numbers'), t('Les couper réduit beaucoup le bruit à l’écran.', 'Turning them off greatly reduces visual clutter.'),
       () => sv.options.showDamage, (v) => { sv.options.showDamage = v; });
 
-    section('Jeu');
-    toggle('Repère sous le joueur', 'Un anneau permanent pour ne jamais vous perdre dans la horde.',
+    section(t('Jeu', 'Gameplay'));
+    toggle(t('Repère sous le joueur', 'Player marker'), t('Un anneau permanent pour ne jamais vous perdre dans la horde.', 'A permanent ring so you never lose yourself in the horde.'),
       () => sv.options.highlightPlayer, (v) => { sv.options.highlightPlayer = v; });
-    slider('Vitesse du jeu', 0.6, 1, 0.05, () => sv.options.gameSpeed, (v) => { sv.options.gameSpeed = v; }, pct);
+    slider(t('Vitesse du jeu', 'Game speed'), 0.6, 1, 0.05, () => sv.options.gameSpeed, (v) => { sv.options.gameSpeed = v; }, pct);
     const speedNote = document.createElement('div');
     speedNote.className = 'opt-hint';
     speedNote.style.margin = '-.3em 0 .6em';
-    speedNote.textContent = 'Le jeu reste identique, il se déroule simplement moins vite.';
+    speedNote.textContent = t('Le jeu reste identique, il se déroule simplement moins vite.', 'The game stays the same; it simply runs more slowly.');
     scroll.appendChild(speedNote);
 
     el.appendChild(scroll);
-    const back = this.button('Retour');
+    const back = this.button(t('Retour', 'Back'));
     back.addEventListener('click', onBack);
     el.appendChild(back);
     this.navigable([back]);
@@ -1437,12 +1468,12 @@ export class Screens {
   pause(onResume: () => void, onQuit: () => void): void {
     const el = this.open('pause');
     // « Échap » ne veut rien dire sur une tablette : le raccourci n'y existe pas.
-    const rappel = isTouch() ? 'Le temps est arrêté.' : 'Échap pour reprendre';
+    const rappel = isTouch() ? t('Le temps est arrêté.', 'Time has stopped.') : t('Échap pour reprendre', 'Escape to resume');
     el.innerHTML = `<h2 class="title-font">Pause</h2><p class="hint">${rappel}</p>`;
     const list = document.createElement('div');
     list.className = 'menu-list';
-    const resume = this.button('Reprendre', 'primary');
-    const quit = this.button('Abandonner', 'danger');
+    const resume = this.button(t('Reprendre', 'Resume'), 'primary');
+    const quit = this.button(t('Abandonner', 'Abandon run'), 'danger');
     resume.addEventListener('click', onResume);
     quit.addEventListener('click', onQuit);
     list.append(resume, quit);
@@ -1457,7 +1488,7 @@ export class Screens {
 
     // Le même logo saignant que l'écran-titre : c'est précisément ici qu'il prend son sens.
     // À la victoire, ce n'est plus du sang qui coule mais la lumière de l'aube.
-    const logo = new BloodLogo(victory ? 'AUBE' : 'MORT', victory ? 0x21b : 0x9c4, victory ? DAWN : BLOOD);
+    const logo = new BloodLogo(victory ? t('AUBE', 'DAWN') : t('MORT', 'DEATH'), victory ? 0x21b : 0x9c4, victory ? DAWN : BLOOD);
     const h1 = document.createElement('h1');
     h1.className = 'title-font';
     h1.appendChild(logo.canvas);
@@ -1471,19 +1502,19 @@ export class Screens {
 
     const tag = document.createElement('p');
     tag.className = 'tagline';
-    tag.textContent = victory ? 'Elle est venue, finalement.' : 'Le domaine vous garde.';
+    tag.textContent = victory ? t('Elle est venue, finalement.', 'At last, it came.') : t('Le domaine vous garde.', 'The domain keeps you.');
     el.appendChild(tag);
 
     // Le bilan de fin est le moment où l'on regarde ses chiffres : c'est précisément là
     // qu'un tableau de texte est le plus décevant.
     el.appendChild(this.statStrip([
-      ['t', makeItem('hourglass'), formatTime(sum.time), 'Temps'],
-      ['lv', makeGem(3), String(sum.level), 'Niveau'],
-      ['k', makeBody('enemy:ghoul', enemyById('ghoul').art), abbrev(sum.kills), 'Abattus'],
-      ['d', makeProjectile('stake', '#f7ede0'), abbrev(sum.damage), 'Dégâts'],
-      ['g', makeGem(1), abbrev(sum.gems), 'Gemmes'],
-      ['r', makeRelic('epic'), String(sum.relics), 'Reliques'],
-      ['o', makeCoin(), abbrev(sum.gold), 'Or'],
+      ['t', makeItem('hourglass'), formatTime(sum.time), t('Temps', 'Time')],
+      ['lv', makeGem(3), String(sum.level), t('Niveau', 'Level')],
+      ['k', makeBody('enemy:ghoul', enemyById('ghoul').art), abbrev(sum.kills), t('Abattus', 'Slain')],
+      ['d', makeProjectile('stake', '#f7ede0'), abbrev(sum.damage), t('Dégâts', 'Damage')],
+      ['g', makeGem(1), abbrev(sum.gems), t('Gemmes', 'Gems')],
+      ['r', makeRelic('epic'), String(sum.relics), t('Reliques', 'Relics')],
+      ['o', makeCoin(), abbrev(sum.gold), t('Or', 'Gold')],
     ]));
 
     const panel = document.createElement('div');
@@ -1491,7 +1522,7 @@ export class Screens {
     panel.style.padding = '.9em 1.6em';
     const who = document.createElement('div');
     who.className = 'stats-table';
-    for (const [k, v] of [['Personnage', sum.character], ['Graine', String(sum.seed)]] as [string, string][]) {
+    for (const [k, v] of [[t('Personnage', 'Character'), sum.character], [t('Graine', 'Seed'), String(sum.seed)]] as [string, string][]) {
       const kd = document.createElement('div');
       kd.className = 'k';
       kd.textContent = k;
@@ -1505,8 +1536,8 @@ export class Screens {
 
     const list = document.createElement('div');
     list.className = 'menu-list';
-    const retry = this.button('Rejouer', 'primary');
-    const menu = this.button('Menu principal');
+    const retry = this.button(t('Rejouer', 'Play again'), 'primary');
+    const menu = this.button(t('Menu principal', 'Main menu'));
     retry.addEventListener('click', () => { audio.play('confirm'); onRetry(); });
     menu.addEventListener('click', () => { audio.play('confirm'); onMenu(); });
     list.append(retry, menu);

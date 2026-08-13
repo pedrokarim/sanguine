@@ -1,3 +1,6 @@
+import { localiseById, t } from '../i18n';
+import { EN_SURPASSMENTS } from './en';
+
 /**
  * Modificateurs de statistiques, partagés par les passifs, les reliques, les personnages
  * et le Sanctuaire. Un seul type pour tout : la fonction de recalcul du joueur n'a qu'un
@@ -52,24 +55,24 @@ export function describeMods(m: Mods): string {
   const pct = (v: number): string => `${v > 0 ? '+' : '−'}${Math.round(Math.abs(v) * 100)} %`;
   const flat = (v: number): string => `${v > 0 ? '+' : '−'}${Math.abs(v)}`;
 
-  if (m.maxHp) out.push(`${flat(m.maxHp)} PV max`);
-  if (m.regen) out.push(`${m.regen > 0 ? '+' : '−'}${Math.abs(m.regen).toFixed(1)} PV/s`);
-  if (m.armor) out.push(`${flat(m.armor)} armure`);
-  if (m.moveSpeed) out.push(`${pct(m.moveSpeed)} de vitesse`);
-  if (m.might) out.push(`${pct(m.might)} de dégâts`);
-  if (m.area) out.push(`${pct(m.area)} de zone`);
-  if (m.cooldown) out.push(`${m.cooldown > 0 ? '−' : '+'}${Math.round(Math.abs(m.cooldown) * 100)} % de recharge`);
-  if (m.projSpeed) out.push(`${pct(m.projSpeed)} de vitesse de projectile`);
-  if (m.duration) out.push(`${pct(m.duration)} de durée`);
+  if (m.maxHp) out.push(t(`${flat(m.maxHp)} PV max`, `${flat(m.maxHp)} max HP`));
+  if (m.regen) out.push(`${m.regen > 0 ? '+' : '−'}${Math.abs(m.regen).toFixed(1)} ${t('PV/s', 'HP/s')}`);
+  if (m.armor) out.push(t(`${flat(m.armor)} armure`, `${flat(m.armor)} armour`));
+  if (m.moveSpeed) out.push(t(`${pct(m.moveSpeed)} de vitesse`, `${pct(m.moveSpeed)} speed`));
+  if (m.might) out.push(t(`${pct(m.might)} de dégâts`, `${pct(m.might)} damage`));
+  if (m.area) out.push(t(`${pct(m.area)} de zone`, `${pct(m.area)} area`));
+  if (m.cooldown) out.push(t(`${m.cooldown > 0 ? '−' : '+'}${Math.round(Math.abs(m.cooldown) * 100)} % de recharge`, `${m.cooldown > 0 ? '−' : '+'}${Math.round(Math.abs(m.cooldown) * 100)}% cooldown`));
+  if (m.projSpeed) out.push(t(`${pct(m.projSpeed)} de vitesse de projectile`, `${pct(m.projSpeed)} projectile speed`));
+  if (m.duration) out.push(t(`${pct(m.duration)} de durée`, `${pct(m.duration)} duration`));
   if (m.amount) out.push(`${flat(m.amount)} projectile${Math.abs(m.amount) > 1 ? 's' : ''}`);
-  if (m.pickup) out.push(`${pct(m.pickup)} de ramassage`);
-  if (m.luck) out.push(`${pct(m.luck)} de chance`);
-  if (m.growth) out.push(`${pct(m.growth)} d'XP`);
-  if (m.greed) out.push(`${pct(m.greed)} d'or`);
-  if (m.crit) out.push(`${pct(m.crit)} de critique`);
-  if (m.lifesteal) out.push(`${pct(m.lifesteal)} de vol de vie`);
-  if (m.pierce) out.push(`${flat(m.pierce)} perforation`);
-  if (m.revives) out.push(`${flat(m.revives)} résurrection`);
+  if (m.pickup) out.push(t(`${pct(m.pickup)} de ramassage`, `${pct(m.pickup)} pickup range`));
+  if (m.luck) out.push(t(`${pct(m.luck)} de chance`, `${pct(m.luck)} luck`));
+  if (m.growth) out.push(`${pct(m.growth)} ${t("d'XP", 'XP')}`);
+  if (m.greed) out.push(t(`${pct(m.greed)} d'or`, `${pct(m.greed)} gold`));
+  if (m.crit) out.push(t(`${pct(m.crit)} de critique`, `${pct(m.crit)} critical chance`));
+  if (m.lifesteal) out.push(t(`${pct(m.lifesteal)} de vol de vie`, `${pct(m.lifesteal)} life steal`));
+  if (m.pierce) out.push(t(`${flat(m.pierce)} perforation`, `${flat(m.pierce)} pierce`));
+  if (m.revives) out.push(t(`${flat(m.revives)} résurrection`, `${flat(m.revives)} resurrection`));
   if (m.rerolls) out.push(`${flat(m.rerolls)} reroll`);
 
   return out.join(', ');
@@ -106,6 +109,8 @@ export const SURPASSEMENTS: Surpassement[] = [
   { id: 'sur-armor', nom: 'Cuir tanné', mods: { armor: 0.6 } },
   { id: 'sur-crit', nom: 'Œil sûr', mods: { crit: 0.02 } },
 ];
+
+localiseById(SURPASSEMENTS, EN_SURPASSMENTS);
 
 export const SURPASSEMENT_BY_ID = new Map<string, Surpassement>(
   SURPASSEMENTS.map((s) => [s.id, s]),
