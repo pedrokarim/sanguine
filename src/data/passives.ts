@@ -1,7 +1,5 @@
 import { P } from '../gfx/palette';
 import type { Mods } from './mods';
-import { localiseById } from '../i18n';
-import { EN_PASSIVES } from './en';
 
 /**
  * Passifs : 12 objets, niveau maximum 5, gain linéaire par niveau.
@@ -105,8 +103,6 @@ export const PASSIVES: PassiveDef[] = [
     maxLevel: 5, color: P.blood, icon: 'cup',
   },
 ];
-
-localiseById(PASSIVES, EN_PASSIVES);
 
 export const PASSIVE_BY_ID = new Map(PASSIVES.map((p) => [p.id, p]));
 

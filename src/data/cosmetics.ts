@@ -1,7 +1,5 @@
 import { P } from '../gfx/palette';
 import type { HeroArt } from '../gfx/sprites';
-import { localiseById, t } from '../i18n';
-import { EN_COSMETICS } from './en';
 
 /**
  * Boutique cosmétique.
@@ -132,11 +130,6 @@ export const CURSORS: Cosmetic[] = [
   C({ id: 'cursor-ice', kind: 'cursor', name: 'Givre', desc: 'Froid, net, tranchant.', price: 600, color: P.ice, accent: '#ffffff' }),
 ];
 
-localiseById(SKINS, EN_COSMETICS);
-localiseById(TRAILS, EN_COSMETICS);
-localiseById(THEMES, EN_COSMETICS);
-localiseById(CURSORS, EN_COSMETICS);
-
 export const ALL_COSMETICS: Cosmetic[] = [...SKINS, ...TRAILS, ...THEMES, ...CURSORS];
 export const COSMETIC_BY_ID = new Map(ALL_COSMETICS.map((c) => [c.id, c]));
 
@@ -144,8 +137,8 @@ export const COSMETIC_BY_ID = new Map(ALL_COSMETICS.map((c) => [c.id, c]));
 export const FREE_IDS = ALL_COSMETICS.filter((c) => c.price === 0).map((c) => c.id);
 
 export const KIND_LABEL: Record<CosmeticKind, string> = {
-  skin: t('Teintes', 'Skins'),
-  trail: t('Traînées', 'Trails'),
-  theme: t('Interface', 'Interface'),
-  cursor: t('Curseurs', 'Cursors'),
+  skin: 'Teintes',
+  trail: 'Traînées',
+  theme: 'Interface',
+  cursor: 'Curseurs',
 };
