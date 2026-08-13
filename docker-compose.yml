@@ -3,6 +3,11 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        # Clé de mesure d'audience, lue depuis le `.env` local — que `.gitignore` refuse, et
+        # c'est voulu : elle n'a pas à être versionnée. Absente, la valeur reste vide et le
+        # build ne contient ni adresse de collecte ni mesure. Voir `.env.example`.
+        VITE_SARUTOBI_KEY: "${VITE_SARUTOBI_KEY:-}"
     image: sanguine:latest
     container_name: sanguine
     restart: unless-stopped
@@ -12,7 +17,9 @@ services:
     ports:
       - "127.0.0.1:4020:80"
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost/healthz"]
+      # `127.0.0.1` et non `localhost` — voir l'explication dans le Dockerfile. Ce test-ci
+      # remplace celui de l'image, il fallait donc corriger les deux.
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/healthz"]
       interval: 30s
       timeout: 3s
       retries: 3
