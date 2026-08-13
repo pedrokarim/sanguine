@@ -1,5 +1,6 @@
 import { Pix, toCanvas } from '../gfx/pix';
 import { P } from '../gfx/palette';
+import { t } from '../i18n';
 
 /**
  * Adaptation aux appareils tactiles — téléphone comme tablette.
@@ -241,14 +242,14 @@ export class Mobile {
 
     const titre = document.createElement('h2');
     titre.className = 'title-font';
-    titre.textContent = isPhone() ? 'Tournez votre téléphone' : 'Tournez votre écran';
+    titre.textContent = isPhone() ? t('Tournez votre téléphone', 'Rotate your phone') : t('Tournez votre écran', 'Rotate your screen');
     el.appendChild(titre);
 
     const texte = document.createElement('p');
     texte.className = 'rotate-text';
     texte.textContent =
-      'Le domaine est plus large que haut. En paysage, vous voyez venir ce qui vous '
-      + 'entoure – et l’écran entier sert au jeu.';
+      t('Le domaine est plus large que haut. En paysage, vous voyez venir ce qui vous entoure – et l’écran entier sert au jeu.',
+        'The domain is wider than it is tall. In landscape, you can see what surrounds you—and the entire screen is used for play.');
     el.appendChild(texte);
 
     const actions = document.createElement('div');
@@ -256,13 +257,13 @@ export class Mobile {
 
     const btnPlein = document.createElement('button');
     btnPlein.className = 'btn primary';
-    btnPlein.textContent = 'Plein écran';
+    btnPlein.textContent = t('Plein écran', 'Full screen');
     btnPlein.addEventListener('click', () => void plainEcranPaysage());
     actions.appendChild(btnPlein);
 
     const btnRester = document.createElement('button');
     btnRester.className = 'btn';
-    btnRester.textContent = 'Rester ainsi';
+    btnRester.textContent = t('Rester ainsi', 'Stay this way');
     btnRester.addEventListener('click', () => {
       this.accepteLePortrait = true;
       this.cacher();

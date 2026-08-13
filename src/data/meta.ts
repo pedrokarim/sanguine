@@ -1,4 +1,6 @@
 import type { Mods } from './mods';
+import { localiseById } from '../i18n';
+import { EN_META } from './en';
 
 /**
  * Sanctuaire – méta-progression permanente achetée avec l'or conservé entre les runs.
@@ -30,6 +32,8 @@ export const META_UPGRADES: MetaUpgrade[] = [
   { id: 'reroll', name: 'Reroll', desc: '+1 reroll par partie', levels: 3, baseCost: 500, perLevel: { rerolls: 1 } },
   { id: 'revive', name: 'Résurrection', desc: '+1 résurrection par partie', levels: 2, baseCost: 1500, perLevel: { revives: 1 } },
 ];
+
+localiseById(META_UPGRADES, EN_META);
 
 export const META_BY_ID = new Map(META_UPGRADES.map((u) => [u.id, u]));
 
