@@ -22,7 +22,6 @@ import {
   makeEnemy, makeProjectile, makeZone, makePickup, resetImmunity, claimHit,
   type Enemy, type Projectile, type Zone, type Pickup, type PickupKind, type ProjBehavior,
 } from './types';
-import { t } from '../i18n';
 
 /**
  * Résolution logique **de référence**. La résolution réelle s'en écarte légèrement pour
@@ -614,7 +613,7 @@ export class World {
     if (this.villagesPilles.has(key)) return;
     this.villagesPilles.add(key);
     this.spawnPickup('chest', this.player.x + this.rng.spread(60), this.player.y + this.rng.spread(60), 0, 0);
-    this.announce(t('Un bourg abandonné', 'An abandoned village'), t('quelque chose y est resté', 'something was left behind'));
+    this.announce('Un bourg abandonné', 'quelque chose y est resté');
   }
 
   private updateDecor(dt: number): void {
@@ -800,13 +799,13 @@ export class World {
     switch (poi.type) {
       case 'altar':
         this.dropRelic(x, y - 6);
-        this.announce(poi.def.name, t('une relique se libère', 'a relic breaks free'));
+        this.announce(poi.def.name, 'une relique se libère');
         audio.play('relic');
         break;
 
       case 'pyre': {
         pl.heal(pl.stats.maxHp * 0.3);
-        this.announce(poi.def.name, t('la flamme purifie', 'the flame purifies'));
+        this.announce(poi.def.name, 'la flamme purifie');
         audio.play('explode');
         this.explodeAt(x, y, 150, 140 * pl.stats.might);
         // Laisse un foyer qui continue de brûler : le lieu reste tactiquement utile.
@@ -816,7 +815,7 @@ export class World {
 
       case 'obelisk':
         pl.addBuff('might', 0.3, 45);
-        this.announce(poi.def.name, t('+30 % de dégâts pendant 45 s', '+30% damage for 45 s'));
+        this.announce(poi.def.name, '+30 % de dégâts pendant 45 s');
         audio.play('unlock');
         break;
 
@@ -824,14 +823,14 @@ export class World {
         const amount = Math.round(this.rng.int(150, 400) * pl.stats.greed);
         this.gold += amount;
         this.particles.label(x, y - 12, `+${amount}`, P.gold);
-        this.announce(poi.def.name, t(`${amount} pièces`, `${amount} coins`));
+        this.announce(poi.def.name, `${amount} pièces`);
         audio.play('gold');
         break;
       }
 
       case 'ossuary': {
         // Piège volontaire : la récompense est bonne, mais il faut survivre à ce qui sort.
-        this.announce(poi.def.name, t('quelque chose se réveille', 'something awakens'));
+        this.announce(poi.def.name, 'quelque chose se réveille');
         audio.play('boss');
         const e = this.spawnEnemy('golem', x + 24, y, true);
         if (e) this.particles.ring(e.x, e.y, 30, P.bloodHi, 0.5, 2);
@@ -844,12 +843,12 @@ export class World {
       case 'chapel':
         pl.heal(pl.stats.maxHp);
         pl.rerolls++;
-        this.announce(poi.def.name, t('soins complets, +1 reroll', 'fully healed, +1 reroll'));
+        this.announce(poi.def.name, 'soins complets, +1 reroll');
         audio.play('heal');
         break;
 
       case 'cairn':
-        this.announce(poi.def.name, t('des offrandes', 'offerings'));
+        this.announce(poi.def.name, 'des offrandes');
         audio.play('chest');
         for (let i = 0; i < 10; i++) {
           this.spawnPickup('gem', x + this.rng.spread(16), y + this.rng.spread(12), 9, 1);
@@ -931,7 +930,7 @@ export class World {
     this.freezeFrames(0.12);
     this.slowMo(0.25, 1.4);
     this.cam.shake(0.5, true);
-    this.announce(t('TERRASSÉ', 'SLAIN'), this.bossName);
+    this.announce('TERRASSÉ', this.bossName);
 
     this.bossDown = true;
     if (e.def.id === 'sanguine') {
@@ -1007,7 +1006,7 @@ export class World {
         this.state = 'dead';
         audio.play('death');
       } else {
-        this.announce(t('SURSIS', 'REPRIEVE'), t('une fois de plus', 'once more'));
+        this.announce('SURSIS', 'une fois de plus');
         this.purge();
       }
     }
@@ -1088,7 +1087,7 @@ export class World {
 
       this.caches.push({ def, x, y, anim: 0, taken: false });
       audio.play('relic');
-      this.announce(t('RÉSONANCE', 'RESONANCE'), t('quelque chose est enfoui, non loin', 'something lies buried nearby'));
+      this.announce('RÉSONANCE', 'quelque chose est enfoui, non loin');
       return;
     }
   }
@@ -1428,7 +1427,7 @@ export class World {
           e.mechTimer = 0;
           this.cam.shake(0.3, true);
           audio.play('boss');
-          this.announce(t('LE SANGUINAIRE', 'THE SANGUINARY'), `phase ${wanted + 1}`);
+          this.announce('LE SANGUINAIRE', `phase ${wanted + 1}`);
         }
         if (e.mechTimer <= 0) {
           if (e.phase === 0) {
@@ -1884,7 +1883,7 @@ export class World {
         this.freezeTimer = 4;
         audio.play('nova');
         this.particles.ring(pl.x, pl.y, 200, P.ice, 0.7, 3);
-        this.announce(t('TEMPS FIGÉ', 'TIME FROZEN'), '');
+        this.announce('TEMPS FIGÉ', '');
         break;
       case 'scroll':
         pl.rerolls++;
@@ -1968,7 +1967,7 @@ export class World {
     this.terrain.restoreUsed(d.poisUsed);
     this.terrain.update(pl.x, pl.y, 0);
     this.cam.snapTo(pl.x, pl.y);
-    this.announce(t('REPRISE', 'RESUMED'), t('la horde s’est dispersée', 'the horde has scattered'));
+    this.announce('REPRISE', 'la horde s’est dispersée');
   }
 
   private onLevelUp(): void {

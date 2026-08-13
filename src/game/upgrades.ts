@@ -7,7 +7,6 @@ import { PASSIVES, passiveById } from '../data/passives';
 import { describeMods, SURPASSEMENTS, romain, type Surpassement } from '../data/mods';
 import { MAX_WEAPONS, MAX_PASSIVES, type Player } from './player';
 import type { World } from './world';
-import { t } from '../i18n';
 
 /**
  * Tirage des cartes d'amélioration.
@@ -106,9 +105,9 @@ function offerWeaponUp(pl: Player, id: string): Offer {
     kind: 'weapon-up',
     id,
     name: def.name,
-    kindLabel: t('Arme', 'Weapon'),
+    kindLabel: 'Arme',
     desc: levelUpText(def, inst.level + 1),
-    levelLabel: t(`Niveau ${inst.level} → ${inst.level + 1}`, `Level ${inst.level} → ${inst.level + 1}`),
+    levelLabel: `Niveau ${inst.level} → ${inst.level + 1}`,
     icon: weaponIcon(def),
     isNew: false,
     apply: (w) => w.player.levelUpWeapon(id),
@@ -120,9 +119,9 @@ function offerWeaponNew(def: WeaponDef): Offer {
     kind: 'weapon-new',
     id: def.id,
     name: def.name,
-    kindLabel: t('Nouvelle arme', 'New weapon'),
+    kindLabel: 'Nouvelle arme',
     desc: def.desc,
-    levelLabel: t('Niveau 1', 'Level 1'),
+    levelLabel: 'Niveau 1',
     icon: weaponIcon(def),
     isNew: true,
     apply: (w) => {
@@ -139,9 +138,9 @@ function offerPassiveUp(pl: Player, id: string): Offer {
     kind: 'passive-up',
     id,
     name: def.name,
-    kindLabel: t('Objet', 'Item'),
+    kindLabel: 'Objet',
     desc: describeMods(def.perLevel),
-    levelLabel: t(`Niveau ${lvl} → ${lvl + 1}`, `Level ${lvl} → ${lvl + 1}`),
+    levelLabel: `Niveau ${lvl} → ${lvl + 1}`,
     icon: passiveIcon(id),
     isNew: false,
     apply: (w) => w.player.addPassive(id),
@@ -154,9 +153,9 @@ function offerPassiveNew(id: string): Offer {
     kind: 'passive-new',
     id,
     name: def.name,
-    kindLabel: t('Nouvel objet', 'New item'),
+    kindLabel: 'Nouvel objet',
     desc: `${def.desc} (${describeMods(def.perLevel)})`,
-    levelLabel: t('Niveau 1', 'Level 1'),
+    levelLabel: 'Niveau 1',
     icon: passiveIcon(id),
     isNew: true,
     apply: (w) => w.player.addPassive(id),
@@ -167,22 +166,22 @@ function offerPassiveNew(id: string): Offer {
 function offerConsolation(variant: number): Offer {
   const opts = [
     {
-      name: t('Bourse', 'Purse'),
-      desc: t('+120 or, à dépenser au Sanctuaire.', '+120 gold to spend at the Sanctuary.'),
+      name: 'Bourse',
+      desc: '+120 or, à dépenser au Sanctuaire.',
       apply: (world: World) => {
         world.gold += Math.round(120 * world.player.stats.greed);
       },
     },
     {
-      name: t('Repas chaud', 'Hot Meal'),
-      desc: t('Restaure 40 % des points de vie.', 'Restores 40% of your health.'),
+      name: 'Repas chaud',
+      desc: 'Restaure 40 % des points de vie.',
       apply: (world: World) => {
         world.player.heal(world.player.stats.maxHp * 0.4);
       },
     },
     {
-      name: t('Parchemin', 'Scroll'),
-      desc: t('+1 reroll pour la suite de la partie.', '+1 reroll for the rest of the run.'),
+      name: 'Parchemin',
+      desc: '+1 reroll pour la suite de la partie.',
       apply: (world: World) => {
         world.player.rerolls++;
       },
@@ -193,7 +192,7 @@ function offerConsolation(variant: number): Offer {
     kind: 'consolation',
     id: `consolation-${variant}`,
     name: o.name,
-    kindLabel: t('Provision', 'Supply'),
+    kindLabel: 'Provision',
     desc: o.desc,
     levelLabel: '–',
     icon: passiveIcon('reliquary'),
@@ -327,9 +326,9 @@ function offerSurpassement(pl: Player, su: Surpassement): Offer {
     kind: 'surpassement',
     id: su.id,
     name: deja > 0 ? `${su.nom} ${romain(deja + 1)}` : su.nom,
-    kindLabel: t('Surpassement', 'Transcendence'),
+    kindLabel: 'Surpassement',
     desc: describeMods(su.mods),
-    levelLabel: deja > 0 ? t(`Déjà ${deja}`, `Already ${deja}`) : t('Nouveau', 'New'),
+    levelLabel: deja > 0 ? `Déjà ${deja}` : 'Nouveau',
     icon: surpassementIcon(su.id),
     isNew: deja === 0,
     apply: (world) => world.player.addSurpassement(su.id),
@@ -419,7 +418,7 @@ export function applyChest(w: World, res: ChestResult): void {
   if (res.evolution) {
     pl.evolveWeapon(res.evolution.from.id, res.evolution.to.id);
     audio.play('evolve');
-    w.announce(res.evolution.to.name, t('évolution', 'evolution'));
+    w.announce(res.evolution.to.name, 'évolution');
     w.particles.beam(pl.x, pl.y, '#a855f7', 1.2);
     w.particles.ring(pl.x, pl.y, 60, '#a855f7', 0.7, 3);
     w.cam.shake(0.25, true);

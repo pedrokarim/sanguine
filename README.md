@@ -161,8 +161,8 @@ n’est plus vrai qu’il ne joint personne — et une seule destination reste j
 Ce qui part : `pageview`, `run_started`, `run_ended`, `upgrade_picked`, `upgrade_skipped`,
 `chest_opened`, `pageleave`, et les erreurs JavaScript non rattrapées. Les propriétés sont des
 identifiants de contenu du jeu — `ysolde`, `faux`, `victory` — et les compteurs sont arrondis.
-Aucune identité persistante n’est créée : la session vit en mémoire et meurt avec l’onglet. Le
-`localStorage` ne contient que la sauvegarde du jeu et la préférence de langue FR/EN.
+Aucune identité persistante n’est créée : la session vit en mémoire et meurt avec l’onglet, ce
+qui laisse la sauvegarde seule occupante du `localStorage`.
 
 ### Docker
 

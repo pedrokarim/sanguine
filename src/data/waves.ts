@@ -1,5 +1,3 @@
-import { language } from '../i18n';
-
 /**
  * Courbes d'apparition et événements scriptés.
  *
@@ -276,15 +274,6 @@ export const WAVE_EVENTS: WaveEvent[] = [
   { at: 28, kind: 'surge', enemy: '', count: 0, label: 'Déferlante', mult: 3, duration: 90 },
   { at: 30, kind: 'boss', enemy: 'sanguine', count: 1, label: 'Le Sanguinaire' },
 ];
-
-if (language() === 'en') {
-  const ranks: Record<string, string> = { endurci: 'Hardened', elite: 'Elite', colosse: 'Colossus' };
-  for (const rank of RANGS) rank.nom = ranks[rank.id] ?? rank.nom;
-  const roamers = ['A Matron', 'A Bloodless Knight', 'A Choir of Ashes'];
-  RODEURS.forEach((roamer, i) => { if (roamers[i]) roamer.label = roamers[i]!; });
-  const events = ['Swarm', 'Pack', 'Tide', 'The Matron', 'Nest', 'Column', 'The Matrons', 'The Bloodless Knights', 'Charge', 'The Bloodless Guard', 'Choir of Ashes', 'Crushing Force', 'The Choirs', 'Onslaught', 'The Sanguinary'];
-  WAVE_EVENTS.forEach((event, i) => { if (events[i]) event.label = events[i]!; });
-}
 
 /**
  * Courbe d'XP. Le palier initial doit être bas : les premières cartes sont ce qui donne

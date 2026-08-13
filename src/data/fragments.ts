@@ -1,6 +1,3 @@
-import { language, t } from '../i18n';
-import { EN_CYCLES, EN_EPILOGUE, EN_FRAGMENTS } from './en';
-
 /**
  * Fragments — collection secondaire, quarante-deux pièces.
  *
@@ -48,10 +45,10 @@ export interface CycleDef {
 }
 
 export const TYPE_LABEL: Record<FragmentType, string> = {
-  parchemin: t('Parchemin', 'Parchment'),
-  sceau: t('Sceau', 'Seal'),
-  hieroglyphe: t('Hiéroglyphe', 'Hieroglyph'),
-  pierre: t('Pierre gravée', 'Carved stone'),
+  parchemin: 'Parchemin',
+  sceau: 'Sceau',
+  hieroglyphe: 'Hiéroglyphe',
+  pierre: 'Pierre gravée',
 };
 
 export const CYCLES: CycleDef[] = [
@@ -62,8 +59,6 @@ export const CYCLES: CycleDef[] = [
   { name: "La Mesure", biome: 'ashes', fromMin: 12, toMin: 26, minLevel: 0, needBoss: true, minFound: 0, hint: "Une tablette dort là où le feu a tout pris. Il faudra d’abord en abattre un qui a franchi le seuil." },
   { name: "L'Ascension", biome: '', fromMin: 20, toMin: 99, minLevel: 0, needBoss: false, minFound: 30, hint: "Les sept dernières ne se cachent plus. Elles attendent, passé la vingtième mesure, celui qui en porte déjà trente." },
 ];
-
-if (language() === 'en') CYCLES.forEach((cycle, i) => Object.assign(cycle, EN_CYCLES[i]));
 
 export const FRAGMENTS: FragmentDef[] = [
   { n: 1, cycle: 0, type: 'parchemin', t: "Relevé d’arrivée",
@@ -152,13 +147,8 @@ export const FRAGMENTS: FragmentDef[] = [
     b: "Nous l’avons cherchée pendant six siècles, et nous l’avons trouvée en réunissant nos propres tablettes. Il n’y a pas de théorie. Il n’y a jamais eu de théorie.\\n\\nQuarante-deux paramètres relevés par échantillon. Une colonne par paramètre. Nos ancêtres ont recopié avec une dévotion admirable, sur des tablettes de pierre, en y consacrant leur vie entière, le formulaire d’entrée." },
 ];
 
-if (language() === 'en') FRAGMENTS.forEach((fragment, i) => Object.assign(fragment, EN_FRAGMENTS[i]));
-
 /** Épilogue, hors numérotation, débloqué à 42/42. */
-export const EPILOGUE = t(
-  "Vous avez le formulaire complet.\\n\\nCela ne rouvre aucune porte, n’éteint aucune lumière, ne fait pas venir l’aube. Le domaine tourne exactement comme avant, parce qu’il n’a jamais eu besoin que vous compreniez quoi que ce soit pour tourner.\\n\\nUne seule chose a changé, et elle est petite : la prochaine fois que vous entrerez, vous saurez ce que vous êtes en train de remplir. Ils n’ont pas prévu de colonne pour cela.\\n\\nTenez jusqu’à l’aube. Elle ne viendra pas.\\nNous le savons tous les deux, maintenant.",
-  EN_EPILOGUE,
-);
+export const EPILOGUE = "Vous avez le formulaire complet.\\n\\nCela ne rouvre aucune porte, n’éteint aucune lumière, ne fait pas venir l’aube. Le domaine tourne exactement comme avant, parce qu’il n’a jamais eu besoin que vous compreniez quoi que ce soit pour tourner.\\n\\nUne seule chose a changé, et elle est petite : la prochaine fois que vous entrerez, vous saurez ce que vous êtes en train de remplir. Ils n’ont pas prévu de colonne pour cela.\\n\\nTenez jusqu’à l’aube. Elle ne viendra pas.\\nNous le savons tous les deux, maintenant.";
 
 export const TOTAL = FRAGMENTS.length;
 

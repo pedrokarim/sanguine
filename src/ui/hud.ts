@@ -5,7 +5,6 @@ import { iconFor } from '../game/upgrades';
 import { iconValue } from './icons';
 import { Minimap } from './minimap';
 import type { World } from '../game/world';
-import { t } from '../i18n';
 
 /**
  * HUD en DOM plutôt qu'en canvas : texte net à toute résolution, accessible aux lecteurs
@@ -46,7 +45,7 @@ export class Hud {
       <div class="hud-timer">00:00</div>
       <button class="touch-pause" type="button" aria-label="Pause"></button>
       <div class="hud-topleft">
-        <div class="hud-stat"><span class="k">${t('NIV', 'LVL')}</span> <span class="v lvl">1</span></div>
+        <div class="hud-stat"><span class="k">NIV</span> <span class="v lvl">1</span></div>
         <div class="hp-wrap" style="width:9em;margin-top:3px">
           <div style="height:7px;background:#05060a;border:1px solid #232b40">
             <div class="hp-fill" style="height:100%;width:100%;background:linear-gradient(180deg,#f0405a,#c42639 60%,#8b1a2b);transition:width .1s linear"></div>

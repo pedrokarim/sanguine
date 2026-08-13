@@ -1,7 +1,5 @@
 import { P } from '../gfx/palette';
 import type { BodyArt } from '../gfx/sprites';
-import { localiseById } from '../i18n';
-import { EN_ENEMIES } from './en';
 
 /**
  * Table des ennemis. `hp`, `damage` et `speed` sont les valeurs **de base**, avant la mise à
@@ -139,8 +137,6 @@ export const ENEMIES: EnemyDef[] = [
   },
 ];
 
-localiseById(ENEMIES, EN_ENEMIES);
-
 export const ENEMY_BY_ID = new Map(ENEMIES.map((e) => [e.id, e]));
 
 export function enemyById(id: string): EnemyDef {
@@ -202,8 +198,6 @@ export const DESTRUCTIBLES: EnemyDef[] = [
   },
 ];
 
-localiseById(DESTRUCTIBLES, EN_ENEMIES);
-
 export const DESTR_BY_ID = new Map(DESTRUCTIBLES.map((d) => [d.id, d]));
 
 export const BOSSES: BossDef[] = [
@@ -238,7 +232,5 @@ export const BOSSES: BossDef[] = [
     from: 31, weight: 0, boss: true, mechanic: 'reaper', minute: 31, invincible: true,
   },
 ];
-
-localiseById(BOSSES, EN_ENEMIES);
 
 export const BOSS_BY_ID = new Map<string, BossDef>(BOSSES.map((b) => [b.id, b]));

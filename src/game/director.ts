@@ -7,7 +7,6 @@ import {
   PLAFOND_DUR,
 } from '../data/waves';
 import type { World } from './world';
-import { t } from '../i18n';
 
 /**
  * Director : décide **quoi** faire apparaître et **quand**.
@@ -212,7 +211,7 @@ export class Director {
 
     audio.play('boss');
     audio.setBossMode(true);
-    w.announce(choix.label, t('rôde', 'prowls nearby'));
+    w.announce(choix.label, 'rôde');
     w.cam.shake(0.3, true);
   }
 
@@ -240,7 +239,7 @@ export class Director {
 
         audio.play('boss');
         audio.setBossMode(true);
-        w.announce(ev.label, combien > 1 ? t(`${combien} approchent`, `${combien} approach`) : t('approche', 'approaches'));
+        w.announce(ev.label, combien > 1 ? `${combien} approchent` : 'approche');
         w.slowMo(0.35, 1.0);
         w.cam.shake(0.45, true);
 
@@ -346,7 +345,7 @@ export class Director {
       case 'surge': {
         w.surgeMult = ev.mult ?? 3;
         w.surgeTimer = ev.duration ?? 60;
-        w.announce(ev.label, t('tenez bon', 'hold fast'));
+        w.announce(ev.label, 'tenez bon');
         w.cam.shake(0.3, true);
         break;
       }
@@ -387,11 +386,11 @@ export class Director {
       this.saturation += dt;
       if (!this.satAvertie && this.saturation > SATURATION_LIMITE * 0.45) {
         this.satAvertie = true;
-        w.announce(t('LA HORDE DÉBORDE', 'THE HORDE OVERFLOWS'), t('quelque chose s\u2019approche', 'something approaches'));
+        w.announce('LA HORDE DÉBORDE', 'quelque chose s\u2019approche');
         w.cam.shake(0.25, true);
         audio.play('boss');
       }
-      if (this.saturation > SATURATION_LIMITE) this.leverFaucheuse(w, t('vous n\u2019avancez plus', 'you can go no farther'));
+      if (this.saturation > SATURATION_LIMITE) this.leverFaucheuse(w, 'vous n\u2019avancez plus');
     } else {
       // On redescend deux fois plus lentement qu'on ne monte : une accalmie d'une seconde
       // ne doit pas effacer vingt secondes d'étranglement.
@@ -404,7 +403,7 @@ export class Director {
 
   private runReaper(w: World, m: number): void {
     if (m < REAPER_MINUTE) return;
-    this.leverFaucheuse(w, t('le rideau tombe', 'the curtain falls'));
+    this.leverFaucheuse(w, 'le rideau tombe');
   }
 
   private leverFaucheuse(w: World, sous: string): void {
@@ -415,7 +414,7 @@ export class Director {
     w.spawnOffscreen('reaper');
     audio.play('boss');
     audio.setBossMode(true);
-    w.announce(t('LA FAUCHEUSE', 'THE REAPER'), sous);
+    w.announce('LA FAUCHEUSE', sous);
     w.cam.shake(0.5, true);
     w.slowMo(0.3, 1.2);
   }

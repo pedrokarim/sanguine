@@ -2,8 +2,6 @@ import { Rng } from '../core/rng';
 import { valueNoise2, TAU, dist2 } from '../core/math';
 import { P, shade, hexToRgb, mix, rgba } from '../gfx/palette';
 import { Pix, toCanvas } from '../gfx/pix';
-import { language, localiseById } from '../i18n';
-import { EN_BIOMES, EN_POIS } from '../data/en';
 
 /**
  * Terrain : biomes procéduraux, décor et points d'intérêt.
@@ -217,8 +215,6 @@ export const BIOMES: Biome[] = [
   },
 ];
 
-localiseById(BIOMES, EN_BIOMES);
-
 export const BIOME_BY_ID = new Map(BIOMES.map((b) => [b.id, b]));
 
 /** Échelle des biomes en pixels : ~1400 px de large, soit environ trois écrans. */
@@ -268,10 +264,6 @@ export const POI_DEFS: Record<PoiType, PoiDef> = {
   chapel: { type: 'chapel', name: 'Chapelle Noyée', hint: 'un répit', weight: 7, radius: 22, color: P.linen, w: 40, h: 38 },
   cairn: { type: 'cairn', name: 'Cairn', hint: 'des offrandes', weight: 20, radius: 15, color: P.steel, w: 20, h: 24 },
 };
-
-if (language() === 'en') {
-  for (const [id, def] of Object.entries(POI_DEFS)) Object.assign(def, EN_POIS[id]);
-}
 
 const POI_LIST = Object.values(POI_DEFS);
 
