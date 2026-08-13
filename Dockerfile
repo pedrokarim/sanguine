@@ -14,6 +14,13 @@ COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile
 
 COPY . .
+
+# Clé publique de mesure d'audience, injectée **au build** et non à l'exécution : Vite la
+# fige dans le bundle, il n'y a plus rien à configurer ensuite. Vide par défaut, et un build
+# sans clé ne contient aucune adresse externe — c'est ce que vérifie la CI.
+ARG VITE_SARUTOBI_KEY=""
+ENV VITE_SARUTOBI_KEY=$VITE_SARUTOBI_KEY
+
 RUN pnpm build
 # La planche des sprites, construite à part pour ne pas casser l'autonomie de dist/.
 RUN pnpm planche
@@ -32,7 +39,11 @@ COPY --from=build /app/dist-planche /usr/share/nginx/html
 
 EXPOSE 80
 
+# `127.0.0.1` et non `localhost` : dans le conteneur, `localhost` résout aussi en `::1`, que
+# busybox essaie en premier — alors que nginx ne déclare que `listen 80;`, donc IPv4 seul. La
+# sonde échouait sur un refus de connexion pendant que le site répondait parfaitement, et le
+# conteneur restait « unhealthy » à tort.
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD wget -qO- http://localhost/healthz || exit 1
+  CMD wget -qO- http://127.0.0.1/healthz || exit 1
 
 CMD ["nginx", "-g", "daemon off;"]

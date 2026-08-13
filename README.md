@@ -130,6 +130,40 @@ pnpm preview    # sert le build
 `dist/index.html` fonctionne aussi en `file://` et hors ligne : rien n’est chargé depuis le
 réseau.
 
+### Mesure d’audience
+
+Facultative, et **absente par défaut**. Sans clé de site à la compilation, `src/core/analytics.ts`
+est un no-op : aucune requête, aucun stockage, rien à refuser.
+
+```bash
+cp .env.example .env       # puis renseigner VITE_SARUTOBI_KEY
+pnpm build                 # ou : docker compose up -d --build
+```
+
+La clé n’est **pas versionnée** : `.gitignore` refuse `.env`, et `docker-compose.yml` ne fait
+que la relayer au build via un `ARG`. L’image finale reste statique — la clé est figée dans le
+bundle, il n’y a aucune variable d’environnement à l’exécution.
+
+La mesure parle directement le [contrat d’ingestion Sarutobi](https://sarutobi.ascencia.re/docs/http)
+plutôt que d’embarquer son SDK ou son `<script>` distant : la promesse « aucun asset externe »
+vaut aussi pour ce qui mesure le jeu. Coût mesuré : **+1,05 ko gzip**.
+
+| Variable | Rôle |
+|---|---|
+| `VITE_SARUTOBI_KEY` | Clé publique du site. Absente ⇒ mesure désactivée |
+| `VITE_SARUTOBI_HOST` | Instance de collecte, si ce n’est pas `sarutobi.ascencia.re` |
+
+**Ce que cela coûte** : `connect-src` valait `'none'` dans `docker/security-headers.conf`, ce
+qui faisait de l’absence de requête sortante une garantie imposée par le navigateur. Elle est
+désormais énumérée à un hôte unique. Le jeu ne *charge* toujours rien de l’extérieur, mais il
+n’est plus vrai qu’il ne joint personne — et une seule destination reste joignable, en écriture.
+
+Ce qui part : `pageview`, `run_started`, `run_ended`, `upgrade_picked`, `upgrade_skipped`,
+`chest_opened`, `pageleave`, et les erreurs JavaScript non rattrapées. Les propriétés sont des
+identifiants de contenu du jeu — `ysolde`, `faux`, `victory` — et les compteurs sont arrondis.
+Aucune identité persistante n’est créée : la session vit en mémoire et meurt avec l’onglet, ce
+qui laisse la sauvegarde seule occupante du `localStorage`.
+
 ### Docker
 
 ```bash
@@ -145,7 +179,7 @@ Publication du manuel : `./tools/publish-docs.sh`.
 
 ```
 src/
-├── core/     boucle à pas fixe, RNG déterministe, grille spatiale, entrées, sauvegarde
+├── core/     boucle à pas fixe, RNG déterministe, grille spatiale, entrées, sauvegarde, mesure
 ├── gfx/      palette, primitives pixel, générateurs de sprites, caméra, particules, rendu
 ├── audio/    synthétiseur Web Audio + musique adaptative en couches
 ├── data/     tables de contenu pures (aucune dépendance)

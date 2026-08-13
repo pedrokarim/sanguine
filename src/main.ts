@@ -3,6 +3,7 @@ import './ui/style.css';
 import { Loop } from './core/loop';
 import { Input } from './core/input';
 import { load, save, update } from './core/save';
+import { analytics } from './core/analytics';
 import { formatTime } from './core/math';
 import { audio } from './audio/audio';
 import { Renderer } from './gfx/renderer';
@@ -378,6 +379,8 @@ function startRun(charId: string, resume = false): void {
   runSaveTimer = 0;
   mobile.partieEnCours(true);
 
+  analytics.capture('run_started', { character: lastCharId, resumed: Boolean(saved) });
+
   world.setKnownFragments(load().fragments);
 
   // Enregistre l'arme de départ dans le codex.
@@ -437,6 +440,13 @@ function showLevelUp(): void {
     w.player.rerolls,
     (offer) => {
       offer.apply(w);
+      // Le choix d'amélioration est la seule mesure qui dise quelque chose de l'équilibrage :
+      // une arme que personne ne prend jamais est un problème de design, pas de joueur.
+      analytics.capture('upgrade_picked', {
+        kind: offer.kind,
+        id: offer.id,
+        level: w.player.level,
+      });
       if (offer.kind === 'weapon-new' || offer.kind === 'weapon-up') markWeaponSeen(offer.id);
       w.pendingLevelUps--;
       screens.close();
@@ -449,6 +459,9 @@ function showLevelUp(): void {
       showLevelUp();
     },
     () => {
+      // Un renoncement est aussi informatif qu'un choix : trois offres refusées contre de
+      // l'or, c'est un tirage qui n'avait rien à proposer à ce build.
+      analytics.capture('upgrade_skipped', { level: w.player.level });
       w.gold += Math.round(50 * w.player.stats.greed);
       w.pendingLevelUps--;
       screens.close();
@@ -462,6 +475,10 @@ function openChestScreen(): void {
   if (!w) return;
   state = 'chest';
   currentChest = openChest(w);
+  analytics.capture('chest_opened', {
+    offers: currentChest.offers.length,
+    evolution: Boolean(currentChest.evolution),
+  });
   screens.chest(currentChest, () => {
     if (currentChest) {
       applyChest(w, currentChest);
@@ -537,6 +554,17 @@ function endRun(victory: boolean): void {
     seed: w.seed,
     character: `${char.name} ${char.epithet}`,
   };
+
+  // Les compteurs bruts sont arrondis avant l'envoi : une propriété qui prend cinq mille
+  // valeurs distinctes ne se regroupe plus et le tableau de bord la déclare inexploitable.
+  // Ce qu'on veut savoir, c'est « autour de combien », pas « exactement combien ».
+  analytics.capture('run_ended', {
+    outcome: victory ? 'victory' : 'death',
+    character: w.player.char.id,
+    level: w.player.level,
+    duration_min: Math.floor(w.time / 60),
+    kills_bucket: Math.round(w.kills / 100) * 100,
+  });
 
   clearRun();
   markRelicsSeen(w.player.relics);
@@ -885,3 +913,7 @@ Object.defineProperty(window, 'sanguine', {
 applyOptions();
 goTitle();
 loop.start();
+
+// En dernier, et volontairement : sans clé de site à la compilation, cet appel ne fait rien,
+// et rien de ce qui précède ne doit dépendre de lui.
+analytics.start();
