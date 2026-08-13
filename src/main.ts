@@ -1,5 +1,7 @@
 import './ui/style.css';
 
+import { applyDocumentLanguage, t } from './i18n';
+
 import { Loop } from './core/loop';
 import { Input } from './core/input';
 import { load, save, update } from './core/save';
@@ -42,6 +44,8 @@ type State =
   | 'title' | 'charselect' | 'playing' | 'levelup' | 'chest'
   | 'paused' | 'sanctuary' | 'shop' | 'codex' | 'archive' | 'reading' | 'progress'
   | 'options' | 'gameover' | 'victory';
+
+applyDocumentLanguage();
 
 /**
  * Deux canvas, et c'est la clé de la netteté.
@@ -673,7 +677,10 @@ function handleGlobalKeys(): void {
   if (input.wasPressed('F8')) {
     setHeroDetaille(!getHeroDetaille());
     world?.player.refreshSprites();
-    if (world) world.announce(getHeroDetaille() ? 'Héros détaillé' : 'Héros classique', '19×23 / 13×15');
+    if (world) world.announce(
+      getHeroDetaille() ? t('Héros détaillé', 'Detailed hero') : t('Héros classique', 'Classic hero'),
+      '19×23 / 13×15',
+    );
     audio.play('select');
   }
 

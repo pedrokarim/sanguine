@@ -1,6 +1,8 @@
 import { P } from '../gfx/palette';
 import type { HeroArt } from '../gfx/sprites';
 import type { Mods } from './mods';
+import { localiseById, t } from '../i18n';
+import { EN_CHARACTERS } from './en';
 
 /**
  * Personnages. Chacun est une **orientation de build**, pas une simple variation de chiffres :
@@ -52,7 +54,7 @@ export const CHARACTERS: CharacterDef[] = [
     flaw: '−25 PV max',
     mods: { moveSpeed: 0.2, amount: 1, maxHp: -25 },
     art: { cloak: '#6b4a2a', cloth: '#4a5c3a', skin: '#c99060', accent: P.poison, hat: 'wide' },
-    unlock: { kind: 'time', value: 600, label: 'Survivre 10 minutes' },
+    unlock: { kind: 'time', value: 600, label: t('Survivre 10 minutes', 'Survive for 10 minutes') },
   },
   {
     id: 'marguerite',
@@ -63,7 +65,7 @@ export const CHARACTERS: CharacterDef[] = [
     flaw: '−10 % de dégâts',
     mods: { pickup: 0.6, luck: 0.2, might: -0.1 },
     art: { cloak: '#3a4a6b', cloth: '#c0b8a8', skin: '#e8c0a0', accent: P.xp1, hat: 'veil' },
-    unlock: { kind: 'gems', value: 3000, label: 'Ramasser 3 000 gemmes' },
+    unlock: { kind: 'gems', value: 3000, label: t('Ramasser 3 000 gemmes', 'Collect 3,000 gems') },
   },
   {
     id: 'ombre',
@@ -74,7 +76,7 @@ export const CHARACTERS: CharacterDef[] = [
     flaw: '−30 PV max',
     mods: { cooldown: 0.2, crit: 0.1, maxHp: -30 },
     art: { cloak: '#1e1e2c', cloth: '#3a3a4e', skin: '#c8b8b0', accent: P.steel, hat: 'hood' },
-    unlock: { kind: 'kills', value: 5000, label: 'Terrasser 5 000 ennemis' },
+    unlock: { kind: 'kills', value: 5000, label: t('Terrasser 5 000 ennemis', 'Slay 5,000 enemies') },
   },
   {
     id: 'comte',
@@ -85,9 +87,11 @@ export const CHARACTERS: CharacterDef[] = [
     flaw: 'Aucune régénération, −40 PV',
     mods: { might: 0.3, lifesteal: 0.03, maxHp: -40 },
     art: { cloak: '#4a0e1c', cloth: '#1a1a24', skin: '#d8d0d8', accent: P.bloodHi, hat: 'crown' },
-    unlock: { kind: 'win', value: 1, label: 'Remporter une partie' },
+    unlock: { kind: 'win', value: 1, label: t('Remporter une partie', 'Win a run') },
   },
 ];
+
+localiseById(CHARACTERS, EN_CHARACTERS);
 
 export const CHARACTER_BY_ID = new Map(CHARACTERS.map((c) => [c.id, c]));
 
