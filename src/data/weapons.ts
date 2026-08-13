@@ -1,6 +1,8 @@
 import { P } from '../gfx/palette';
 import type { ProjKind } from '../gfx/sprites';
 import type { SfxName } from '../audio/audio';
+import { localiseById, t } from '../i18n';
+import { EN_WEAPONS } from './en';
 
 /**
  * Table des armes. Chaque arme est décrite par un **comportement** (une fonction du runtime)
@@ -424,6 +426,8 @@ export const WEAPONS: WeaponDef[] = [
   }),
 ];
 
+localiseById(WEAPONS, EN_WEAPONS);
+
 export const WEAPON_BY_ID = new Map(WEAPONS.map((w) => [w.id, w]));
 /** Armes proposables dans le menu de niveau (les évolutions n'y figurent jamais). */
 export const BASE_WEAPONS = WEAPONS.filter((w) => !w.isEvolution);
@@ -438,9 +442,9 @@ export function weaponById(id: string): WeaponDef {
 export function levelUpText(w: WeaponDef, next: number): string {
   const parts: string[] = [];
   if (w.countAt.includes(next)) parts.push('+1 projectile');
-  if (w.areaAt.includes(next)) parts.push('+15 % de zone');
-  if (w.pierceAt.includes(next)) parts.push('+1 perforation');
-  parts.push(`+${Math.round(w.dmgPerLevel * 100)} % de dégâts`);
-  if (w.cdPerLevel < 1) parts.push(`−${Math.round((1 - w.cdPerLevel) * 100)} % de recharge`);
+  if (w.areaAt.includes(next)) parts.push(t('+15 % de zone', '+15% area'));
+  if (w.pierceAt.includes(next)) parts.push(t('+1 perforation', '+1 pierce'));
+  parts.push(t(`+${Math.round(w.dmgPerLevel * 100)} % de dégâts`, `+${Math.round(w.dmgPerLevel * 100)}% damage`));
+  if (w.cdPerLevel < 1) parts.push(t(`−${Math.round((1 - w.cdPerLevel) * 100)} % de recharge`, `−${Math.round((1 - w.cdPerLevel) * 100)}% cooldown`));
   return parts.join(', ');
 }

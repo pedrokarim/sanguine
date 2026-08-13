@@ -1025,6 +1025,10 @@ body.reduce-motion .icon-sprite.anim { animation: none }
 .opt-row label { color: var(--steel); font-size: .92em }
 .opt-row input[type=range] { width: 10em; accent-color: var(--gold) }
 .opt-row input[type=checkbox] { width: 1.1em; height: 1.1em; accent-color: var(--gold) }
+.opt-select {
+  min-width: 9em; padding: .45em .65em; color: var(--linen);
+  background: var(--night); border: 1px solid var(--stone-hi); font: inherit;
+}
 
 /* ------------------------------------------------------------- infobulle */
 
