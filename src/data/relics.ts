@@ -1,5 +1,7 @@
 import type { Rarity } from '../gfx/palette';
 import type { Mods } from './mods';
+import { localiseById, t } from '../i18n';
+import { EN_RELICS } from './en';
 
 /**
  * Reliques : objets uniques qu'on ne trouve **jamais** dans le menu de niveau – uniquement
@@ -174,6 +176,8 @@ export const RELICS: RelicDef[] = [
   },
 ];
 
+localiseById(RELICS, EN_RELICS);
+
 export const RELIC_BY_ID = new Map(RELICS.map((r) => [r.id, r]));
 
 export const RARITY_WEIGHT: Record<Rarity, number> = {
@@ -184,10 +188,10 @@ export const RARITY_WEIGHT: Record<Rarity, number> = {
 };
 
 export const RARITY_LABEL: Record<Rarity, string> = {
-  common: 'Commune',
-  rare: 'Rare',
-  epic: 'Épique',
-  cursed: 'Maudite',
+  common: t('Commune', 'Common'),
+  rare: t('Rare', 'Rare'),
+  epic: t('Épique', 'Epic'),
+  cursed: t('Maudite', 'Cursed'),
 };
 
 /** `bloodpact` divise les PV max – traité à part car ce n'est pas un modificateur additif. */

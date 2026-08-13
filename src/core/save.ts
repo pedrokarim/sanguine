@@ -1,8 +1,11 @@
-/** Persistance : une seule clé localStorage, un objet JSON versionné. */
+import { language } from '../i18n';
+
+/** Persistance principale : un objet JSON versionné (la langue a aussi sa clé d'amorçage). */
 
 const KEY = 'sanguine.save.v1';
 
 export interface Options {
+  language: 'fr' | 'en';
   master: number;
   sfx: number;
   music: number;
@@ -121,6 +124,7 @@ function fresh(): SaveData {
     seenEnemies: [],
     stats: { runs: 0, wins: 0, kills: 0, gems: 0, goldEarned: 0, bestTime: 0, bestLevel: 0 },
     options: {
+      language: language(),
       master: 0.8, sfx: 0.7, music: 0.45,
       hudScale: 1.15, shake: 0.4,
       reduceFlash: false, reduceMotion: false, highlightPlayer: false,
@@ -198,10 +202,12 @@ export function update(fn: (s: SaveData) => void): SaveData {
 }
 
 export function wipe(): void {
+  const currentLanguage = cache?.options.language ?? 'fr';
   try {
     localStorage.removeItem(KEY);
   } catch {
     /* ignoré */
   }
   cache = fresh();
+  cache.options.language = currentLanguage;
 }
