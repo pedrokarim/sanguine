@@ -1,4 +1,4 @@
-import { damp, clamp } from '../core/math';
+import { damp, clamp, lerp } from '../core/math';
 import { fxRng } from '../core/rng';
 
 /**
@@ -6,9 +6,22 @@ import { fxRng } from '../core/rng';
  * en secousse. La progression quadratique du traumatisme est essentielle : sans elle, la
  * multitude de petits impacts d'un survivor-like ferait trembler l'écran en permanence.
  */
+/** Écart, en pixels, au-delà duquel le retard arrondi est recalculé. Un demi-pixel suffirait
+ * en théorie ; la marge absorbe le bruit numérique autour de la frontière. */
+const LAG_HYSTERESIS = 0.65;
+
 export class Camera {
   x = 0;
   y = 0;
+  /** Position au pas de simulation précédent, pour lisser le rendu entre deux pas. */
+  private prevX = 0;
+  private prevY = 0;
+  /** Position réellement utilisée par le rendu de l'image courante. Voir `frame`. */
+  private viewX = 0;
+  private viewY = 0;
+  /** Retard de la caméra sur sa cible, en pixels entiers. */
+  private lagX = 0;
+  private lagY = 0;
   /** Traumatisme ∈ [0,1]. La secousse vaut `trauma² × maxShake`. */
   private trauma = 0;
   private shakeX = 0;
@@ -42,9 +55,17 @@ export class Camera {
   snapTo(x: number, y: number): void {
     this.x = x;
     this.y = y;
+    this.prevX = x;
+    this.prevY = y;
+    this.viewX = x;
+    this.viewY = y;
+    this.lagX = 0;
+    this.lagY = 0;
   }
 
   follow(tx: number, ty: number, dt: number): void {
+    this.prevX = this.x;
+    this.prevY = this.y;
     // `damp` garde le suivi identique quel que soit le framerate.
     this.x = damp(this.x, tx, 0.0006, dt);
     this.y = damp(this.y, ty, 0.0006, dt);
@@ -80,15 +101,55 @@ export class Camera {
     this.shakeY = Math.cos(this.phaseY * 1.31) * s * 0.75;
   }
 
-  /** Décalage à appliquer au rendu : monde → écran. */
+  /**
+   * Fixe la position de rendu de l'image courante. À appeler une fois, avant tout tracé.
+   *
+   * Deux défauts faisaient « gigoter » l'écran dès que le personnage marchait.
+   *
+   * La caméra n'avançait qu'aux pas de simulation, soixante fois par seconde, alors que le
+   * joueur est interpolé entre deux pas. Sur un écran qui n'est pas exactement à 60 Hz, le
+   * décor avançait donc de zéro ou de deux crans selon l'image. Elle est maintenant
+   * interpolée comme le reste (`alpha`).
+   *
+   * Surtout, le joueur et la caméra étaient arrondis chacun de son côté. Comme la caméra
+   * suit avec un léger retard, leurs parties fractionnaires ne coïncident pas : la somme des
+   * deux arrondis oscillait, et le personnage sautait d'un pixel logique – trois ou quatre
+   * pixels réels – d'une image à l'autre. On arrondit donc **le retard**, pas la caméra :
+   * la position de rendu se déduit de la cible, à un nombre entier de pixels près. Tant que
+   * le retard est stable, le joueur occupe exactement le même pixel d'écran, et le décor
+   * défile par crans réguliers, calés sur son mouvement.
+   *
+   * L'hystérésis évite l'autre piège : un retard posé pile entre deux entiers basculerait
+   * d'une image à l'autre et rétablirait le tremblement qu'on vient d'enlever.
+   */
+  frame(alpha: number, targetX: number, targetY: number): void {
+    const cx = lerp(this.prevX, this.x, alpha);
+    const cy = lerp(this.prevY, this.y, alpha);
+    const lx = targetX - cx;
+    const ly = targetY - cy;
+    if (Math.abs(lx - this.lagX) > LAG_HYSTERESIS) this.lagX = Math.round(lx);
+    if (Math.abs(ly - this.lagY) > LAG_HYSTERESIS) this.lagY = Math.round(ly);
+    this.viewX = targetX - this.lagX;
+    this.viewY = targetY - this.lagY;
+  }
+
+  /**
+   * Décalage à appliquer au rendu : monde → écran.
+   *
+   * La secousse est arrondie à part, pour ne pas réintroduire de partie fractionnaire dans
+   * la position de suivi.
+   *
+   * Le centre est pris en pixels entiers : la vue peut avoir une largeur impaire (601 px
+   * mesurés), et un demi-pixel de centre suffisait à faire osciller le joueur entre deux
+   * colonnes alors même que le retard était parfaitement stable.
+   */
   get offsetX(): number {
-    return Math.round(-this.x + this.viewW / 2 + this.shakeX);
+    return Math.round(-this.viewX + Math.floor(this.viewW / 2)) + Math.round(this.shakeX);
   }
 
   get offsetY(): number {
-    return Math.round(-this.y + this.viewH / 2 + this.shakeY);
+    return Math.round(-this.viewY + Math.floor(this.viewH / 2)) + Math.round(this.shakeY);
   }
-
   /** Test de culling : l'entité est-elle visible (avec une marge) ? */
   visible(x: number, y: number, margin = 32): boolean {
     const hx = this.viewW / 2 + margin;

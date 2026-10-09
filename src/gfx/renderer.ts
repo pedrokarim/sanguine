@@ -51,6 +51,8 @@ export class Renderer {
   render(w: World, alpha: number): void {
     const ctx = this.ctx;
     const cam = w.cam;
+    // La caméra se cale sur la position **interpolée** du joueur, avant tout tracé.
+    cam.frame(alpha, lerp(w.player.px, w.player.x, alpha), lerp(w.player.py, w.player.y, alpha));
     const ox = cam.offsetX;
     const oy = cam.offsetY;
     const VW = cam.viewW;
