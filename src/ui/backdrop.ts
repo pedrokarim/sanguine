@@ -482,7 +482,14 @@ export class Backdrop {
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.imageSmoothingEnabled = false;
     const k = Math.max(outW / w, outH / h);
-    ctx.setTransform(k, 0, 0, k, (outW - w * k) / 2, (outH - h * k) / 2);
+    /*
+     * Sur un écran plus étroit que l'image, le recadrage glisse vers l'arbre. Centré, un
+     * téléphone tenu droit ne montrait que le milieu de la scène, c'est-à-dire du ciel et
+     * de l'eau : précisément la partie laissée vide pour le menu.
+     */
+    const cropped = Math.max(0, 1 - outW / (w * k));
+    const focus = 0.5 - Math.min(0.3, cropped * 0.45);
+    ctx.setTransform(k, 0, 0, k, Math.round(-(w * k - outW) * focus), (outH - h * k) / 2);
     ctx.drawImage(this.work, 0, 0);
 
     if (this.ambience) {

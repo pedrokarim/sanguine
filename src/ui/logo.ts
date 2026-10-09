@@ -2,31 +2,17 @@ import { Rng } from '../core/rng';
 import { P, mix } from '../gfx/palette';
 
 /**
- * Logo animé : « SANGUINE » en pixel art, dont le sang coule.
+ * Logo animé : « Sanguine » en gothique, dont le sang coule.
  *
- * Les lettres sont **dessinées à la main** en bitmap plutôt que rendues avec une police
- * système. Une police varie d'une machine à l'autre — et un logo qui change de forme selon
- * l'ordinateur n'est pas un logo. Sept glyphes suffisent ici : S, A, N, G, U, I, E.
+ * Les lettres viennent de la police de titre du jeu, Jacquard 24, tracée à sa taille native
+ * de vingt-quatre pixels puis relevée point par point. Le logo parle ainsi la même langue
+ * que tous les titres de l'interface, au lieu d'être un alphabet à part dessiné pour lui
+ * seul. La police est inscrite dans le jeu : elle ne varie pas d'une machine à l'autre.
  *
- * L'écoulement est simulé par colonne : chaque colonne encrée du bas des lettres porte une
- * coulure qui s'allonge, marque un temps, puis laisse tomber une goutte. C'est le même
- * principe que la peinture fraîche — la matière s'accumule au point bas avant de céder.
+ * L'écoulement est simulé par colonne : chaque point bas d'une lettre porte une coulure qui
+ * s'allonge, marque un temps, puis laisse tomber une goutte. C'est le même principe que la
+ * peinture fraîche – la matière s'accumule au point bas avant de céder.
  */
-
-const GLYPHS: Record<string, string[]> = {
-  S: ['.XXXXX.', 'XX...XX', 'XX.....', 'XX.....', '.XXXXX.', '.....XX', '.....XX', 'XX...XX', '.XXXXX.'],
-  A: ['..XXX..', '.XX.XX.', 'XX...XX', 'XX...XX', 'XXXXXXX', 'XX...XX', 'XX...XX', 'XX...XX', 'XX...XX'],
-  N: ['XX...XX', 'XXX..XX', 'XXXX.XX', 'XX.XXXX', 'XX..XXX', 'XX...XX', 'XX...XX', 'XX...XX', 'XX...XX'],
-  G: ['.XXXXX.', 'XX...XX', 'XX.....', 'XX.....', 'XX.XXXX', 'XX...XX', 'XX...XX', 'XX...XX', '.XXXXX.'],
-  U: ['XX...XX', 'XX...XX', 'XX...XX', 'XX...XX', 'XX...XX', 'XX...XX', 'XX...XX', 'XX...XX', '.XXXXX.'],
-  I: ['XXXXXXX', '..XXX..', '..XXX..', '..XXX..', '..XXX..', '..XXX..', '..XXX..', '..XXX..', 'XXXXXXX'],
-  E: ['XXXXXXX', 'XX.....', 'XX.....', 'XX.....', 'XXXXX..', 'XX.....', 'XX.....', 'XX.....', 'XXXXXXX'],
-  M: ['XX...XX', 'XXX.XXX', 'XXXXXXX', 'XX.X.XX', 'XX...XX', 'XX...XX', 'XX...XX', 'XX...XX', 'XX...XX'],
-  O: ['.XXXXX.', 'XX...XX', 'XX...XX', 'XX...XX', 'XX...XX', 'XX...XX', 'XX...XX', 'XX...XX', '.XXXXX.'],
-  R: ['XXXXXX.', 'XX...XX', 'XX...XX', 'XX...XX', 'XXXXXX.', 'XX.XX..', 'XX..XX.', 'XX...XX', 'XX...XX'],
-  T: ['XXXXXXX', '..XXX..', '..XXX..', '..XXX..', '..XXX..', '..XXX..', '..XXX..', '..XXX..', '..XXX..'],
-  B: ['XXXXXX.', 'XX...XX', 'XX...XX', 'XX...XX', 'XXXXXX.', 'XX...XX', 'XX...XX', 'XX...XX', 'XXXXXX.'],
-};
 
 /**
  * Teintes d'une coulure. Le même mécanisme sert au sang du titre et à la lumière de l'aube
@@ -63,21 +49,20 @@ export const DAWN: LogoPalette = {
   shadow: 'rgba(60,34,4,0.5)',
 };
 
-const GW = 7;
-const GH = 9;
-const GAP = 2;
+const FONT = '24px "Jacquard 24"';
+/** Marge autour du texte relevé : les jambages et les hampes débordent de la ligne. */
+const PAD = 2;
 /**
  * Hauteur réservée sous les lettres pour les coulures et les gouttes.
  *
- * Elle pèse directement sur les proportions du canvas : à 26, les lettres n'occupaient plus
- * qu'un quart de la hauteur totale, et dimensionner le logo par sa largeur le faisait
- * déborder de l'écran. À 18, le rapport reste maîtrisable.
+ * Elle pèse directement sur les proportions du canvas : trop grande, les lettres n'occupent
+ * plus qu'une fraction de la hauteur et le logo, dimensionné par sa hauteur, rapetisse.
  */
-const DRIP_SPACE = 18;
+const DRIP_SPACE = 20;
 
 interface Drip {
   x: number;
-  /** Ligne de départ, sous la lettre. */
+  /** Ligne de départ : juste sous le dernier point d'encre de la colonne. */
   y0: number;
   len: number;
   target: number;
@@ -94,74 +79,105 @@ interface Drip {
 export class BloodLogo {
   readonly canvas: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
-  private mask: Uint8Array;
-  private w: number;
-  private h: number;
+  private mask = new Uint8Array(0);
+  private w = 1;
+  /** Hauteur des lettres seules, coulures non comprises. */
+  private inkH = 1;
+  private h = 1;
   private drips: Drip[] = [];
-  private t = 0;
   private raf = 0;
   private last = 0;
 
-  constructor(text = 'SANGUINE', seed = 0x51a9, private pal: LogoPalette = BLOOD) {
-    const letters = [...text];
-    this.w = letters.length * (GW + GAP) - GAP;
-    this.h = GH + DRIP_SPACE;
-
+  constructor(private readonly text = 'Sanguine', private readonly seed = 0x51a9, private pal: LogoPalette = BLOOD) {
     this.canvas = document.createElement('canvas');
-    this.canvas.width = this.w;
-    this.canvas.height = this.h;
     this.canvas.className = 'blood-logo';
     this.canvas.setAttribute('role', 'img');
     this.canvas.setAttribute('aria-label', text);
     this.ctx = this.canvas.getContext('2d')!;
+    this.canvas.width = 1;
+    this.canvas.height = 1;
 
-    // Masque des lettres : 1 = encre.
-    this.mask = new Uint8Array(this.w * GH);
-    letters.forEach((ch, i) => {
-      const g = GLYPHS[ch];
-      if (!g) return;
-      const ox = i * (GW + GAP);
-      for (let y = 0; y < GH; y++) {
-        for (let x = 0; x < GW; x++) {
-          if (g[y]![x] === 'X') this.mask[y * this.w + ox + x] = 1;
-        }
-      }
+    // La police est inscrite dans la feuille de styles, mais son décodage reste asynchrone :
+    // tracer avant qu'elle soit prête relèverait la police de repli à sa place.
+    void document.fonts.load(FONT, text).then(() => {
+      this.rasterize();
+      this.draw();
     });
+  }
 
-    this.buildDrips(new Rng(seed));
+  /** Trace le texte hors écran et en relève le masque : 1 = encre. */
+  private rasterize(): void {
+    const probe = document.createElement('canvas').getContext('2d')!;
+    probe.font = FONT;
+    const m = probe.measureText(this.text);
+    const ascent = Math.ceil(m.actualBoundingBoxAscent);
+    const descent = Math.ceil(m.actualBoundingBoxDescent);
+    const left = Math.ceil(m.actualBoundingBoxLeft);
+    const width = Math.ceil(left + m.actualBoundingBoxRight) + PAD * 2;
+    const height = ascent + descent + PAD * 2;
+
+    const off = document.createElement('canvas');
+    off.width = width;
+    off.height = height;
+    const g = off.getContext('2d', { willReadFrequently: true })!;
+    g.font = FONT;
+    g.textBaseline = 'alphabetic';
+    g.fillStyle = '#ffffff';
+    g.fillText(this.text, PAD + left, PAD + ascent);
+
+    // Le tracé est lissé par le navigateur ; un seuil le ramène à des pixels francs.
+    const data = g.getImageData(0, 0, width, height).data;
+    this.w = width;
+    this.inkH = height;
+    this.h = height + DRIP_SPACE;
+    this.mask = new Uint8Array(width * height);
+    for (let i = 0; i < this.mask.length; i++) this.mask[i] = data[i * 4 + 3]! > 110 ? 1 : 0;
+
+    this.canvas.width = this.w;
+    this.canvas.height = this.h;
+    this.canvas.style.aspectRatio = `${this.w} / ${this.h}`;
+    this.buildDrips(new Rng(this.seed));
+  }
+
+  /** Dernier point d'encre de la colonne `x`, ou `-1` si elle est vide. */
+  private lowest(x: number): number {
+    for (let y = this.inkH - 1; y >= 0; y--) if (this.mask[y * this.w + x]) return y;
+    return -1;
   }
 
   /**
-   * Une coulure ne peut naître que d'un point bas réel de la lettre — un endroit d'où le
-   * sang pourrait effectivement tomber. Partir de colonnes arbitraires donnerait des traits
+   * Une coulure ne peut naître que d'un point bas réel de la lettre – un endroit d'où le sang
+   * pourrait effectivement tomber. Partir de colonnes arbitraires donnerait des traits
    * suspendus dans le vide.
+   *
+   * Un point bas est une colonne dont l'encre descend au moins aussi bas que ses deux
+   * voisines : le pied d'un jambage, le bas d'une panse, la pointe d'une hampe.
    */
   private buildDrips(rng: Rng): void {
+    this.drips = [];
     const candidates: number[] = [];
-    for (let x = 0; x < this.w; x++) {
-      for (let y = GH - 1; y >= 0; y--) {
-        if (this.mask[y * this.w + x]) {
-          // Uniquement les colonnes dont le bas est libre : sinon la coulure part du milieu.
-          if (y >= GH - 2) candidates.push(x);
-          break;
-        }
-      }
+    for (let x = 1; x < this.w - 1; x++) {
+      const y = this.lowest(x);
+      if (y < this.inkH * 0.45) continue;
+      if (y >= this.lowest(x - 1) && y >= this.lowest(x + 1)) candidates.push(x);
     }
 
     rng.shuffle(candidates);
-    const n = Math.min(candidates.length, 16);
-    for (let i = 0; i < n; i++) {
-      const x = candidates[i]!;
+    for (const x of candidates) {
+      if (this.drips.length >= 11) break;
       // Deux coulures collées se lisent comme une tache : on impose un écart minimal.
-      if (this.drips.some((d) => Math.abs(d.x - x) < 3)) continue;
+      if (this.drips.some((d) => Math.abs(d.x - x) < 6)) continue;
+      const y0 = this.lowest(x) + 1;
+      const room = this.h - y0 - 3;
       this.drips.push({
         x,
-        y0: GH,
+        y0,
         len: 0,
-        target: rng.range(3, DRIP_SPACE * 0.72),
-        speed: rng.range(1.6, 5),
+        // Longueurs très inégales : des coulures de même taille feraient un rideau.
+        target: rng.chance(0.3) ? rng.range(room * 0.55, room * 0.85) : rng.range(3, Math.max(5, room * 0.4)),
+        speed: rng.range(2.2, 6.5),
         delay: rng.range(0, 5),
-        w: rng.chance(0.35) ? 2 : 1,
+        w: rng.chance(0.4) ? 2 : 1,
         dropY: -1,
         dropDelay: rng.range(2, 9),
       });
@@ -172,7 +188,7 @@ export class BloodLogo {
     if (this.raf) return;
     this.last = performance.now();
     const frame = (now: number): void => {
-      const dt = Math.min(0.05, (now - this.last) / 1000);
+      const dt = Math.max(0, Math.min(0.05, (now - this.last) / 1000));
       this.last = now;
       this.update(dt);
       this.draw();
@@ -187,7 +203,6 @@ export class BloodLogo {
   }
 
   private update(dt: number): void {
-    this.t += dt;
     for (const d of this.drips) {
       if (d.delay > 0) {
         d.delay -= dt;
@@ -204,11 +219,11 @@ export class BloodLogo {
         }
       }
       if (d.dropY >= 0) {
-        d.dropY += 26 * dt;
+        d.dropY += 34 * dt;
         if (d.dropY > this.h + 2) {
           d.dropY = -1;
           // La coulure se rétracte un peu après avoir lâché sa goutte.
-          d.len = Math.max(2, d.len - 3);
+          d.len = Math.max(2, d.len - 4);
         }
       }
     }
@@ -216,7 +231,8 @@ export class BloodLogo {
 
   private draw(): void {
     const ctx = this.ctx;
-    const { w, h } = this;
+    const { w, h, inkH } = this;
+    if (this.mask.length === 0) return;
     ctx.clearRect(0, 0, w, h);
 
     // Coulures d'abord : elles passent derrière les lettres, ce qui les fait paraître
@@ -242,24 +258,25 @@ export class BloodLogo {
       }
     }
 
-    // Lettres : dégradé vertical du sang vif au sang sombre, plus un liseré clair en haut.
-    for (let y = 0; y < GH; y++) {
-      const k = y / (GH - 1);
-      const col = y === 0 ? this.pal.crown : mix(this.pal.top, this.pal.bottom, k * 0.9);
-      ctx.fillStyle = col;
+    // Ombre portée d'un pixel, en bas à droite de l'encre : elle détache le logo du ciel.
+    ctx.fillStyle = this.pal.shadow;
+    for (let y = 0; y < inkH; y++) {
       for (let x = 0; x < w; x++) {
-        if (this.mask[y * w + x]) ctx.fillRect(x, y, 1, 1);
+        if (this.mask[y * w + x] && x + 1 < w && y + 1 < inkH && !this.mask[(y + 1) * w + x + 1]) {
+          ctx.fillRect(x + 1, y + 1, 1, 1);
+        }
       }
     }
 
-    // Ombre portée d'un pixel sous chaque lettre : détache le logo du ciel.
-    ctx.fillStyle = this.pal.shadow;
-    for (let x = 0; x < w; x++) {
-      for (let y = GH - 1; y >= 0; y--) {
-        if (this.mask[y * w + x]) {
-          if (y + 1 < GH && !this.mask[(y + 1) * w + x]) ctx.fillRect(x, y + 1, 1, 1);
-          break;
-        }
+    // Lettres : dégradé vertical du sang vif au sang sombre, avec un liseré clair sur chaque
+    // bord supérieur d'encre – là où la lumière accrocherait.
+    for (let y = 0; y < inkH; y++) {
+      const body = mix(this.pal.top, this.pal.bottom, (y / Math.max(1, inkH - 1)) * 0.9);
+      for (let x = 0; x < w; x++) {
+        if (!this.mask[y * w + x]) continue;
+        const edge = y === 0 || !this.mask[(y - 1) * w + x];
+        ctx.fillStyle = edge ? this.pal.crown : body;
+        ctx.fillRect(x, y, 1, 1);
       }
     }
   }

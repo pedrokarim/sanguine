@@ -221,7 +221,7 @@ pnpm preview  # sert le build
 
 `base: './'` dans la configuration Vite pour que `dist/index.html` fonctionne aussi en `file://`.
 
-Poids mesuré le 09/10/2026 : **376 ko** non compressé (336 de script, 40 de styles), **133 ko**
+Poids mesuré le 09/10/2026 : **444 ko** non compressé (338 de script, 103 de styles, dont 63 pour les trois polices), **182 ko**
 en gzip, aucun asset binaire. Les chiffres qui suivent datent d’un relevé antérieur, avant la
 couche de lumière, les effets cosmétiques et l’illustration de l’écran-titre (une trentaine de
 ko à elle seule, stockée en pixels indexés dans `src/data/menuart.ts`).
