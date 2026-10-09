@@ -27,9 +27,11 @@ export interface Options {
   highlightPlayer: boolean;
   /** Chiffres de dégâts flottants. Les couper réduit beaucoup le bruit visuel. */
   showDamage: boolean;
+  /** Affiche en jeu un relevé de performances : images par seconde, écran, charge. */
+  showPerf: boolean;
   /** Renforce le contraste des textes d'interface. */
   highContrast: boolean;
-  /** Remplace le serif des titres par une seule famille sans empattement, plus espacée. */
+  /** Remplace les polices en pixels par une seule famille sans empattement, plus espacée. */
   plainFont: boolean;
   /**
    * Vitesse de simulation, 0.6 à 1. Ce n'est pas un réglage de difficulté déguisé : le jeu
@@ -128,7 +130,7 @@ function fresh(): SaveData {
       master: 0.8, sfx: 0.7, music: 0.45,
       hudScale: 1.15, shake: 0.4,
       reduceFlash: false, reduceMotion: false, highlightPlayer: false,
-      showDamage: true, highContrast: false, plainFont: false, gameSpeed: 1,
+      showDamage: true, showPerf: false, highContrast: false, plainFont: false, gameSpeed: 1,
     },
     fragments: [],
     cosmetics: {

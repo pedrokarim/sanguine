@@ -48,7 +48,7 @@ new Backdrop(0x5a9).render(fctx, 3.2, fond.width, fond.height);
 scene.appendChild(fond);
 
 // ── le logo qui saigne ───────────────────────────────────────────────────────
-const logo = new BloodLogo('SANGUINE');
+const logo = new BloodLogo('Sanguine');
 logo.canvas.classList.add('og-logo');
 scene.appendChild(logo.canvas);
 // Une seule image suffit : on photographie, on n'anime pas. Mais il faut laisser le sang

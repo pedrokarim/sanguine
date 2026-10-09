@@ -24,6 +24,14 @@ export class Loop {
 
   /** Moyenne glissante des FPS, pour l'affichage de debug. */
   fps = 60;
+  /**
+   * Fréquence de l'écran, estimée : l'intervalle le plus court observé entre deux images.
+   * Le navigateur ne la donne pas ; mais il ne rend jamais plus vite que l'écran, si bien que
+   * la meilleure image récente en est une bonne mesure. L'estimation remonte lentement, pour
+   * suivre un changement d'écran sans se laisser tromper par une image isolée.
+   */
+  refreshHz = 60;
+  private bestDt = 1 / 60;
   /** Durée du dernier `update` complet, en ms. */
   updateMs = 0;
   /** Durée du dernier `render`, en ms. */
@@ -52,6 +60,10 @@ export class Loop {
     this.last = now;
     if (dt > MAX_FRAME) dt = MAX_FRAME;
     this.fps += ((dt > 0 ? 1 / dt : 60) - this.fps) * 0.06;
+    if (dt > 0.002) {
+      this.bestDt = Math.min(this.bestDt * 1.003, dt);
+      this.refreshHz = Math.round(1 / this.bestDt);
+    }
 
     this.accumulator += dt;
 

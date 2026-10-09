@@ -17,6 +17,12 @@
   --stone: #232b40;
   --stone-hi: #2d3654;
   --mist: #38425f;
+  /*
+   * Texte secondaire : légendes, libellés discrets, compteurs. `--mist` servait à cela, mais
+   * c'est une teinte de **filet** : en texte, elle ne donnait que 1,8 de contraste sur fond
+   * sombre, très en dessous du seuil de lisibilité (4,5). Celle-ci en donne plus de 7.
+   */
+  --text-dim: #9aa6c8;
   --gold: #f2c46b;
   --copper: #e89a3c;
   --linen: #f7ede0;
@@ -32,30 +38,45 @@
   --hud-scale: 1;
 
   /*
-   * Deux familles, deux rôles. Aucune n'est téléchargée : le jeu ne fait aucune requête
-   * réseau, une webfont romprait cette garantie et ajouterait un flash de texte non stylé.
+   * Deux familles, deux rôles. Toutes deux sont dessinées en pixels, comme le reste du jeu :
+   * les polices du système qu'elles remplacent – un serif de labeur et un monospace –
+   * donnaient à l'interface l'allure d'un gabarit, sans rapport avec ce qu'elle entoure.
    *
-   * `--font-display` — un serif de labeur, pour tout ce qui **nomme** : titres, noms de
-   *   personnages, d'armes, de reliques, phrases d'ambiance. Il apporte le registre de
-   *   manuscrit que le monospace seul ne donne pas.
+   * Aucune n'est téléchargée : elles sont inscrites dans `fonts.css`, réduites aux seuls
+   * caractères utiles. Le jeu ne fait toujours aucune requête réseau pour s'afficher.
    *
-   * `--font-ui` — un monospace, pour tout ce qui **informe** : boutons, libellés, chiffres,
-   *   HUD. Ses chasses fixes empêchent les compteurs de sautiller à chaque incrément, ce
-   *   qu'un serif proportionnel ferait en permanence.
+   * `--font-display` — Jacquard 24, une gothique, pour tout ce qui **nomme** : titres, noms
+   *   de personnages, d'armes, de reliques. Trois règles la gardent lisible : jamais en
+   *   capitales (une gothique tout en majuscules ne se déchiffre pas), jamais espacée,
+   *   jamais pour une phrase qu'on doit lire vite.
+   *
+   * `--font-ui` — Pixelify Sans, pour tout ce qui **informe** : boutons, libellés,
+   *   descriptions, chiffres, HUD. Ses chiffres ont été ramenés à une chasse commune
+   *   (`tools/build-fonts.py`), sans quoi un compteur sautille à chaque incrément.
+   *
+   * Les familles qui suivent ne servent que de repli, pendant la fraction de seconde où la
+   * police se décode et pour les rares signes qu'elle ne contient pas (flèches, étoile).
    */
-  --font-display: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua",
-                  Georgia, "Times New Roman", serif;
-  --font-ui: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, "DejaVu Sans Mono", monospace;
-}
+  --font-display: "Jacquard 24", "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  --font-ui: "Pixelify Sans", ui-monospace, "Cascadia Mono", Menlo, Consolas, monospace;}
 
 /* Option d'accessibilité : une seule famille sans empattement, plus large et plus espacée. */
 body.plain-font {
   --font-display: system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --font-ui: system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
-body.plain-font .title-font,
-body.plain-font .card .name,
-body.plain-font .codex-name { letter-spacing: .06em }
+/* Les tailles de titre sont réglées pour la gothique, dont l'œil est petit : rendues telles
+   quelles dans une police courante, elles seraient démesurées. On les ramène à l'échelle. */
+body.plain-font .screen h2 { font-size: 1.75em; font-weight: 700; letter-spacing: .06em }
+body.plain-font .screen .tagline { font-size: 1.1em }
+body.plain-font .card .name { font-size: 1.15em; font-weight: 700 }
+body.plain-font .codex-name { font-size: .95em; font-weight: 700 }
+body.plain-font .pick .name { font-size: 1.08em; font-weight: 700 }
+body.plain-font .sanct-row .n, body.plain-font .prog-txt b, body.plain-font .prog-nom b { font-size: 1.02em; font-weight: 700 }
+body.plain-font .banner .big { font-size: 2.4em; font-weight: 700 }
+body.plain-font .boss-bar .name { font-size: .95em; letter-spacing: .1em }
+body.plain-font .title-mark { font-size: .95em }
+body.plain-font .archive-epilogue { font-size: 1.15em }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -160,9 +181,8 @@ body.cursor-hidden #game { cursor: none; }
   border-image: var(--frame-stone) 8 / 8px / 0 round;
   color: var(--linen);
   font: inherit;
-  font-size: 1em;
-  letter-spacing: .1em;
-  text-transform: uppercase;
+  font-size: 1.12em;
+  letter-spacing: .03em;
   image-rendering: pixelated;
   cursor: var(--cursor-hover, pointer);
   transition: background-color .1s, color .1s, transform .06s, filter .1s;
@@ -180,19 +200,17 @@ body.cursor-hidden #game { cursor: none; }
 .btn.danger { cursor: var(--cursor-danger, pointer) }
 .btn.danger:hover { border-image: var(--frame-blood) 8 / 8px / 0 round; color: var(--blood-hi); }
 
-/* Tout ce qui nomme passe au serif ; l'interlettrage compense sa densité. */
+/* Tout ce qui nomme passe à la gothique. Ni graisse forcée, ni interlettrage : la police
+   n'a qu'une graisse, et l'espacer la délite. */
 .title-font,
 .screen h1, .screen h2,
 .screen .tagline,
 .card .name, .pick .name, .codex-name,
 .sanct-row .n, .banner .big, .boss-bar .name {
   font-family: var(--font-display);
-}
-
-.title-font {
-  font-weight: 700;
-  letter-spacing: .16em;
-  text-transform: uppercase;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
 }
 
 /* Les chiffres restent en chasse fixe partout : un compteur qui change de largeur à chaque
@@ -229,11 +247,15 @@ body.cursor-hidden #game { cursor: none; }
   gap: 1.1em;
   padding: 2em;
   /*
-   * Voile léger : la scène illustrée du canvas doit rester visible derrière les menus,
-   * c'est elle qui porte l'ambiance. La lisibilité du texte est assurée par les ombres
-   * portées, pas en noyant le fond.
+   * Voile sombre. La scène illustrée des menus est claire – un ciel gris lavande – alors
+   * que toute l'interface est écrite en clair sur sombre. Un voile léger laissait le texte
+   * flotter sur l'image, illisible partout où elle était pâle : une ombre portée ne sauve
+   * pas un texte clair posé sur un fond clair. Le voile assure donc le contraste à lui
+   * seul, sur n'importe quelle partie de l'image, et la scène reste devinable derrière.
+   *
+   * L'écran-titre fait exception (voir plus bas) : c'est là que l'illustration se montre.
    */
-  background: radial-gradient(ellipse at center, rgba(5, 6, 10, .16) 0%, rgba(5, 6, 10, .58) 100%);
+  background: radial-gradient(ellipse at center, rgba(5, 6, 10, .8) 0%, rgba(5, 6, 10, .9) 100%);
   animation: fade-in .18s ease-out;
 }
 
@@ -271,8 +293,10 @@ body.cursor-hidden #game { cursor: none; }
   /* Dimensionné par la **hauteur**, jamais par la largeur : le canvas réserve de la place
      sous les lettres pour les coulures, si bien qu'une contrainte en largeur produit une
      image beaucoup trop haute et fait déborder tout l'écran. */
-  height: clamp(84px, 17vh, 150px);
+  height: clamp(110px, 27vh, 250px);
   width: auto; max-width: 92vw;
+  /* Si la largeur plafonne avant la hauteur, le logo se réduit sans se déformer. */
+  object-fit: contain;
   image-rendering: pixelated;
   filter:
     drop-shadow(0 0 14px rgba(240, 64, 90, .45))
@@ -296,8 +320,8 @@ body.cursor-hidden #game { cursor: none; }
 
 .screen h2 {
   position: relative;
-  font-size: 1.75em;
-  letter-spacing: .18em;
+  font-size: 2.7em;
+  line-height: 1;
   color: var(--gold);
   text-shadow: 0 2px 0 #000, 0 0 18px rgba(242, 196, 107, .3);
   padding-bottom: .55em;
@@ -317,7 +341,7 @@ body.cursor-hidden #game { cursor: none; }
  * contre son fond réel, jamais dans l'absolu.
  */
 .screen .tagline {
-  color: #9aa3c4; font-style: italic; letter-spacing: .04em; font-size: 1.08em;
+  color: #c8cfe4; font-size: 1.7em; line-height: 1.1;
   text-shadow: 0 1px 3px rgba(0, 0, 0, .9), 0 0 10px rgba(0, 0, 0, .7);
 }
 .screen .hint {
@@ -408,7 +432,7 @@ body.cursor-hidden #game { cursor: none; }
 .hud-topright .icon-value { text-align: right }
 
 .hud-stat { font-size: .95em; letter-spacing: .08em; text-shadow: 0 2px 0 #000; }
-.hud-stat .k { color: var(--mist); }
+.hud-stat .k { color: var(--text-dim); }
 .hud-stat .v { color: var(--gold); font-weight: 700; }
 
 .slot-row { display: flex; gap: 3px; margin-top: 6px; flex-wrap: wrap; max-width: 15em; }
@@ -456,14 +480,14 @@ body.cursor-hidden #game { cursor: none; }
   text-align: center; pointer-events: none;
 }
 .banner .big {
-  font-size: 2.5em; font-weight: 700; letter-spacing: .2em; text-transform: uppercase;
+  font-size: 3.6em; line-height: 1;
   color: var(--blood-hi); text-shadow: 0 0 30px rgba(240, 64, 90, .8), 0 3px 0 #000;
   animation: banner-in .4s cubic-bezier(.2, 1.6, .4, 1);
 }
-.banner .sub { font-size: .95em; letter-spacing: .2em; color: var(--linen); opacity: .8; }
+.banner .sub { font-size: 1.05em; letter-spacing: .04em; color: var(--linen); opacity: .9; }
 @keyframes banner-in {
-  from { transform: scale(.6) translateY(20px); opacity: 0; letter-spacing: .6em }
-  to   { transform: scale(1) translateY(0); opacity: 1; letter-spacing: .24em }
+  from { transform: scale(.6) translateY(20px); opacity: 0 }
+  to   { transform: scale(1) translateY(0); opacity: 1 }
 }
 
 /* Barre de vie de boss */
@@ -472,7 +496,7 @@ body.cursor-hidden #game { cursor: none; }
   width: min(62%, 620px);
 }
 .boss-bar .name {
-  text-align: center; font-size: .9em; letter-spacing: .22em; text-transform: uppercase;
+  text-align: center; font-size: 1.7em; line-height: 1;
   color: var(--blood-hi); text-shadow: 0 2px 0 #000; margin-bottom: 3px;
 }
 .boss-bar .track { height: 10px; background: #05060a; border: 1px solid var(--blood-dark); }
@@ -505,7 +529,7 @@ body.cursor-hidden #game { cursor: none; }
   position: absolute; right: 2px; bottom: 0;
   font-size: calc(9px * var(--hud-scale));
   letter-spacing: .1em;
-  color: var(--mist);
+  color: var(--text-dim);
   text-shadow: 0 1px 0 #000;
 }
 
@@ -572,13 +596,13 @@ body.cursor-hidden #game { cursor: none; }
   margin-bottom: var(--group-gap);
 }
 .card .name {
-  font-size: 1.15em; font-weight: 700; letter-spacing: .03em; color: var(--gold);
+  font-size: 1.9em; line-height: 1; color: var(--gold);
   text-shadow: 0 2px 0 rgba(0, 0, 0, .8);
 }
 .card .kind {
-  font-size: .7em; letter-spacing: .18em; text-transform: uppercase; color: var(--mist);
+  font-size: .7em; letter-spacing: .18em; text-transform: uppercase; color: var(--text-dim);
 }
-.card .desc { font-size: .82em; color: var(--steel); line-height: 1.5; }
+.card .desc { font-size: .92em; color: var(--steel); line-height: 1.35; }
 .card .lvltag {
   position: relative;
   margin-top: auto; padding-top: .7em;
@@ -633,7 +657,7 @@ body.cursor-hidden #game { cursor: none; }
   filter: drop-shadow(0 2px 3px rgba(0, 0, 0, .9));
   margin-bottom: var(--group-gap);
 }
-.pick .name { font-weight: 700; color: var(--gold); letter-spacing: .02em; font-size: 1.08em }
+.pick .name { color: var(--gold); font-size: 1.7em; line-height: 1.05 }
 .pick .perk { font-size: .78em; color: var(--steel) }
 .pick .flaw { font-size: .78em; color: var(--blood-hi) }
 .pick.locked { opacity: .55; cursor: not-allowed; filter: grayscale(.85) }
@@ -659,8 +683,8 @@ body.cursor-hidden #game { cursor: none; }
 /* Mention de copyright de l'écran-titre : présente sans jamais capter l'attention. */
 .title-mark {
   position: absolute; left: 0; right: 0; bottom: 3.1em;
-  text-align: center; font-family: var(--font-display); font-style: italic;
-  font-size: .92em; letter-spacing: .04em; color: var(--ice, #7de8ff);
+  text-align: center; font-family: var(--font-display);
+  font-size: 1.35em; color: var(--ice, #7de8ff);
   opacity: .75; text-shadow: 0 1px 3px rgba(0, 0, 0, .95); pointer-events: none;
 }
 
@@ -672,7 +696,7 @@ body.cursor-hidden #game { cursor: none; }
   text-shadow: 0 1px 2px rgba(0, 0, 0, .9);
   pointer-events: none;
 }
-.pick.locked .unlock { font-size: .74em; color: var(--mist); font-style: italic }
+.pick.locked .unlock { font-size: .8em; color: var(--text-dim) }
 
 /* ------------------------------------------------------------- sanctuaire */
 
@@ -690,7 +714,7 @@ body.cursor-hidden #game { cursor: none; }
   background: rgba(19, 23, 37, .85); border: 1px solid var(--stone); border-radius: 2px;
 }
 .sanct-row .info { flex: 1; min-width: 0 }
-.sanct-row .n { font-size: 1.02em; color: var(--gold); font-weight: 700; letter-spacing: .01em }
+.sanct-row .n { font-size: 1.6em; line-height: 1; color: var(--gold) }
 .sanct-row .d { font-size: .76em; color: var(--steel) }
 .sanct-row .pips { display: flex; gap: 2px; margin-top: 3px }
 .sanct-row .pip { width: 9px; height: 5px; background: var(--stone-hi); border-radius: 1px }
@@ -735,7 +759,7 @@ body.cursor-hidden #game { cursor: none; }
   content: ''; flex: 1; height: 1px;
   background: linear-gradient(90deg, rgba(242, 196, 107, .45), rgba(242, 196, 107, .05));
 }
-.codex-section .c { flex: none; color: var(--mist); letter-spacing: .1em }
+.codex-section .c { flex: none; color: var(--text-dim); letter-spacing: .1em }
 
 .codex-grid {
   display: grid;
@@ -785,13 +809,13 @@ body.cursor-hidden #game { cursor: none; }
 /* Entrée non découverte : silhouette pleine, qui laisse deviner la forme sans la révéler. */
 .codex-sprite.unknown { filter: brightness(0) saturate(0) opacity(.4) }
 .codex-cell.locked { opacity: .62 }
-.codex-cell.locked .codex-name { color: var(--mist) }
+.codex-cell.locked .codex-name { color: var(--text-dim) }
 
 .codex-tag {
   font-size: .7em; letter-spacing: .14em; text-transform: uppercase;
 }
 .codex-name {
-  font-size: .95em; font-weight: 700; letter-spacing: .01em; color: var(--gold);
+  font-size: 1.5em; line-height: 1; color: var(--gold);
   text-shadow: 0 1px 0 rgba(0, 0, 0, .8);
 }
 .codex-desc { font-size: .74em; color: var(--steel); line-height: 1.4 }
@@ -870,7 +894,7 @@ body.reduce-motion .icon-sprite.anim { animation: none }
   text-shadow: 0 1px 0 rgba(0, 0, 0, .9);
 }
 .chip-label {
-  font-size: .7em; letter-spacing: .14em; text-transform: uppercase; color: var(--mist);
+  font-size: .7em; letter-spacing: .14em; text-transform: uppercase; color: var(--text-dim);
 }
 
 @media (max-width: 720px) {
@@ -917,7 +941,7 @@ body.reduce-motion .icon-sprite.anim { animation: none }
   line-height: 1.1;
 }
 .stat-label {
-  font-size: .72em; letter-spacing: .16em; text-transform: uppercase; color: var(--mist);
+  font-size: .72em; letter-spacing: .16em; text-transform: uppercase; color: var(--text-dim);
 }
 
 /* Icône du Sanctuaire, alignée à gauche de chaque ligne. */
@@ -934,8 +958,8 @@ body.reduce-motion .icon-sprite.anim { animation: none }
 
 .archive-hint {
   max-width: 44ch; text-align: center; margin: .2em 0 .4em;
-  font-family: var(--font-display); font-style: italic; font-size: 1.02em;
-  color: var(--steel); line-height: 1.5;
+  font-size: 1.05em;
+  color: var(--steel); line-height: 1.45;
   text-shadow: 0 1px 3px rgba(0, 0, 0, .9);
 }
 .archive-grid { grid-template-columns: repeat(auto-fill, minmax(8em, 1fr)) }
@@ -946,7 +970,7 @@ body.reduce-motion .icon-sprite.anim { animation: none }
 
 .archive-epilogue {
   margin: 1.4em auto .4em; padding: .8em 1.6em; max-width: 22em; text-align: center;
-  font-family: var(--font-display); font-size: 1.15em; letter-spacing: .1em;
+  font-family: var(--font-display); font-size: 1.7em; line-height: 1.1;
   color: var(--gold); cursor: pointer;
   border: 8px solid transparent; border-image: var(--frame-gold) 8 / 8px / 0 round;
   background-color: rgba(11, 13, 20, .8); image-rendering: pixelated;
@@ -961,7 +985,8 @@ body.reduce-motion .icon-sprite.anim { animation: none }
 }
 .reading-panel {
   max-width: 52ch; padding: 1.6em 2em;
-  font-family: var(--font-display); font-size: 1.12em; line-height: 1.75;
+  /* Un texte long se lit dans la police d'interface : la gothique nomme, elle ne raconte pas. */
+  font-size: 1.12em; line-height: 1.6;
   color: #dfe4f2; text-align: left;
 }
 .reading-panel p + p { margin-top: 1em }
@@ -1006,12 +1031,12 @@ body.reduce-motion .icon-sprite.anim { animation: none }
   min-width: 3.4em; text-align: right; color: var(--gold);
   font-variant-numeric: tabular-nums; font-size: .9em;
 }
-.opt-hint { font-size: .76em; color: var(--mist); line-height: 1.35; max-width: 24em }
+.opt-hint { font-size: .76em; color: var(--text-dim); line-height: 1.35; max-width: 24em }
 
 /* ------------------------------------------------------------- fin de run */
 
 .stats-table { display: grid; grid-template-columns: auto auto; gap: .25em 1.6em; font-size: .92em }
-.stats-table .k { color: var(--mist); text-align: right }
+.stats-table .k { color: var(--text-dim); text-align: right }
 .stats-table .v { color: var(--linen); font-weight: 700 }
 
 .victory .blood-logo { filter: drop-shadow(0 0 18px rgba(242, 196, 107, .5)) drop-shadow(0 3px 0 rgba(0, 0, 0, .5)) }
@@ -1153,99 +1178,64 @@ body.is-touch .card { min-height: 0 }
 }
 
 /*
- * -------------------------------------------------------- écran-titre bas de plafond
+ * ------------------------------------------------------------------ écran-titre
  *
- * Le menu principal a huit entrées quand une partie est en cours. Empilées, elles
- * réclament plus de hauteur qu'un téléphone couché ou une petite fenêtre n'en offrent —
- * mesuré : 576 px de menu pour 393 px de fenêtre. La place manque en hauteur ; elle est
- * disponible en largeur. On plie donc le menu en deux colonnes plutôt que de rapetisser
- * le texte jusqu'à l'illisible.
- *
- * Le seuil porte sur la **hauteur** et non sur le type de pointeur : une fenêtre de
- * bureau écrasée à 600 px souffre exactement du même mal qu'un téléphone couché, et se
- * soigne pareil. Il est haut — 880 px — parce que la colonne unique cesse de tenir bien
- * avant le format des téléphones : un portable 1366 × 768 débordait déjà.
+ * Deux étages : l'action en grand, puis une grille pour tout le reste. L'ancienne colonne
+ * de huit boutons égaux réclamait 576 px de hauteur et il fallait la replier en deux, puis
+ * trois colonnes selon l'écran ; la grille tient d'emblée, et ne change que son nombre de
+ * colonnes.
  */
-@media (max-height: 880px) and (min-width: 620px) {
+.title-main {
+  display: flex; flex-direction: column; align-items: center; gap: .45em;
+  width: min(21em, 86vw);
+}
+.title-main .btn { width: 100%; font-size: 1.4em; padding: .5em 1em }
+.title-main .menu-resume { width: 100% }
+.title-nav {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .45em;
+  width: min(33em, 92vw);
+}
+.title-nav .btn { width: 100%; padding: .5em .3em; font-size: 1em }
+
+/* Téléphone tenu droit : trois colonnes serreraient les libellés, deux tiennent. */
+@media (max-width: 620px) {
   .title-corps { gap: .7em }
-  .screen.title .menu-list {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: .4em .7em;
-    min-width: 0; width: min(34em, 88vw);
-  }
-  /* La reprise commande le menu : elle tient la première ligne entière. */
-  .screen.title .menu-resume { grid-column: 1 / -1 }
-  .screen.title .btn { width: 100%; padding-left: .6em; padding-right: .6em }
-  /* Le logo cède avant le menu : il porte l'identité, le menu porte la fonction. */
-  .screen.title .blood-logo { height: clamp(72px, 13vh, 120px) }
+  .title-nav { grid-template-columns: repeat(2, minmax(0, 1fr)); width: min(21em, 86vw) }
+  .title-main .btn { font-size: 1.25em }
+  .screen.title .tagline { font-size: 1.35em; padding: 0 .6em }
+  .screen.title .title-mark { display: none }
 }
 
 /*
- * Plus bas encore — téléphone couché. Deux colonnes ne suffisent plus : il faut aussi
- * reprendre la hauteur des boutons, élargie plus haut pour le doigt, et le bandeau du
- * bas. La cible tactile reste au-dessus de 44 px physiques, seuil en deçà duquel un
- * appui devient incertain.
+ * Bas de plafond – téléphone couché, fenêtre écrasée. La hauteur manque et la largeur
+ * abonde : la grille passe sur une seule ligne, et le logo cède avant le menu, parce qu'il
+ * porte l'identité quand le menu porte la fonction.
  */
-@media (max-height: 500px) {
-  .title-corps { gap: .45em }
-  .title-pied { padding-top: .35em }
-  .screen.title .menu-list { gap: .3em .6em }
-  .screen.title .btn,
-  body.is-touch .screen.title .btn { padding: .38em .7em; min-height: 2.3em; font-size: .92em }
-  .screen.title .menu-resume { gap: 0 }
-  .screen.title .menu-resume .hint { font-size: .78em }
-  /* Le fleuron et la mention légale cèdent la place avant le menu : ils décorent, ils
-     n'informent pas. Le copyright, lui, reste. */
-  .screen.title .flourish, .screen.title .title-mark { display: none }
-  .screen.title .tagline { font-size: .92em }
-  .screen.title .blood-logo { height: clamp(40px, 13vh, 60px) }
+@media (max-height: 560px) {
+  .title-corps { gap: .5em }
+  .title-pied { padding-top: .3em }
+  .screen.title .blood-logo { height: clamp(58px, 26vh, 110px) }
+  .screen.title .tagline { font-size: 1.15em }
+  .screen.title .title-mark { display: none }
+  .title-main .btn { font-size: 1.15em; padding: .35em 1em }
+  .title-nav .btn,
+  body.is-touch .title-nav .btn { padding: .35em .3em; min-height: 2.3em; font-size: .92em }
   .screen.title .copyright { font-size: .72em }
 }
-
-/*
- * Téléphone couché tenu à l'horizontale : très large pour ce qu'il est haut. Une troisième
- * colonne fait tomber le menu de cinq lignes à quatre — c'est la hauteur qui manque, et
- * elle se paie en largeur, qui abonde. En deçà de 780 px la troisième colonne rendrait les
- * libellés trop serrés pour rester lisibles ; on en reste alors à deux.
- */
-@media (max-height: 500px) and (min-width: 780px) {
-  .screen.title .menu-list { grid-template-columns: repeat(3, minmax(0, 1fr)) }
+@media (max-height: 560px) and (min-width: 780px) {
+  .title-nav { grid-template-columns: repeat(6, minmax(0, 1fr)); width: min(60em, 94vw) }
 }
 
 /*
- * Les puces de statistiques des coins bas encadrent le menu et finissent par le mordre :
- * en écran étroit parce qu'il ne reste rien de part et d'autre, en écran bas de plafond
- * parce que le menu s'y étale sur deux colonnes larges. Elles sont un ornement chiffré,
- * le menu est la fonction — on les retire dans les deux cas.
+ * Les puces de statistiques des coins encadrent le menu et finissent par le mordre : en
+ * écran étroit parce qu'il ne reste rien de part et d'autre, en écran bas parce que le
+ * menu s'y étale. Elles sont un ornement chiffré, le menu est la fonction.
  */
-/* Le seuil de 1040 px est relevé d'une mesure et non choisi au jugé : sur une tablette
-   4:3 en portrait (768 × 1024), la colonne de huit entrées descend jusqu'à 902 px quand
-   la puce du coin bas commence à 892. Un bureau en 1080 garde l'ornement, qui n'y gêne
-   rien. */
-@media (max-width: 620px), (max-height: 1040px) {
+@media (max-width: 620px), (max-height: 760px) {
   .screen.title .stat-corner.bl, .screen.title .stat-corner.br { display: none }
 }
 /* Posée depuis le code quand le corps déborde : tout l'ornement cède, y compris en haut. */
 .screen.title.serre .stat-corner { display: none }
-
-/*
- * Portrait sur téléphone — le joueur a refusé la rotation, ce qui est son droit. Deux
- * colonnes sont impossibles à cette largeur : c'est la hauteur des entrées qu'il faut
- * reprendre. Le mobilier décoratif s'efface d'abord, le menu ensuite, et jamais en deçà
- * de la cible tactile confortable.
- */
-@media (max-width: 620px) {
-  .title-corps { gap: .5em }
-  .screen.title .menu-list { gap: .34em; min-width: 15em; width: min(20em, 86vw) }
-  .screen.title .btn,
-  body.is-touch .screen.title .btn { padding: .42em 1em; min-height: 2.5em; width: 100% }
-  .screen.title .flourish, .screen.title .title-mark { display: none }
-  .screen.title .menu-resume { gap: 0 }
-  .screen.title .menu-resume .hint { font-size: .78em }
-  .screen.title .blood-logo { height: clamp(56px, 12vh, 96px) }
-}
-
 /*
  * L'écran de rotation.
  *
@@ -1334,8 +1324,8 @@ html.planche, html.planche body {
   margin: 2.6rem 0 .5rem;
 }
 #planche h2::after { content: ""; flex: 1; height: 1px; background: linear-gradient(90deg, #f2c46b66, #f2c46b0d) }
-#planche h2 i { font-style: normal; color: var(--mist); font-size: .82em; letter-spacing: .1em }
-.pl-sous { color: var(--mist); font-size: .88rem; margin-bottom: 1rem; max-width: 70ch }
+#planche h2 i { font-style: normal; color: var(--text-dim); font-size: .82em; letter-spacing: .1em }
+.pl-sous { color: var(--text-dim); font-size: .88rem; margin-bottom: 1rem; max-width: 70ch }
 
 .pl-grille { display: flex; flex-wrap: wrap; gap: .8rem; align-items: flex-start }
 .pl-cell {
@@ -1353,7 +1343,7 @@ html.planche, html.planche body {
 .pl-scene canvas { image-rendering: pixelated; display: block }
 .pl-cell figcaption { display: flex; flex-direction: column; gap: .15rem }
 .pl-cell b { color: var(--linen); font-size: .84rem }
-.pl-meta { color: var(--mist); font-size: .72rem; letter-spacing: .04em; font-variant-numeric: tabular-nums }
+.pl-meta { color: var(--text-dim); font-size: .72rem; letter-spacing: .04em; font-variant-numeric: tabular-nums }
 .pl-note { color: var(--copper); font-size: .72rem; font-style: italic }
 
 .pl-bilan {
@@ -1472,9 +1462,9 @@ html.og-page, html.og-page body { height: auto; overflow: visible; background: #
 .prog-recette.faite { border-color: var(--gold); background-color: rgba(242, 196, 107, .06) }
 
 .prog-txt, .prog-nom { display: flex; flex-direction: column; gap: .12em; min-width: 0 }
-.prog-txt b, .prog-nom b { color: var(--gold); font-family: var(--font-display); font-size: 1.02em }
+.prog-txt b, .prog-nom b { color: var(--gold); font-family: var(--font-display); font-weight: 400; font-size: 1.55em; line-height: 1 }
 .prog-cond { font-size: .78em; color: var(--steel); line-height: 1.35 }
-.prog-chiffre { font-size: .72em; color: var(--mist); font-variant-numeric: tabular-nums }
+.prog-chiffre { font-size: .72em; color: var(--text-dim); font-variant-numeric: tabular-nums }
 
 .prog-jauge {
   width: 12em; height: 4px; margin-top: .2em;
@@ -1487,7 +1477,7 @@ html.og-page, html.og-page body { height: auto; overflow: visible; background: #
 }
 
 .prog-bloc { display: grid; place-items: center; width: 2.6em; height: 2.6em; flex: none }
-.prog-op { color: var(--mist); font-size: 1.1em; flex: none }
+.prog-op { color: var(--text-dim); font-size: 1.1em; flex: none }
 .prog-op.fleche { color: var(--gold) }
 .prog-nom { margin-left: .4em }
 
@@ -1592,3 +1582,59 @@ html.og-page, html.og-page body { height: auto; overflow: visible; background: #
 }
 .shop-theme .shop-preview { width: 176px }
 .screen.shop .codex-grid { grid-template-columns: repeat(auto-fill, minmax(13.5em, 1fr)) }
+
+/* Écran-titre : le logo porte déjà sa lueur ; le bandeau qui servait d'assise à l'ancien
+   logo en capitales n'a plus de raison d'être derrière une gothique. */
+.screen.title h1::before { display: none }
+/* Le fond illustré est clair : les textes secondaires y sont éclaircis et ombrés. */
+.screen.title .hint { color: #e3e7f4; text-shadow: 0 1px 0 #000, 0 0 8px rgba(0, 0, 0, .9) }
+.screen.title .copyright { color: #c2c9e0; text-shadow: 0 1px 0 #000, 0 0 6px rgba(0, 0, 0, .9) }
+
+/* Relevé de performances (option). Sous les emplacements du HUD, à gauche : le coin haut
+   droit porte l'or, le bas droit la minimap. */
+#perf {
+  position: absolute; left: 10px; bottom: 8px; z-index: 5;
+  font-size: calc(11px * var(--hud-scale)); line-height: 1.35; white-space: pre;
+  color: #b8f0c0; text-shadow: 0 1px 0 #000, 0 0 4px #000;
+  pointer-events: none;
+}
+
+/* La police d'interface n'a qu'une graisse. Sans cette règle, le navigateur fabrique un
+   faux gras en épaississant le tracé, ce qui bouche les lettres : « Chasseresse » se
+   lisait « Ohasseresse ». */
+body { font-synthesis: none }
+
+/* --------------------------------------------------------- lisibilité sur le fond */
+
+/*
+ * Écran-titre : l'illustration reste visible, et chaque texte porte son propre appui.
+ * Le voile s'épaissit au centre, derrière la colonne du menu, et s'efface vers les bords
+ * où il n'y a que l'image à regarder.
+ */
+.screen.title {
+  background:
+    radial-gradient(ellipse 34em 62% at 50% 56%, rgba(5, 6, 10, .62) 0%, rgba(5, 6, 10, .42) 55%, rgba(5, 6, 10, 0) 100%),
+    rgba(5, 6, 10, .3);
+}
+.screen.title .tagline { color: #f1f3fb; text-shadow: 0 2px 0 #000, 0 0 12px #000 }
+
+/*
+ * Les listes qui défilent reçoivent une surface pleine : c'est là que se trouvent les
+ * textes les plus petits – légendes des options, descriptions du codex –, ceux qui
+ * supportent le moins un fond qui change sous eux.
+ */
+.opt-scroll, .codex-scroll, .sanct-grid {
+  background: rgba(9, 11, 18, .82);
+  border: 1px solid var(--stone-hi);
+  border-radius: 2px;
+  padding: 1em 1.2em;
+}
+.opt-hint { font-size: .82em; line-height: 1.4 }
+
+/* Contraste renforcé : le voile devient presque plein, et le texte secondaire s'éclaircit. */
+body.high-contrast .screen:not(.levelup):not(.chestscreen):not(.pause) { background: rgba(3, 4, 8, .95) }
+body.high-contrast { --text-dim: #c3cbe6 }
+
+/* Pixelify Sans fusionne « fl » et « fi » en un seul signe, qui à cette taille se lit comme
+   un « A » : « flashs » devenait « Aashs ». Aucune ligature, donc. */
+body { font-variant-ligatures: none }

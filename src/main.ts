@@ -1,3 +1,4 @@
+import './ui/fonts.css';
 import './ui/style.css';
 
 import { applyDocumentLanguage, t } from './i18n';
@@ -703,6 +704,7 @@ const loop = new Loop({
     }
     present();
     if (debug) updateDebug();
+    updatePerf(rdt);
   },
 });
 
@@ -768,6 +770,43 @@ function handleGlobalKeys(): void {
   if (input.wasPressed('F5')) w.gold += 10000;
   if (input.wasPressed('F6')) w.dropRelic(w.player.x + 20, w.player.y);
   if (input.wasPressed('F7')) w.spawnPickup('chest', w.player.x + 20, w.player.y, 0, 0);
+}
+
+/**
+ * Relevé de performances, activé depuis les options.
+ *
+ * Distinct du panneau de débogage (touche `), qui parle aux développeurs. Celui-ci répond
+ * à une question de joueur : « est-ce que ça rame, et est-ce ma machine ou le jeu ? ». Il
+ * donne donc la cadence obtenue **à côté** de la fréquence de l'écran – 60 images par
+ * seconde sont parfaites sur un écran à 60 Hz et insuffisantes sur un écran à 144.
+ */
+let perfEl: HTMLDivElement | null = null;
+let perfTimer = 0;
+
+function updatePerf(dt: number): void {
+  const wanted = load().options.showPerf && world !== null && state !== 'title';
+  if (!wanted) {
+    perfEl?.remove();
+    perfEl = null;
+    return;
+  }
+  if (!perfEl) {
+    perfEl = document.createElement('div');
+    perfEl.id = 'perf';
+    uiLayer.appendChild(perfEl);
+  }
+  // Quatre rafraîchissements par seconde : plus vite, les chiffres deviennent illisibles.
+  perfTimer -= dt;
+  if (perfTimer > 0 || !world) return;
+  perfTimer = 0.25;
+  const w = world;
+  let shots = 0;
+  for (const p of w.projectiles) if (p.active) shots++;
+  perfEl.textContent =
+    `${loop.fps.toFixed(0)} ${t('images/s', 'fps')} · ${t('écran', 'screen')} ${loop.refreshHz} Hz\n` +
+    `${t('calcul', 'update')} ${loop.updateMs.toFixed(1)} ms · ${t('rendu', 'render')} ${loop.renderMs.toFixed(1)} ms\n` +
+    `${w.aliveEnemies} ${t('ennemis', 'enemies')} · ${shots} ${t('tirs', 'shots')} · ${w.particles.count} ${t('particules', 'particles')}\n` +
+    `${scene.width}×${scene.height} ×${blitScale}`;
 }
 
 function updateDebug(): void {

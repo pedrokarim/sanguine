@@ -9,7 +9,7 @@ boot (~30 ms au total), et le reste du jeu ne manipule plus que des `CanvasImage
 Pourquoi ce choix plutôt que des assets dessinés à la main :
 
 1. **Licence** – aucun asset tiers, donc aucune ambiguïté sur la redistribution.
-2. **Poids** – 376 ko de bundle (133 ko en gzip), chargement instantané.
+2. **Poids** – 444 ko de bundle (182 ko en gzip), chargement instantané.
 3. **Variation** – un même générateur produit 6 variantes d’une goule en changeant une graine.
    Une horde générée procéduralement paraît beaucoup moins répétitive.
 4. **Itération** – changer la palette du jeu entier est un changement d’une ligne.
@@ -541,3 +541,35 @@ ligne, les pétales qui tombent jusqu’à l’eau, les étoiles qui clignotent.
 thèmes d’interface s’y ajoutent par-dessus.
 
 L’ancienne lande procédurale est conservée (`Backdrop.illustrated = false`).
+
+## Polices
+
+L’interface utilisait les polices du système : un serif de labeur pour les titres, un
+monospace pour le reste. Aucune n’avait de rapport avec le pixel art qu’elles entouraient, et
+ce couple donnait à tous les écrans l’allure d’un gabarit.
+
+| Rôle | Police | Emploi |
+|---|---|---|
+| Ce qui **nomme** | Jacquard 24, une gothique en pixels | Logo, titres d’écran, noms de personnages, d’armes, de reliques, de boss |
+| Ce qui **informe** | Pixelify Sans | Boutons, descriptions, libellés, textes longs |
+| Les **chiffres** | Jersey 10 | Tous les nombres, où qu’ils soient |
+
+Trois règles gardent la gothique lisible : jamais en capitales, jamais espacée, jamais pour une
+phrase qu’on doit lire vite. Ses majuscules restent exigeantes – un « Y » ou un « V » de gothique
+demande un instant – et c’est le prix de son caractère ; elle ne sert donc qu’à des noms courts,
+toujours accompagnés d’une icône ou d’une description en clair.
+
+Les chiffres viennent d’une troisième police parce que ceux de Pixelify Sans prêtent à
+confusion : son « 5 » se lit « S », et « +0.5 projectile » devenait « +0.S ». Les deux polices
+sont déclarées sous le même nom de famille, chacune limitée à sa plage de caractères ; rien
+n’est à préciser dans les styles. Les chiffres ont tous la même chasse, pour qu’un compteur ne
+sautille pas.
+
+Les trois polices sont libres (SIL Open Font License 1.1, textes dans `licenses/`). Elles sont
+réduites aux caractères utiles et inscrites dans `src/ui/fonts.css` par `tools/build-fonts.py` :
+aucun fichier n’est servi, aucune requête n’est faite. La politique de sécurité autorise pour
+cela `font-src data:`, et rien d’autre.
+
+Le logo est tracé avec Jacquard 24 à sa taille native, puis relevé point par point : le sang
+coule depuis le bas réel de chaque lettre. L’option « Police simple » remplace tout cela par
+une police courante, pour qui trouve la gothique ou les pixels fatigants.

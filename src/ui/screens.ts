@@ -284,7 +284,7 @@ export class Screens {
     corps.className = 'title-corps';
     el.appendChild(corps);
 
-    const logo = new BloodLogo('SANGUINE');
+    const logo = new BloodLogo('Sanguine');
     const h1 = document.createElement('h1');
     h1.className = 'title-font';
     h1.appendChild(logo.canvas);
@@ -297,15 +297,21 @@ export class Screens {
       logo.stop();
     };
 
-    const fl = document.createElement('div');
-    fl.className = 'flourish';
     const tag = document.createElement('p');
     tag.className = 'tagline';
     tag.textContent = t('« Tenez jusqu’à l’aube. Elle ne viendra pas. »', '“Hold until dawn. It will not come.”');
-    corps.append(fl, tag);
+    corps.appendChild(tag);
 
+    /*
+     * Deux étages, et non une colonne de huit boutons égaux. L'action – jouer, ou reprendre –
+     * occupe seule le premier, en grand : c'est ce que neuf visites sur dix viennent faire.
+     * Tout le reste se range dessous, en grille serrée. Le menu y gagne une hiérarchie, et
+     * perd assez de hauteur pour tenir sur un téléphone sans rien retirer.
+     */
     const list = document.createElement('div');
-    list.className = 'menu-list';
+    list.className = 'title-main';
+    const navGrid = document.createElement('div');
+    navGrid.className = 'title-nav';
 
     // La reprise passe **avant** « Jouer » et porte le contexte de la partie interrompue :
     // proposer « Jouer » en premier ferait perdre la partie sauvegardée d'un clic distrait.
@@ -343,8 +349,9 @@ export class Screens {
     bCodex.addEventListener('click', () => { audio.play('confirm'); onCodex(); });
     bProg.addEventListener('click', () => { audio.play('confirm'); onProgress(); });
     bOpt.addEventListener('click', () => { audio.play('confirm'); onOptions(); });
-    list.append(bPlay, bSanct, bShop, bArchive, bCodex, bProg, bOpt);
-    corps.appendChild(list);
+    list.appendChild(bPlay);
+    navGrid.append(bSanct, bShop, bArchive, bCodex, bProg, bOpt);
+    corps.append(list, navGrid);
 
     if (sv.stats.runs > 0) {
       // Les compteurs ne sont pas empilés au centre mais **groupés par sens** dans les
@@ -1555,7 +1562,7 @@ export class Screens {
     slider(t('Secousse de caméra', 'Camera shake'), 0, 1, 0.05, () => sv.options.shake, (v) => { sv.options.shake = v; }, pct);
     toggle(t('Contraste renforcé', 'High contrast'), t('Textes plus clairs et mieux détourés.', 'Brighter text with stronger outlines.'),
       () => sv.options.highContrast, (v) => { sv.options.highContrast = v; });
-    toggle(t('Police uniforme', 'Uniform font'), t('Une seule famille sans empattement, plus espacée.', 'A single, more widely spaced sans-serif family.'),
+    toggle(t('Police simple', 'Plain font'), t('Remplace la gothique et la police en pixels par une police courante, plus lisible.', 'Replaces the gothic and pixel fonts with an everyday, more readable one.'),
       () => sv.options.plainFont, (v) => { sv.options.plainFont = v; });
 
     section(t('Confort visuel', 'Visual comfort'));
@@ -1565,6 +1572,9 @@ export class Screens {
       () => sv.options.reduceMotion, (v) => { sv.options.reduceMotion = v; });
     toggle(t('Chiffres de dégâts', 'Damage numbers'), t('Les couper réduit beaucoup le bruit à l’écran.', 'Turning them off greatly reduces visual clutter.'),
       () => sv.options.showDamage, (v) => { sv.options.showDamage = v; });
+
+    toggle(t('Afficher les performances', 'Show performance'), t('Images par seconde, fréquence de l’écran et charge, dans un coin en jeu.', 'Frames per second, screen refresh rate and load, in a corner during play.'),
+      () => sv.options.showPerf, (v) => { sv.options.showPerf = v; });
 
     section(t('Jeu', 'Gameplay'));
     toggle(t('Repère sous le joueur', 'Player marker'), t('Un anneau permanent pour ne jamais vous perdre dans la horde.', 'A permanent ring so you never lose yourself in the horde.'),
@@ -1700,7 +1710,7 @@ export class Screens {
 
     // Le même logo saignant que l'écran-titre : c'est précisément ici qu'il prend son sens.
     // À la victoire, ce n'est plus du sang qui coule mais la lumière de l'aube.
-    const logo = new BloodLogo(victory ? t('AUBE', 'DAWN') : t('MORT', 'DEATH'), victory ? 0x21b : 0x9c4, victory ? DAWN : BLOOD);
+    const logo = new BloodLogo(victory ? t('Aube', 'Dawn') : t('Mort', 'Death'), victory ? 0x21b : 0x9c4, victory ? DAWN : BLOOD);
     const h1 = document.createElement('h1');
     h1.className = 'title-font';
     h1.appendChild(logo.canvas);
