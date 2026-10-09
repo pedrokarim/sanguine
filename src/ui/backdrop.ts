@@ -1,6 +1,8 @@
 import { Rng } from '../core/rng';
 import { valueNoise2, TAU } from '../core/math';
 import { P, rgba, shade } from '../gfx/palette';
+import { drawAmbience, type AmbienceStyle } from '../gfx/cosmeticfx';
+import { MENU_ART } from '../data/menuart';
 
 /**
  * Décor illustré des menus : une scène nocturne dessinée par le code, dans la même grammaire
@@ -26,10 +28,10 @@ interface Bat {
   scale: number;
 }
 
-function layer(): HTMLCanvasElement {
+function layer(w = W, h = H): HTMLCanvasElement {
   const c = document.createElement('canvas');
-  c.width = W;
-  c.height = H;
+  c.width = w;
+  c.height = h;
   return c;
 }
 
@@ -153,6 +155,42 @@ function grave(
   ctx.restore();
 }
 
+/** Ligne d'eau de la scène illustrée, en fraction de sa hauteur. */
+const ART_HORIZON = 0.735;
+/** Durée, en secondes, de la boucle des mouvements de la scène illustrée. */
+const ART_LOOP = 4;
+const ART_PETAL = '#961c2c';
+
+/** Bruit déterministe dans [0, 1[. */
+function hash(n: number): number {
+  const s = Math.sin(n * 127.1) * 43758.5453;
+  return s - Math.floor(s);
+}
+
+/** Décode les pixels indexés de `MENU_ART` – une lettre par plage, suivie de sa longueur. */
+function decodeArt(): HTMLCanvasElement {
+  const { w, h, palette, rle } = MENU_ART;
+  const c = layer(w, h);
+  const g = c.getContext('2d')!;
+  let i = 0;
+  for (const [, letter, count] of rle.matchAll(/([a-zA-Z])(\d*)/g)) {
+    const code = letter!.charCodeAt(0);
+    const index = code >= 97 ? code - 97 : code - 65 + 26;
+    const run = Number(count || 1);
+    g.fillStyle = palette[index] ?? '#000000';
+    // Une plage peut déborder d'une ligne sur la suivante : on la découpe ligne par ligne.
+    let left = run;
+    while (left > 0) {
+      const x = i % w;
+      const span = Math.min(left, w - x);
+      g.fillRect(x, Math.floor(i / w), span, 1);
+      i += span;
+      left -= span;
+    }
+  }
+  return c;
+}
+
 export class Backdrop {
   private sky = layer();
   private far = layer();
@@ -163,6 +201,21 @@ export class Backdrop {
 
   private bats: Bat[] = [];
   private t = 0;
+
+  /**
+   * Scène illustrée du menu, décodée une fois depuis `data/menuart.ts`.
+   *
+   * Elle n'est pas générée par une formule, contrairement au reste : c'est une image fixe,
+   * conçue comme une illustration, puis stockée en pixels indexés dans le code – aucun
+   * fichier binaire n'est embarqué pour autant. Ce qui bouge, lui, est calculé ici à chaque
+   * image : les pétales, les étoiles, le reflet.
+   */
+  private readonly art = decodeArt();
+  private readonly work = layer(MENU_ART.w, MENU_ART.h);
+  /** `false` rend l'ancienne lande procédurale, conservée pour comparaison. */
+  illustrated = true;
+  /** Ambiance du thème d'interface équipé, `null` pour la scène nue. */
+  ambience: { style: AmbienceStyle; color: string } | null = null;
 
   constructor(seed = 0x5a9) {
     const rng = new Rng(seed);
@@ -382,6 +435,67 @@ export class Backdrop {
   }
 
   /**
+   * Rend la scène illustrée et ce qui l'anime.
+   *
+   * Trois mouvements, tous discrets : la scène est faite de vide et de silence, et une
+   * animation insistante la contredirait. Le reflet ondule ligne par ligne, d'un pixel ou
+   * deux ; des pétales tombent de l'arbre jusqu'à l'eau, avec leur reflet ; quelques étoiles
+   * clignotent, chacune à son rythme.
+   */
+  private renderArt(ctx: CanvasRenderingContext2D, t: number, outW: number, outH: number): void {
+    const { w, h } = MENU_ART;
+    const g = this.work.getContext('2d')!;
+    const horizon = Math.floor(h * ART_HORIZON);
+    const phase = t / ART_LOOP;
+
+    g.globalAlpha = 1;
+    g.drawImage(this.art, 0, 0);
+
+    for (let y = horizon + 1; y < h; y++) {
+      const depth = (y - horizon) / (h - horizon);
+      const shift = Math.round(Math.sin(phase * TAU + y * 0.55) * (0.6 + depth * 2.2));
+      if (shift !== 0) g.drawImage(this.art, 0, y, w, 1, shift, y, w, 1);
+    }
+
+    g.fillStyle = '#e8e8f5';
+    for (let k = 0; k < 9; k++) {
+      const blink = 0.5 + 0.5 * Math.sin(phase * TAU * (1 + (k % 3)) + k * 2.4);
+      g.globalAlpha = 0.25 + 0.75 * blink;
+      g.fillRect(Math.round(hash(11 + k * 3.1) * w), Math.round(hash(11 + k * 7.7) * horizon * 0.55), 1, 1);
+    }
+
+    g.fillStyle = ART_PETAL;
+    for (let k = 0; k < 22; k++) {
+      const life = (phase * (1 + (k % 2)) + hash(k * 5.3)) % 1;
+      const y0 = h * (0.3 + hash(k * 9.1) * 0.22);
+      const x = Math.round(w * (0.04 + hash(k * 2.9) * 0.3) + life * w * 0.1 + Math.sin(life * TAU * 2 + k) * 3);
+      const y = y0 + life * (horizon - y0);
+      const fade = Math.min(1, life * 6) * Math.min(1, (1 - life) * 5);
+      g.globalAlpha = fade;
+      g.fillRect(x, Math.round(y), k % 3 === 0 ? 2 : 1, 1);
+      g.globalAlpha = fade * 0.35;
+      g.fillRect(x, Math.round(2 * horizon - y), 1, 1);
+    }
+    g.globalAlpha = 1;
+
+    // On couvre par le plus grand des deux rapports, comme pour l'ancienne scène.
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.imageSmoothingEnabled = false;
+    const k = Math.max(outW / w, outH / h);
+    ctx.setTransform(k, 0, 0, k, (outW - w * k) / 2, (outH - h * k) / 2);
+    ctx.drawImage(this.work, 0, 0);
+
+    if (this.ambience) {
+      const ka = Math.max(outW / W, outH / H);
+      ctx.setTransform(ka, 0, 0, ka, (outW - W * ka) / 2, (outH - H * ka) / 2);
+      ctx.imageSmoothingEnabled = true;
+      drawAmbience(ctx, this.ambience.style, this.ambience.color, t, W, H);
+      ctx.imageSmoothingEnabled = false;
+    }
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+  }
+
+  /**
    * Dessine la scène animée. `dt` en secondes.
    *
    * Les couches sont peintes en 480 × 270 puis mises à l'échelle pour couvrir le canvas,
@@ -392,6 +506,10 @@ export class Backdrop {
     this.t += dt;
     const t = this.t;
 
+    if (this.illustrated) {
+      this.renderArt(ctx, t, outW, outH);
+      return;
+    }
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.imageSmoothingEnabled = false;
     // On couvre par le plus grand des deux rapports pour ne jamais laisser de bord vide,
@@ -443,6 +561,12 @@ export class Backdrop {
     // Vignette très discrète : elle recentre l'œil sans reprendre d'une main la luminosité
     // gagnée de l'autre. C'était l'erreur de la version précédente – un ciel déjà sombre,
     // plus une vignette lourde, plus le voile du menu par-dessus.
+    if (this.ambience) {
+      ctx.imageSmoothingEnabled = true;
+      drawAmbience(ctx, this.ambience.style, this.ambience.color, t, W, H);
+      ctx.imageSmoothingEnabled = false;
+    }
+
     const vg = ctx.createRadialGradient(W / 2, H / 2, H * 0.42, W / 2, H / 2, H * 1.15);
     vg.addColorStop(0, 'rgba(0,0,0,0)');
     vg.addColorStop(1, rgba(shade(P.bloodDark, -0.55), 0.34));

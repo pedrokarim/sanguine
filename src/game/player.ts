@@ -4,6 +4,7 @@ import { makeHero, type SpriteSet } from '../gfx/sprites';
 import { addMods, SURPASSEMENT_BY_ID, type Mods } from '../data/mods';
 import { characterById, NO_REGEN_CHARS, type CharacterDef } from '../data/characters';
 import { COSMETIC_BY_ID } from '../data/cosmetics';
+import type { Aura } from '../gfx/cosmeticfx';
 import { passiveById } from '../data/passives';
 import { weaponById } from '../data/weapons';
 import { RELIC_BY_ID, HALVES_HP, type RelicFlag } from '../data/relics';
@@ -38,6 +39,16 @@ const BASE: Stats = {
 
 /** Durée d'invulnérabilité après un coup. Sans elle, entrer dans une masse tue instantanément. */
 const IFRAME_TIME = 0.7;
+
+/**
+ * Part d'un coup que l'armure ne peut jamais retirer.
+ *
+ * L'armure se soustrait, et rien ne la plafonnait : mesuré au bot, un joueur empilait assez
+ * de « Cuir tanné » pour ramener **chaque** coup à un seul point de dégât, et traversait
+ * alors une horde de mille corps sans rien perdre. Une réduction qui peut atteindre cent
+ * pour cent n'est plus une défense, c'est la fin de la partie.
+ */
+const ARMOR_FLOOR = 0.35;
 
 export class Player {
   x = 0;
@@ -98,6 +109,9 @@ export class Player {
   /** Cumul, seulement pour l'affichage de fin. */
   damageDealt = 0;
 
+  /** Aura de la teinte équipée – purement décorative. */
+  aura: Aura | null = null;
+
   private srcCounter = 100;
   private spriteKey = '';
   private spriteArt!: Parameters<typeof makeHero>[1];
@@ -124,6 +138,7 @@ export class Player {
     const art = skin?.art ? { ...this.char.art, ...skin.art } : this.char.art;
     const key = `hero:${this.char.id}${skin ? `:${skin.id}` : ''}`;
 
+    this.aura = skin?.aura ?? null;
     this.spriteKey = key;
     this.spriteArt = art;
     this.refreshSprites();
@@ -294,7 +309,8 @@ export class Player {
   /** Retourne `true` si le joueur a réellement subi des dégâts. */
   takeDamage(raw: number): boolean {
     if (this.iframes > 0 || this.hp <= 0) return false;
-    const dmg = Math.max(1, Math.round(raw) - this.stats.armor);
+    const hit = Math.round(raw);
+    const dmg = Math.max(1, Math.ceil(hit * ARMOR_FLOOR), hit - this.stats.armor);
     this.hp -= dmg;
     this.iframes = IFRAME_TIME;
     this.hurtFlash = 0.35;

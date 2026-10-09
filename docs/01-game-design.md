@@ -94,7 +94,7 @@ Les stats sont calculées à chaque changement de build, jamais dans la boucle d
 |---|---|---|---|
 | `maxHp` | 100 | Points de vie | – |
 | `regen` | 0 | PV rendus par seconde | – |
-| `armor` | 0 | Dégâts plats retirés (min. 1 dégât passe) | – |
+| `armor` | 0 | Dégâts plats retirés (35 % du coup passent toujours) | – |
 | `moveSpeed` | 100 | Pixels/seconde | – |
 | `might` | 1.0 | Multiplicateur de dégâts | – |
 | `area` | 1.0 | Multiplicateur de taille des effets | – |
@@ -125,13 +125,17 @@ Le plancher à 0,05 s évite qu’une arme sur-optimisée sature la boucle de mi
 ## 5. Progression d’XP
 
 ```
-xpRequis(niveau) = arrondi(4 + niveau × 5.5 + niveau^1.5)
+xpRequis(niveau) = arrondi(4 + niveau × 5.5 + niveau^1.5 + 2.2 × max(0, niveau − 45)²)
 ```
-Le premier palier doit être bas : les premières cartes sont ce qui donne au joueur le
+Le premier palier doit être bas : les premières cartes sont ce qui donne au joueur le
 sentiment d’exister, et les faire attendre une minute tue l’ouverture.
 
-Mesuré au bot de test : ~6 niveaux la première minute, **14 à la cinquième**, de l’ordre de
-65 sur un run complet.
+Le terme carré ne joue qu’à partir du niveau 45, atteint vers la neuvième minute. Sans lui,
+la partie s’emballait : mesuré au bot (`tools/balance-bot.js`), le joueur finissait au
+niveau 199 et ne risquait plus rien de la treizième à la trentième minute.
+
+Mesuré au bot de test : ~6 niveaux la première minute, ~23 à la sixième, de l’ordre de
+115 sur un run complet.
 
 ## 6. Système d’améliorations
 
@@ -175,10 +179,46 @@ clignotement. Sans cela, entrer dans une masse d’ennemis tue instantanément.
 
 ### Mise à l’échelle
 ```
-hp     = base × (1 + minute × 0.16 + (minute/9)^2) × (1 + max(0, niveau − 8) × 0.05)
-damage = base × (1 + minute × 0.05)
+hp     = base × (1 + minute × 0.22 + (minute/7.6)²) × (1 + max(0, minute − 20) × 0.12)
+              × (1 + max(0, niveau − 8) × 0.05 + (max(0, niveau − 30)/22)²)
+damage = base × (1 + minute × 0.032)
 vitesse: inchangée (sinon le kiting devient impossible)
 ```
+
+#### Réglage après retour d’un testeur
+
+Le retour : « bien trop facile, passé les premières minutes il ne reste qu’à garder Espace
+enfoncé ». Mesuré au bot, à partir d’un build de référence posé à la douzième minute, en
+part des PV max perdue par tranche de trois minutes (médiane) :
+
+| Tranche | Avant | Après |
+|---|---|---|
+| 13–15 | 16 % | 258 % |
+| 16–18 | 27 % | 210 % |
+| 19–21 | 4 % | 292 % |
+| 22–24 | 4 % | 297 % |
+| 25–27 | 0 % | 352 % |
+| 28–30 | 1 % | 228 % |
+
+La colonne « avant » vient de parties jouées depuis le début (les trois survivantes sur
+six), la colonne « après » de six parties lancées à la douzième minute : l’ordre de grandeur
+se compare, pas la décimale.
+
+Trois causes, trois corrections :
+
+- **les coffres suivaient le débit de mise à mort.** Chaque ennemi de rang « élite » ou
+  « colosse » en lâchait un : une vingtaine par minute en fin de partie, plus de trente
+  surpassements, et un écran de coffre à valider toutes les trois secondes. Une élite ne
+  lâche plus qu’un coffre toutes les 22 secondes, et de l’or le reste du temps ;
+- **l’armure pouvait annuler un coup entier.** Elle se soustrait, et les surpassements
+  l’empilaient sans plafond. 35 % d’un coup passent désormais toujours ;
+- **les niveaux s’emballaient** (voir §5), et le dernier tiers reçoit un surcroît de
+  résistance.
+
+Avec ces réglages, le même bot atteint la trentième minute quatre fois sur six. L’ouverture
+n’est pas concernée : rien de ce qui précède n’agit avant le niveau 45 ou la neuvième
+minute. Le bot la joue d’ailleurs mal – il meurt le plus souvent vers la septième minute,
+avant comme après – et n’est donc pas un bon juge des dix premières minutes.
 La vitesse **ne monte jamais**. C’est la règle qui garde le jeu jouable à 28 minutes.
 
 Le second facteur des PV suit le **niveau du joueur**, et pas seulement l’horloge. L’horloge
@@ -241,7 +281,7 @@ sans récompense se lirait comme une punition, pas comme un événement.
 | Cœur | Soigne 25 % des PV max | 1,5 % des ennemis |
 | Encensoir | Tue tous les ennemis à l’écran | Rare, coffres |
 | Aimant | Attire toutes les gemmes de la carte | Rare |
-| Coffre | 1 à 5 améliorations + or | Élites et boss |
+| Coffre | 1 à 5 améliorations + or | Boss toujours ; élites au plus un toutes les 22 s, de l’or sinon |
 
 Les gemmes ont une **durée de vie infinie** mais fusionnent au-delà de 400 gemmes au sol
 (les plus anciennes se combinent en gemmes de valeur supérieure) pour protéger les performances.
@@ -305,10 +345,36 @@ aucun arbitrage à rendre. La boutique met les deux en concurrence sur la même 
 
 | Catégorie | Contenu | Prix |
 |---|---|---|
-| **Teintes** | 8 apparences alternatives, réparties sur les six personnages | 900 à 1 600 |
-| **Traînées** | Cendres, givre, braises, or fondu, vide | 500 à 1 500 |
-| **Interface** | Teinte des cadres : pierre, reliquaire, sang, améthyste | 800 à 1 400 |
-| **Curseurs** | Lin, or, sang, givre | 400 à 600 |
+| **Teintes** | 8 apparences alternatives, chacune avec son aura : halo, puis anneau, puis cercle magique selon le prix | 5 000 à 36 000 |
+| **Traînées** | Cendres qui retombent, givre au sol, braises, flaques d’or fondu, failles du vide : un effet propre à chacune | 1 500 à 28 000 |
+| **Interface** | Teinte des cadres et ambiance des menus : poussière d’or, pluie de sang, lucioles et aurore | 4 500 à 20 000 |
+| **Curseurs** | Lin, or, sang, givre | 600 à 1 200 |
+
+### Revenu et grille de prix
+
+L’or des ennemis ordinaires est payé **par l’horloge** : un budget se remplit de
+`2,5 + 0,35 × minute` pièces par seconde, et un ennemi ne lâche de l’or que si le budget le
+couvre. Tuer plus vite ne rapporte donc pas plus ; survivre plus longtemps, si. Les boss,
+les coffres et les puits paient hors budget.
+
+Avant ce réglage, l’or suivait le débit de mise à mort. Mesuré au bot : 1 200 pièces pour
+une partie perdue à la septième minute, 37 000 pour une partie menée au bout – de quoi
+acheter deux fois toute la boutique d’alors (17 900 pièces) en une seule soirée.
+
+| Durée de la partie | Or rapporté (mesuré) |
+|---|---|
+| Perdue vers 7 min | ~1 100 |
+| Menée au bout | ~10 000 |
+
+| Palier | Prix | Objets | Effort |
+|---|---|---|---|
+| Facile | 600 à 1 500 | Curseurs, traînée Cendres | Une ou deux parties courtes |
+| Intermédiaire | 3 500 à 5 000 | Traînées Givre et Braises, thème Reliquaire, teintes d’Ysolde et d’Anselme | Une poignée de parties |
+| Difficile | 8 000 à 14 000 | Thème Sang, teintes de Vasco, Marguerite et Sœur Ombre, traînée Or Fondu | Une partie complète, parfois deux |
+| Prestige | 20 000 à 36 000 | Thème Améthyste, traînée Vide, teinte du Comte | Plusieurs parties menées au bout |
+
+Total : environ 172 000 pièces, soit dix-sept parties complètes, auxquelles s’ajoutent les
+33 600 du Sanctuaire, payé sur la même bourse.
 
 **Règle absolue : aucun cosmétique n’influence le jeu.** Ni statistique, ni lisibilité. Les
 teintes de personnage restent chaudes et saturées (le joueur doit rester le point chaud de

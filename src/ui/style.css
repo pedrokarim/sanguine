@@ -1495,3 +1495,100 @@ html.og-page, html.og-page body { height: auto; overflow: visible; background: #
   .prog-recette { flex-wrap: wrap }
   .prog-nom { width: 100%; margin-left: 0 }
 }
+
+/* ------------------------------------------------------ laboratoire d'effets */
+
+/* Outil de réglage, pas un écran de jeu : chasse fixe, densité élevée, aucun ornement. */
+.fxlab {
+  position: absolute; top: 0; right: 0; bottom: 0; z-index: 90;
+  width: 21em; max-width: 92%;
+  display: flex; flex-direction: column;
+  background: rgba(5, 6, 10, .9);
+  border-left: 1px solid var(--stone-hi);
+  font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace;
+  font-size: 12px; color: var(--steel);
+  cursor: default;
+}
+.fxlab-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: .6em .8em; color: var(--gold); font-weight: 700; letter-spacing: .08em;
+  border-bottom: 1px solid var(--stone-hi);
+}
+.fxlab-body { flex: 1 1 auto; min-height: 0; overflow: hidden auto; padding: .4em .8em 1em }
+.fxlab h3 {
+  margin: 1em 0 .4em; font-size: 1em; font-weight: 700;
+  color: var(--linen); letter-spacing: .1em; text-transform: uppercase;
+}
+.fxlab-stats { white-space: pre-wrap; line-height: 1.5; padding: .5em 0; color: #6ee87a }
+.fxlab-section { display: flex; flex-direction: column; gap: .35em }
+.fxlab-row { display: grid; grid-template-columns: 6.5em 1fr 3.6em; align-items: center; gap: .5em }
+.fxlab-row.check { grid-template-columns: auto 1fr; cursor: pointer }
+.fxlab-row input[type=range] { width: 100%; accent-color: var(--gold) }
+.fxlab-row input[type=checkbox] { accent-color: var(--gold) }
+.fxlab-row input[type=color] { width: 3em; height: 1.6em; padding: 0; border: 1px solid var(--stone-hi); background: none }
+.fxlab-val { text-align: right; color: var(--linen); font-variant-numeric: tabular-nums }
+.fxlab-buttons { display: flex; flex-wrap: wrap; gap: .3em; margin-top: .2em }
+.fxlab-btn, .fxlab-weapon {
+  font: inherit; color: var(--steel);
+  background: rgba(35, 43, 64, .7); border: 1px solid var(--stone-hi); border-radius: 2px;
+  padding: .3em .6em; cursor: pointer;
+}
+.fxlab-btn:hover, .fxlab-weapon:hover { color: var(--gold); border-color: var(--gold) }
+.fxlab-btn.on { color: #05060a; background: var(--gold); border-color: var(--gold) }
+.fxlab-weapons { display: grid; grid-template-columns: repeat(8, 1fr); gap: .25em }
+.fxlab-weapon { padding: .2em; display: grid; place-items: center; aspect-ratio: 1 }
+.fxlab-weapon canvas { width: 100%; image-rendering: pixelated }
+.fxlab-note { color: #8e98bb; line-height: 1.4 }
+.fxlab-textures { display: grid; grid-template-columns: repeat(4, 1fr); gap: .4em }
+.fxlab-textures figure { margin: 0; text-align: center }
+.fxlab-textures canvas { width: 100%; background: #000; border: 1px solid var(--stone) }
+.fxlab-textures figcaption { font-size: .82em; color: #8e98bb; overflow-wrap: anywhere }
+
+/* ------------------------------------------------- inventaire (écran de pause) */
+
+.pause-build {
+  width: min(46em, 92vw); max-height: 46vh; overflow-y: auto;
+  padding: .7em 1em;
+  background: rgba(5, 6, 10, .72); border: 1px solid var(--stone-hi); border-radius: 2px;
+  text-align: left;
+}
+.pause-build-title {
+  margin: .8em 0 .35em; font-size: .82em; letter-spacing: .14em; text-transform: uppercase;
+  color: var(--gold);
+}
+.pause-build-title:first-child { margin-top: 0 }
+.pause-build-rows { display: flex; flex-direction: column; gap: .3em }
+.pause-build-row {
+  display: grid; grid-template-columns: 1.7em 15em 1fr; align-items: center; gap: .7em;
+  font-size: .9em;
+}
+.pause-build-row canvas { width: 1.7em; height: 1.7em; image-rendering: pixelated }
+.pause-build-row .relic-chip { width: 1.6em; height: 1.6em; font-size: .9em }
+.pause-build-row .n { color: var(--linen); font-weight: 700 }
+.pause-build-row .l { margin-left: .5em; font-weight: 400; font-size: .85em; color: #8e98bb }
+.pause-build-row .d { color: var(--steel); line-height: 1.35 }
+.pause-build-none { color: #8e98bb; font-size: .9em }
+@media (max-width: 640px) {
+  .pause-build-row { grid-template-columns: 1.7em 1fr }
+  .pause-build-row .d { grid-column: 2 }
+}
+
+/* Les emplacements du HUD portent une infobulle : ils doivent recevoir le survol, que le
+   conteneur `#hud` leur retirait en bloc. */
+.slot, .relic-chip { pointer-events: auto }
+.banner .sub { max-width: 46em; margin: .3em auto 0; padding: 0 1em; line-height: 1.4 }
+
+.btn.small { font-size: .78em; padding: .35em 1em; opacity: .8 }
+.btn.small:hover, .btn.small.sel { opacity: 1 }
+
+/* ------------------------------------------------ aperçus animés de la boutique */
+
+.shop-cell .codex-stage { height: auto; align-items: center }
+.shop-preview { display: block; width: 192px; max-width: 100%; aspect-ratio: 64 / 42; image-rendering: pixelated }
+.shop-theme {
+  border: 8px solid transparent;
+  border-image: var(--frame-stone) 8 / 8px / 0 round;
+  image-rendering: pixelated; line-height: 0; max-width: 100%;
+}
+.shop-theme .shop-preview { width: 176px }
+.screen.shop .codex-grid { grid-template-columns: repeat(auto-fill, minmax(13.5em, 1fr)) }

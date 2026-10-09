@@ -24,6 +24,7 @@ import { updateWeapons } from './game/weapons';
 import { rollOffers, openChest, applyChest, type Offer, type ChestResult } from './game/upgrades';
 import { characterById, CHARACTERS } from './data/characters';
 import { Hud } from './ui/hud';
+import { FxLab, loadFxSettings } from './ui/fxlab';
 import { Screens, type RunSummary } from './ui/screens';
 import { Backdrop } from './ui/backdrop';
 import { installDecor, applyTheme, applyCursor } from './ui/decor';
@@ -100,6 +101,25 @@ installDecor();
 
 let hud: Hud | null = null;
 let world: World | null = null;
+const fxLab = new FxLab(uiLayer, () => world);
+/**
+ * La partie en cours est un bac à sable : le laboratoire d'effets y a été ouvert.
+ *
+ * Il rend le joueur intouchable et distribue armes et ennemis à la demande. Une telle
+ * partie ne doit donc ni se sauvegarder, ni rapporter d'or, ni compter dans les records :
+ * maintenant que le laboratoire est à portée de bouton, ce serait une triche involontaire.
+ */
+let sandbox = false;
+
+function openLab(): void {
+  if (!world) return;
+  if (!sandbox) {
+    sandbox = true;
+    clearRun();
+    world.announce(t('Bac à sable', 'Sandbox'), t('cette partie ne compte pas', 'this run does not count'), 3.5);
+  }
+  fxLab.toggle(true);
+}
 let state: State = 'title';
 let lastCharId = 'ysolde';
 let debug = false;
@@ -276,28 +296,34 @@ function applyOptions(): void {
   document.body.classList.toggle('high-contrast', o.highContrast);
   document.body.classList.toggle('plain-font', o.plainFont);
 
+  // Le halo est un flash diffus : l'option qui réduit les flashs l'atténue sans l'éteindre,
+  // sinon les effets redeviendraient les aplats qu'ils étaient.
+  renderer.fx.comfort = o.reduceFlash ? 0.4 : 1;
+
   if (world) {
     world.cam.intensity = o.reduceFlash ? 0 : o.shake;
     world.showDamage = o.showDamage;
     world.highlightPlayer = o.highlightPlayer;
     world.speedScale = o.gameSpeed;
-    world.trailColor = trailColor(sv);
+    world.trail = equippedTrail(sv);
   }
 
   // Thème d'interface et curseur cosmétiques.
   const eq = sv.cosmetics.equipped;
   const theme = COSMETIC_BY_ID.get(eq.theme ?? '');
   if (theme?.color && theme.accent) applyTheme(theme.color, theme.accent);
+  backdrop.ambience = theme?.ambience && theme.color ? { style: theme.ambience, color: theme.color } : null;
   const cur = COSMETIC_BY_ID.get(eq.cursor ?? '');
   if (cur?.color && cur.accent) applyCursor(cur.color, cur.accent);
 }
 
 /** Couleur de traînée équipée, `null` si aucune ou non possédée. */
-function trailColor(sv: ReturnType<typeof load>): string | null {
+function equippedTrail(sv: ReturnType<typeof load>): World['trail'] {
   const id = sv.cosmetics.equipped.trail;
   if (!id || id === 'trail-none') return null;
   if (!sv.cosmetics.owned.includes(id)) return null;
-  return COSMETIC_BY_ID.get(id)?.color ?? null;
+  const c = COSMETIC_BY_ID.get(id);
+  return c?.trail && c.color ? { style: c.trail, color: c.color } : null;
 }
 
 // ---------------------------------------------------------------------------
@@ -306,6 +332,7 @@ function trailColor(sv: ReturnType<typeof load>): string | null {
 
 function goTitle(): void {
   state = 'title';
+  fxLab.toggle(false);
   world = null;
   // La scène de menu n'obéit plus au plafond de surface : il faut la redimensionner.
   resize();
@@ -360,6 +387,7 @@ function startRun(charId: string, resume = false): void {
   screens.close();
 
   world = new World(lastCharId, saved?.seed);
+  sandbox = false;
   // Retour au cadrage borné du jeu, avant que la caméra ne s'accorde à la vue.
   resize();
   world.warmup();
@@ -386,6 +414,7 @@ function startRun(charId: string, resume = false): void {
   analytics.capture('run_started', { character: lastCharId, resumed: Boolean(saved) });
 
   world.setKnownFragments(load().fragments);
+  world.explainGems = load().stats.gems === 0;
 
   // Enregistre l'arme de départ dans le codex.
   markWeaponSeen(world.player.weaponIds[0]!);
@@ -400,7 +429,7 @@ function startRun(charId: string, resume = false): void {
  */
 function saveRun(): void {
   const w = world;
-  if (!w || w.state !== 'playing') return;
+  if (!w || w.state !== 'playing' || sandbox) return;
   update((sv) => {
     sv.run = w.serializeRun(director.serialize());
   });
@@ -528,6 +557,13 @@ function togglePause(): void {
         audio.resume();
         endRun(false);
       },
+      world?.player,
+      () => {
+        screens.close();
+        state = 'playing';
+        audio.resume();
+        openLab();
+      },
     );
   } else if (state === 'paused') {
     screens.close();
@@ -539,7 +575,14 @@ function togglePause(): void {
 function endRun(victory: boolean): void {
   const w = world;
   if (!w) return;
+  // Une partie bac à sable s'arrête sans bilan : rien n'y a été gagné.
+  if (sandbox) {
+    clearRun();
+    goTitle();
+    return;
+  }
   state = victory ? 'victory' : 'gameover';
+  fxLab.toggle(false);
   mobile.partieEnCours(false);
   audio.stopMusic();
   audio.setBossMode(false);
@@ -605,8 +648,15 @@ const loop = new Loop({
       w.player.update(dt * w.timeScale, input.move.x, input.move.y, w.terrain.currentBiome.moveMul);
       w.cam.follow(w.player.x, w.player.y, dt);
       updateWeapons(w, dt * w.timeScale);
-      director.update(w, dt * w.timeScale);
+      if (!(fxLab.isOpen && fxLab.holdSpawns)) director.update(w, dt * w.timeScale);
       w.update(dt);
+
+      // Laboratoire ouvert, la partie est un bac à sable : aucun menu ne doit l'interrompre.
+      if (fxLab.isOpen) {
+        w.pendingLevelUps = 0;
+        w.pendingChests = 0;
+        w.pendingFragment = null;
+      }
 
       runSaveTimer += dt;
       if (runSaveTimer >= RUN_SAVE_INTERVAL) {
@@ -646,6 +696,7 @@ const loop = new Loop({
     if (world) {
       renderer.render(world, state === 'playing' ? alpha : 0);
       if (hud && state !== 'title') hud.update(world, rdt);
+      if (fxLab.isOpen) fxLab.update(loop);
     } else {
       // Hors partie, le canvas affiche la scène illustrée des menus.
       backdrop.render(ctx, rdt, scene.width, scene.height);
@@ -702,6 +753,11 @@ function handleGlobalKeys(): void {
   // Triches de développement – pratiques pour tester l'équilibrage tardif.
   if (!world || state !== 'playing') return;
   const w = world;
+  // Laboratoire d'effets : voir `ui/fxlab.ts`.
+  if (input.wasPressed('F9')) {
+    if (fxLab.isOpen) fxLab.toggle(false);
+    else openLab();
+  }
   if (input.wasPressed('F1')) {
     for (let i = 0; i < 10; i++) w.player.addXp(w.player.xpNext);
     w.pendingLevelUps += 10;
@@ -780,6 +836,8 @@ Object.defineProperty(window, 'sanguine', {
     get world(): World | null { return world; },
     get state(): State { return state; },
     get loop(): Loop { return loop; },
+    /** Le bot de mesure s'en sert pour démarrer une partie en cours de route. */
+    get director(): Director { return director; },
     /** Vue logique et cadrage physique — ce qu'il faut pour vérifier la netteté et les bandes. */
     get view(): { w: number; h: number } { return { w: VIEW.w, h: VIEW.h }; },
     /** Motif de sol d'une tuile — sert à vérifier la répartition sans jouer des heures. */
@@ -798,7 +856,12 @@ Object.defineProperty(window, 'sanguine', {
      * traverser les collisions : on mesurerait alors une autre physique que celle du jeu.
      * Ici, seul le nombre de pas par image change.
      */
-    fastForward(seconds: number, pilote?: (w: World) => { x: number; y: number }): void {
+    fastForward(
+      seconds: number,
+      pilote?: (w: World) => { x: number; y: number },
+      /** Choix de carte du bot. Sans lui, la première offre est prise. */
+      pick?: (offers: Offer[], w: World) => Offer | undefined,
+    ): void {
       if (state !== 'playing' || !world) return;
       const w = world;
       const dt = 1 / 60;
@@ -821,7 +884,7 @@ Object.defineProperty(window, 'sanguine', {
          */
         while (w.pendingLevelUps > 0) {
           const offres = rollOffers(w);
-          const choix = offres[0];
+          const choix = pick ? pick(offres, w) : offres[0];
           if (choix) choix.apply(w);
           w.pendingLevelUps--;
         }
@@ -917,9 +980,16 @@ Object.defineProperty(window, 'sanguine', {
   },
 });
 
+loadFxSettings();
 applyOptions();
 goTitle();
 loop.start();
+
+// `?fx` dans l'adresse ouvre directement le laboratoire d'effets, sans passer par les menus.
+if (new URLSearchParams(location.search).has('fx')) {
+  startRun(CHARACTERS[0]!.id);
+  openLab();
+}
 
 // En dernier, et volontairement : sans clé de site à la compilation, cet appel ne fait rien,
 // et rien de ce qui précède ne doit dépendre de lui.

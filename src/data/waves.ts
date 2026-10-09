@@ -79,11 +79,23 @@ export const PLAFOND_DUR = 1100;
  * par ailleurs. D'où la reprise conjointe des deux termes.
  */
 export function hpScale(m: number, level = 1): number {
-  const temps = 1 + m * 0.22 + Math.pow(m / 7.6, 2);
+  const fin = 1 + Math.max(0, m - LATE_FROM) * LATE_HP;
+  const temps = (1 + m * 0.22 + Math.pow(m / 7.6, 2)) * fin;
   const au = Math.max(0, level - LEVEL_FRANC);
   const puissance = 1 + au * LEVEL_HP + Math.pow(Math.max(0, level - LEVEL_EMBALLE) / 22, 2);
   return temps * puissance;
 }
+
+/**
+ * Surcroît de résistance du dernier tiers : minute de départ, et pente par minute.
+ *
+ * Passé la vingtième minute, un build abouti fauchait tout ce qui apparaissait avant le
+ * contact, quelle que soit la densité : mesuré, 9 à 12 % de PV max perdus par tranche de
+ * trois minutes alors que la horde touchait son plafond. La « survie pure » promise par le
+ * document de conception n'existait pas. Ce facteur la rétablit, et seulement là.
+ */
+export const LATE_FROM = 20;
+export const LATE_HP = 0.12;
 
 /** Part de PV gagnée par niveau de joueur au-delà de `LEVEL_FRANC`. Réglé à la mesure. */
 export const LEVEL_HP = 0.05;
@@ -289,12 +301,38 @@ if (language() === 'en') {
 /**
  * Courbe d'XP. Le palier initial doit être bas : les premières cartes sont ce qui donne
  * au joueur le sentiment d'exister, et les faire attendre une minute tue l'ouverture.
- * Mesuré au bot : ~6 niveaux la première minute, ~20 à la cinquième, ~65 sur un run complet.
+ * Mesuré au bot : ~6 niveaux la première minute, ~20 à la cinquième.
+ *
+ * Le terme carré, lui, répond à un testeur qui trouvait la partie jouée d'avance passé les
+ * premières minutes. La mesure lui a donné raison (`tools/balance-bot.js`, build de
+ * référence à la douzième minute) : le joueur finissait au **niveau 199**, et ne perdait
+ * plus, par tranche de trois minutes, que 0 à 27 % de ses PV max entre la treizième et la
+ * trentième. Dix-huit minutes sans enjeu. La courbe ne change rien avant le niveau 45,
+ * atteint vers la neuvième minute – l'ouverture garde son rythme de cartes – puis se
+ * redresse : la partie se termine désormais autour du niveau 115.
  */
+export const XP_LATE_FROM = 45;
+export const XP_LATE = 2.2;
+
 export function xpForLevel(level: number): number {
-  return Math.round(4 + level * 5.5 + Math.pow(level, 1.5));
+  const late = Math.max(0, level - XP_LATE_FROM);
+  return Math.round(4 + level * 5.5 + Math.pow(level, 1.5) + XP_LATE * late * late);
 }
 
+/**
+ * Or que les ennemis ordinaires peuvent lâcher, en pièces par seconde, à la minute `m`.
+ *
+ * C'est l'horloge qui paie, pas le débit de mise à mort (voir `World.dropGold`). La pente
+ * reproduit le revenu mesuré des six premières minutes – environ 170 pièces par minute – et
+ * le prolonge au lieu de le laisser s'emballer : de l'ordre de 2 600 pièces à la dixième
+ * minute, 14 000 sur une partie complète, hors boss, coffres et puits.
+ */
+export function goldRate(m: number): number {
+  return 2.5 + m * 0.35;
+}
+
+/** Réserve maximale : une accalmie ne doit pas se solder par une pluie de pièces. */
+export const GOLD_BUDGET_MAX = 150;
 /** Table de butin : probabilité de chaque objet à la mort d'un ennemi ordinaire. */
 export const DROP_TABLE = {
   goldCoin: 0.12,

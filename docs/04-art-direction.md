@@ -9,7 +9,7 @@ boot (~30 ms au total), et le reste du jeu ne manipule plus que des `CanvasImage
 Pourquoi ce choix plutôt que des assets dessinés à la main :
 
 1. **Licence** – aucun asset tiers, donc aucune ambiguïté sur la redistribution.
-2. **Poids** – 164 ko de bundle (55 ko en gzip), chargement instantané.
+2. **Poids** – 376 ko de bundle (133 ko en gzip), chargement instantané.
 3. **Variation** – un même générateur produit 6 variantes d’une goule en changeant une graine.
    Une horde générée procéduralement paraît beaucoup moins répétitive.
 4. **Itération** – changer la palette du jeu entier est un changement d’une ligne.
@@ -522,3 +522,22 @@ illustration dessinée à part vieillirait dès la prochaine refonte de sprites 
 Trois règles : le titre doit se lire **en vignette**, parce qu’une image de partage est vue à
 300 pixels de large dans un fil ; une seule promesse, pas une liste de fonctionnalités ; des
 créatures plutôt qu’une interface, parce qu’on partage un monde et pas un menu.
+
+## Scène de l’écran-titre
+
+Le fond des menus est une **illustration**, pas une génération procédurale : une lande grise
+avant l’aube, un arbre mort au feuillage rouge sang, le chasseur minuscule devant des croix,
+une chapelle en ruine dissoute dans la brume.
+
+C’est la seule image du jeu qui ne sorte pas d’une formule. Elle a été composée comme un
+tableau – grands aplats, une seule famille de teintes, un accent, beaucoup de vide –, puis
+ramenée à une grille de 334 × 188 pixels et 28 couleurs. Elle est stockée **dans le code**, en
+pixels indexés (`src/data/menuart.ts`, une lettre par plage de couleur) : la règle « aucun
+fichier binaire » tient toujours, mais « tout est généré par le code » connaît ici son
+exception, et il vaut mieux l’écrire que la laisser découvrir.
+
+Ce qui bouge reste calculé à chaque image (`ui/backdrop.ts`) : le reflet qui ondule ligne par
+ligne, les pétales qui tombent jusqu’à l’eau, les étoiles qui clignotent. Les ambiances des
+thèmes d’interface s’y ajoutent par-dessus.
+
+L’ancienne lande procédurale est conservée (`Backdrop.illustrated = false`).

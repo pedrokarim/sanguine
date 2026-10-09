@@ -9,15 +9,21 @@ import {
 } from '../gfx/sprites';
 import { CHARACTERS, characterById, type CharacterDef } from '../data/characters';
 import { META_UPGRADES, costOf } from '../data/meta';
-import { RELICS, RARITY_LABEL } from '../data/relics';
+import { RELICS, RELIC_BY_ID, RARITY_LABEL } from '../data/relics';
 import { WEAPONS } from '../data/weapons';
-import { PASSIVE_BY_ID } from '../data/passives';
+import { PASSIVE_BY_ID, passiveById } from '../data/passives';
 import { ENEMIES, BOSSES, enemyById, type EnemyAI } from '../data/enemies';
 import type { Rarity } from '../gfx/palette';
-import type { Offer, ChestResult } from '../game/upgrades';
+import { iconFor, type Offer, type ChestResult } from '../game/upgrades';
+import type { Player } from '../game/player';
 import { BloodLogo, BLOOD, DAWN } from './logo';
 import { iconValue } from './icons';
 import { isTouch } from './mobile';
+import { frameUrl } from './decor';
+import { FxLayer } from '../gfx/fx';
+import { Particles } from '../gfx/particles';
+import type { Camera } from '../gfx/camera';
+import { drawAura, drawAmbience, emitTrail } from '../gfx/cosmeticfx';
 import {
   FRAGMENTS, CYCLES, EPILOGUE, TOTAL, TYPE_LABEL, roman,
   type FragmentDef,
@@ -95,6 +101,10 @@ const YEAR = 2026;
 const VERSION = '1.0.0';
 
 type Cleanup = () => void;
+
+/** Taille logique d'un aperçu de boutique, agrandie trois fois à l'écran. */
+const PREVIEW_W = 64;
+const PREVIEW_H = 42;
 
 export class Screens {
   private current: HTMLDivElement | null = null;
@@ -947,6 +957,7 @@ export class Screens {
 
       const scroll = document.createElement('div');
       scroll.className = 'codex-scroll';
+      this.previews = [];
 
       const group = (kind: CosmeticKind, items: Cosmetic[]): void => {
         const owned = items.filter((c) => c.price === 0 || sv.cosmetics.owned.includes(c.id));
@@ -990,7 +1001,7 @@ export class Screens {
             on ? 'primary' : '',
           );
           // Un prix s'écrit avec la monnaie, pas avec son nom.
-          if (!on && !has && !gated) btn.appendChild(iconValue('gold', String(item.price)));
+          if (!on && !has && !gated) btn.appendChild(iconValue('gold', item.price.toLocaleString(locale())));
           btn.classList.add('shop-btn');
           btn.disabled = on || gated || (!has && sv.gold < item.price);
           btn.addEventListener('click', () => {
@@ -1034,24 +1045,133 @@ export class Screens {
       back.addEventListener('click', onBack);
       el.appendChild(back);
       this.navigable([back]);
+
+      // Une seule boucle pour tous les aperçus, arrêtée avec l'écran. Avec « Réduire les
+      // animations », chaque aperçu est simplement figé sur une image représentative.
+      const still = document.body.classList.contains('reduce-motion');
+      let raf = 0;
+      let last = performance.now();
+      let time = 0;
+      const frame = (now: number): void => {
+        // L'horodatage d'une image peut précéder l'instant où la boucle a été armée.
+        const dt = Math.max(0, Math.min(0.05, (now - last) / 1000));
+        last = now;
+        time += dt;
+        for (const draw of this.previews) draw(time, dt);
+        raf = requestAnimationFrame(frame);
+      };
+      if (still) {
+        for (let i = 0; i < 90; i++) for (const draw of this.previews) draw(i / 60, 1 / 60);
+      } else {
+        raf = requestAnimationFrame(frame);
+      }
+      const prev = this.cleanup;
+      this.cleanup = (): void => {
+        prev?.();
+        cancelAnimationFrame(raf);
+      };
     };
     render();
   }
+  /** Aperçus animés de la boutique. Chacun rend une image ; la boucle est commune. */
+  private previews: ((time: number, dt: number) => void)[] = [];
 
-  /** Aperçu d'un article : sprite réel pour les teintes, pastille de couleur sinon. */
+  /**
+   * Aperçu d'un article, **animé avec les fonctions du jeu**.
+   *
+   * La boutique montrait une pastille de couleur pour une traînée et un sprite de treize
+   * pixels pour une teinte : rien qui donne envie d'y laisser une partie d'économies.
+   * L'aperçu rejoue maintenant l'effet réel – le personnage marche et laisse sa traînée,
+   * la teinte porte son aura, le thème montre son ambiance dans son propre cadre. Ce que
+   * le joueur voit avant d'acheter est exactement ce qu'il aura.
+   */
   private shopPreview(item: Cosmetic): HTMLElement {
+    if (item.kind === 'cursor') {
+      const sw = document.createElement('div');
+      sw.className = 'shop-swatch';
+      sw.style.setProperty('--c', item.color ?? 'transparent');
+      sw.style.setProperty('--a', item.accent ?? item.color ?? 'transparent');
+      return sw;
+    }
+
+    const canvas = document.createElement('canvas');
+    canvas.width = PREVIEW_W;
+    canvas.height = PREVIEW_H;
+    canvas.className = 'shop-preview';
+    const ctx = canvas.getContext('2d')!;
+    ctx.imageSmoothingEnabled = false;
+    const fx = new FxLayer();
+    const groundY = PREVIEW_H - 12;
+
+    const drawHero = (set: SpriteSet, x: number, time: number, flip: boolean): void => {
+      const f = set.frames[Math.floor(time * 6) % set.frames.length]!;
+      const dx = Math.round(x - f.width / 2);
+      const dy = Math.round(groundY - f.height / 2 - 2);
+      if (flip) {
+        ctx.setTransform(-1, 0, 0, 1, 0, 0);
+        ctx.drawImage(f, -dx - f.width, dy);
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+      } else {
+        ctx.drawImage(f, dx, dy);
+      }
+    };
+
     if (item.kind === 'skin') {
       const c = characterById(item.charId ?? 'ysolde');
-      const art = { ...c.art, ...(item.art ?? {}) };
-      const set = makeHero(`shop:${item.id}`, art, false);
-      return this.spriteBlock(spriteSheet(`shop:${item.id}`, set, this.fitScale(set, 96, 54)), true, 0.9);
+      const set = makeHero(`shop:${item.id}`, { ...c.art, ...(item.art ?? {}) }, false);
+      this.previews.push((time) => {
+        ctx.clearRect(0, 0, PREVIEW_W, PREVIEW_H);
+        fx.begin(PREVIEW_W, PREVIEW_H);
+        if (item.aura) drawAura(fx.ctx, item.aura, PREVIEW_W / 2, groundY + 7, time);
+        drawHero(set, PREVIEW_W / 2, time * 0.5, false);
+        fx.composite(ctx);
+      });
+      return canvas;
     }
-    const sw = document.createElement('div');
-    sw.className = 'shop-swatch';
-    sw.style.setProperty('--c', item.color ?? 'transparent');
-    sw.style.setProperty('--a', item.accent ?? item.color ?? 'transparent');
-    if (!item.color) sw.classList.add('none');
-    return sw;
+
+    if (item.kind === 'trail') {
+      const set = makeHero('shop:walker', characterById('ysolde').art, true);
+      const particles = new Particles();
+      const cam = { offsetX: 0, offsetY: 0, viewW: PREVIEW_W, viewH: PREVIEW_H } as unknown as Camera;
+      let emit = 0;
+      let tick = 0;
+      this.previews.push((time, dt) => {
+        // Aller-retour : le personnage traverse la vignette, et la traînée a le temps de vivre.
+        const x = PREVIEW_W / 2 + Math.sin(time * 1.1) * (PREVIEW_W / 2 - 12);
+        const goingLeft = Math.cos(time * 1.1) < 0;
+        emit -= dt;
+        if (item.trail && item.color && emit <= 0) {
+          emit = 0.05;
+          emitTrail(particles, item.trail, item.color, x, groundY + 6, tick++);
+        }
+        particles.update(dt);
+        ctx.clearRect(0, 0, PREVIEW_W, PREVIEW_H);
+        fx.begin(PREVIEW_W, PREVIEW_H);
+        particles.render(ctx, cam, fx.ctx);
+        drawHero(set, x, time, goingLeft);
+        fx.composite(ctx);
+      });
+      return canvas;
+    }
+
+    // Thème : son ambiance, dans son propre cadre.
+    const box = document.createElement('div');
+    box.className = 'shop-theme';
+    if (item.color && item.accent) box.style.borderImageSource = frameUrl(item.color, item.accent);
+    box.appendChild(canvas);
+    this.previews.push((time) => {
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.fillStyle = '#0b0d14';
+      ctx.fillRect(0, 0, PREVIEW_W, PREVIEW_H);
+      if (item.ambience && item.color) {
+        ctx.imageSmoothingEnabled = true;
+        // L'ambiance est écrite pour l'écran entier : on la joue réduite, d'où l'échelle.
+        ctx.setTransform(0.4, 0, 0, 0.4, 0, 0);
+        drawAmbience(ctx, item.ambience, item.color, time, PREVIEW_W / 0.4, PREVIEW_H / 0.4);
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+      }
+    });
+    return box;
   }
 
   // ------------------------------------------------------------ sanctuaire
@@ -1465,7 +1585,7 @@ export class Screens {
 
   // ----------------------------------------------------------------- pause
 
-  pause(onResume: () => void, onQuit: () => void): void {
+  pause(onResume: () => void, onQuit: () => void, player?: Player, onLab?: () => void): void {
     const el = this.open('pause');
     // « Échap » ne veut rien dire sur une tablette : le raccourci n'y existe pas.
     const rappel = isTouch() ? t('Le temps est arrêté.', 'Time has stopped.') : t('Échap pour reprendre', 'Escape to resume');
@@ -1478,7 +1598,99 @@ export class Screens {
     quit.addEventListener('click', onQuit);
     list.append(resume, quit);
     el.appendChild(list);
-    this.navigable([resume, quit]);
+    const items: HTMLElement[] = [resume, quit];
+    if (onLab) {
+      // Outil de curiosité, pas une option de jeu : un bouton discret, sous le menu.
+      const lab = this.button(t('Laboratoire d’effets', 'Effects lab'), 'small');
+      lab.title = t('Bac à sable pour voir et régler les effets. La partie ne comptera plus.', 'A sandbox to preview and tune effects. The run will no longer count.');
+      lab.addEventListener('click', onLab);
+      el.appendChild(lab);
+      items.push(lab);
+    }
+    if (player) el.appendChild(this.inventory(player));
+    this.navigable(items);
+  }
+
+  /**
+   * Inventaire de la partie en cours : armes, objets et reliques, chacun avec son effet.
+   *
+   * Il vit dans l'écran de pause parce que c'est le seul moment où le joueur peut lire. En
+   * jeu, une relique ramassée n'était plus qu'une initiale dans un coin de l'écran, et son
+   * effet ne se retrouvait que dans le codex du menu principal – donc en quittant la partie.
+   */
+  private inventory(pl: Player): HTMLDivElement {
+    const box = document.createElement('div');
+    box.className = 'pause-build';
+
+    const section = (title: string, count: number): HTMLDivElement => {
+      const h = document.createElement('div');
+      h.className = 'pause-build-title';
+      h.textContent = `${title} · ${count}`;
+      const rows = document.createElement('div');
+      rows.className = 'pause-build-rows';
+      box.append(h, rows);
+      return rows;
+    };
+
+    const row = (icon: HTMLElement, name: string, level: string, desc: string): HTMLDivElement => {
+      const el = document.createElement('div');
+      el.className = 'pause-build-row';
+      const n = document.createElement('div');
+      n.className = 'n';
+      n.textContent = name;
+      if (level) {
+        const l = document.createElement('span');
+        l.className = 'l';
+        l.textContent = level;
+        n.appendChild(l);
+      }
+      const d = document.createElement('div');
+      d.className = 'd';
+      d.textContent = desc;
+      el.append(icon, n, d);
+      return el;
+    };
+
+    const iconOf = (kind: 'weapon' | 'passive', id: string): HTMLCanvasElement => {
+      const src = iconFor(kind, id);
+      const c = src.cloneNode(true) as HTMLCanvasElement;
+      c.getContext('2d')!.drawImage(src, 0, 0);
+      return c;
+    };
+
+    const weapons = section(t('Armes', 'Weapons'), pl.weapons.length);
+    for (const inst of pl.weapons) {
+      const level = inst.def.isEvolution ? '★' : `${t('niv.', 'lv.')} ${inst.level}/${inst.def.maxLevel}`;
+      weapons.appendChild(row(iconOf('weapon', inst.def.id), inst.def.name, level, inst.def.desc));
+    }
+
+    if (pl.passives.size > 0) {
+      const passives = section(t('Objets', 'Items'), pl.passives.size);
+      for (const [id, lvl] of pl.passives) {
+        const def = passiveById(id);
+        passives.appendChild(row(iconOf('passive', id), def.name, `${t('niv.', 'lv.')} ${lvl}/${def.maxLevel}`, def.desc));
+      }
+    }
+
+    const relics = section(t('Reliques', 'Relics'), pl.relics.length);
+    if (pl.relics.length === 0) {
+      const none = document.createElement('div');
+      none.className = 'pause-build-none';
+      none.textContent = t(
+        'Aucune pour l’instant. Les élites, les boss et les autels en lâchent.',
+        'None yet. Elites, bosses and altars drop them.',
+      );
+      relics.appendChild(none);
+    }
+    for (const id of pl.relics) {
+      const def = RELIC_BY_ID.get(id);
+      if (!def) continue;
+      const chip = document.createElement('div');
+      chip.className = `relic-chip ${def.rarity}`;
+      chip.textContent = def.name.charAt(0).toUpperCase();
+      relics.appendChild(row(chip, def.name, RARITY_LABEL[def.rarity], def.desc));
+    }
+    return box;
   }
 
   // ------------------------------------------------------------ fin de run
