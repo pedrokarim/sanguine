@@ -1,4 +1,4 @@
-import { clamp, lerp, TAU } from '../core/math';
+import { clamp, lerp, easeOutCubic, TAU } from '../core/math';
 import * as font from './font';
 import { P, rgba } from './palette';
 import { shadowSprite, type SpriteSet } from './sprites';
@@ -7,8 +7,14 @@ import {
   ruineSprite,
   GROUND_TILE,
 } from '../game/terrain';
+import { areaOf } from '../game/weapons';
+import { drawAura } from './cosmeticfx';
+import {
+  FxLayer, fxSettings, drawGlow, drawSpin, drawSlash, drawBolt,
+  sigilTexture, starTexture, swirlTexture, ringTexture, flareTexture,
+} from './fx';
 import type { World } from '../game/world';
-import type { Enemy } from '../game/types';
+import type { Enemy, Projectile } from '../game/types';
 
 /**
  * Passe de rendu.
@@ -26,8 +32,17 @@ const BUCKETS = 32;
 
 const TILE = GROUND_TILE;
 
+/** Écrasement vertical des zones au sol : la vue est plongeante, un cercle s'y lit en ellipse. */
+const ZONE_SQUASH = 0.72;
+const AURA_SQUASH = 0.85;
+
+/** Teinte de la lueur d'une gemme, par rang. */
+const GEM_GLOW = [P.xp1, P.xp2, P.xp3, P.xp4] as const;
+
 export class Renderer {
   private buckets: Enemy[][] = [];
+  /** Couche de lumière additive et son halo – voir `fx.ts`. */
+  readonly fx = new FxLayer();
 
   constructor(private readonly ctx: CanvasRenderingContext2D) {
     for (let i = 0; i < BUCKETS; i++) this.buckets.push([]);
@@ -43,6 +58,7 @@ export class Renderer {
 
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.imageSmoothingEnabled = false;
+    this.fx.begin(VW, VH);
 
     this.drawGround(ox, oy, VW, VH);
     this.drawSplats(w, ox, oy);
@@ -52,11 +68,12 @@ export class Renderer {
     this.drawPois(w, ox, oy);
     this.drawCaches(w, ox, oy);
     this.drawZones(w, ox, oy);
+    this.drawAuras(w, ox, oy, alpha);
     this.drawPickups(w, ox, oy, alpha);
     this.drawEnemies(w, ox, oy, alpha);
     this.drawProjectiles(w, ox, oy, alpha);
     this.drawPlayer(w, ox, oy, alpha);
-    w.particles.render(ctx, cam);
+    w.particles.render(ctx, cam, this.fx.ctx);
     this.drawOverlays(w, VW, VH);
   }
 
@@ -232,25 +249,74 @@ export class Renderer {
       const y = z.y + oy;
       if (!this.onScreen(x, y, z.radius + 8, w)) continue;
 
-      const fade = clamp(z.life / Math.max(0.001, z.maxLife), 0, 1);
-      // Deux passes : un disque diffus, puis un anneau net qui délimite la zone dangereuse.
-      ctx.globalAlpha = 0.2 * fade;
+      // Apparition et extinction en fondu : une zone qui surgit d'un bloc se lit comme un bug.
+      const born = clamp((z.maxLife - z.life) / 0.18, 0, 1);
+      const fade = Math.min(born, clamp(z.life / 0.45, 0, 1));
+
+      // Sur la scène : un fond teinté, qui garde la zone lisible même sans la lumière.
+      ctx.globalAlpha = 0.16 * fade;
       ctx.fillStyle = z.color;
       ctx.beginPath();
-      ctx.ellipse(Math.round(x), Math.round(y), z.radius, z.radius * 0.72, 0, 0, TAU);
+      ctx.ellipse(Math.round(x), Math.round(y), z.radius, z.radius * ZONE_SQUASH, 0, 0, TAU);
       ctx.fill();
-
-      ctx.globalAlpha = 0.55 * fade;
-      ctx.strokeStyle = z.color;
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.ellipse(
-        Math.round(x), Math.round(y),
-        z.radius + Math.sin(z.anim * 5) * 1.2, (z.radius + Math.sin(z.anim * 5) * 1.2) * 0.72,
-        0, 0, TAU,
-      );
-      ctx.stroke();
       ctx.globalAlpha = 1;
+
+      this.drawSigil(x, y, z.radius, z.color, z.anim, fade);
+    }
+  }
+
+  /**
+   * Cercle magique au sol : lueur, anneau gradué, étoile inscrite et tourbillon, chacun à
+   * sa vitesse et l'étoile à contresens.
+   *
+   * C'est la rotation qui fait le travail. Une flaque immobile est un décor ; des anneaux
+   * qui tournent l'un contre l'autre disent qu'un sort est **en cours**, et le joueur n'a
+   * plus à se demander si la zone blesse encore.
+   */
+  private drawSigil(x: number, y: number, radius: number, color: string, anim: number, fade: number): void {
+    const f = this.fx.ctx;
+    const k = fade * fxSettings.sigils;
+    const pulse = 1 + Math.sin(anim * 5) * 0.03;
+
+    drawGlow(f, x, y, radius * 1.4, radius * 1.4 * ZONE_SQUASH, color, 0.16 * k);
+    drawSpin(f, sigilTexture(color), x, y, radius * pulse, ZONE_SQUASH, anim * 0.7, 0.62 * k);
+    // En dessous d'une certaine taille, le détail ne serait qu'un pâté : l'anneau suffit.
+    if (radius >= 13) {
+      drawSpin(f, starTexture(color), x, y, radius * 0.62, ZONE_SQUASH, -anim * 0.9, 0.36 * k);
+      drawSpin(f, swirlTexture(color), x, y, radius * 0.95, ZONE_SQUASH, anim * 2.6, 0.14 * k);
+    }
+  }
+
+  /**
+   * Auras du joueur.
+   *
+   * Elles n'avaient **aucune** représentation : l'Ail blessait dans un rayon que rien ne
+   * montrait, et le joueur ne pouvait ni juger sa portée ni voir qu'elle grandissait en
+   * montant de niveau. Une arme invisible est une arme qu'on croit en panne.
+   */
+  private drawAuras(w: World, ox: number, oy: number, alpha: number): void {
+    const ctx = this.ctx;
+    const f = this.fx.ctx;
+    const pl = w.player;
+    const x = lerp(pl.px, pl.x, alpha) + ox;
+    const y = lerp(pl.py, pl.y, alpha) + oy;
+
+    for (const inst of pl.weapons) {
+      if (inst.def.behavior !== 'aura') continue;
+      const r = areaOf(inst, pl);
+      const color = inst.def.color;
+      const breathe = 1 + Math.sin(w.time * 3) * 0.04;
+
+      ctx.globalAlpha = 0.08;
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.ellipse(Math.round(x), Math.round(y), r, r * AURA_SQUASH, 0, 0, TAU);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+
+      drawGlow(f, x, y, r * 1.25, r * 1.25 * AURA_SQUASH, color, 0.08);
+      drawSpin(f, ringTexture(color), x, y, r * breathe, AURA_SQUASH, 0, 0.4);
+      drawSpin(f, swirlTexture(color), x, y, r * 0.92, AURA_SQUASH, w.time * 1.4, 0.2);
     }
   }
 
@@ -281,6 +347,10 @@ export class Renderer {
         ctx.ellipse(Math.round(x), Math.round(y), 12, 8, 0, 0, TAU);
         ctx.fill();
         ctx.globalAlpha = 1;
+        drawGlow(this.fx.ctx, x, y, 22, 16, glow, pulse);
+      } else if (p.kind === 'gem') {
+        // Une gemme luit faiblement : un tapis d'XP doit se lire comme un trésor, pas du gravier.
+        drawGlow(this.fx.ctx, x, y, 6, 6, GEM_GLOW[clamp(p.rank, 0, 3)]!, 0.14);
       }
 
       const bob = p.kind === 'gem' || p.kind === 'gold' ? 0 : Math.sin(p.anim) * 1.2;
@@ -417,29 +487,30 @@ export class Renderer {
 
   private drawProjectiles(w: World, ox: number, oy: number, alpha: number): void {
     const ctx = this.ctx;
+    const pl = w.player;
+    const plx = lerp(pl.px, pl.x, alpha) + ox;
+    const ply = lerp(pl.py, pl.y, alpha) + oy;
+
     for (const p of w.projectiles) {
       if (!p.active) continue;
       const wx = lerp(p.px, p.x, alpha);
       const wy = lerp(p.py, p.y, alpha);
       const x = wx + ox;
       const y = wy + oy;
-      if (!this.onScreen(x, y, 40, w)) continue;
+      // La marge couvre l'éclair, qui tombe de bien plus haut que son point d'impact.
+      if (!this.onScreen(x, y, p.behavior === 'strike' ? 190 : 60, w)) continue;
+
+      this.drawProjectileLight(p, x, y, plx, ply);
+
+      // Un coup, une onde ou un éclair **sont** leur effet : y reposer la petite icône de
+      // l'arme reviendrait à coller une étiquette sur le sort. Le sprite ne reste que pour
+      // ce qui est un objet en vol – pieu, orbe, fiole, masse, pieu de ronce.
+      if (p.behavior === 'melee' || p.behavior === 'wave' || p.behavior === 'strike') continue;
 
       const frames = p.sprite.frames;
       const f = frames[Math.floor(p.anim) % frames.length]!;
       const hw = f.width / 2;
       const hh = f.height / 2;
-
-      // Zones de mêlée / ondes : un halo coloré rend la portée lisible.
-      if (p.behavior === 'melee' || p.behavior === 'wave' || p.behavior === 'strike') {
-        const fade = clamp(p.life / Math.max(0.001, p.maxLife), 0, 1);
-        ctx.globalAlpha = 0.28 * fade;
-        ctx.fillStyle = p.color;
-        ctx.beginPath();
-        ctx.ellipse(Math.round(x), Math.round(y), p.radius, p.radius * 0.78, 0, 0, TAU);
-        ctx.fill();
-        ctx.globalAlpha = 1;
-      }
 
       const angle = p.rot + (this.oriented(p.behavior) ? p.angle : 0);
       if (Math.abs(angle) < 0.01) {
@@ -451,6 +522,105 @@ export class Renderer {
         );
         ctx.drawImage(f, -hw, -hh);
         ctx.setTransform(1, 0, 0, 1, 0, 0);
+      }
+    }
+  }
+
+  /**
+   * Lumière d'un projectile, selon son comportement.
+   *
+   * Le sprite dit **ce que c'est** ; la lumière dit **ce que ça fait** : une traînée pour ce
+   * qui file, un croissant pour ce qui tranche, un éclair pour ce qui tombe. Chaque forme
+   * est une texture précalculée (voir `fx.ts`), simplement recopiée.
+   */
+  private drawProjectileLight(p: Projectile, x: number, y: number, plx: number, ply: number): void {
+    const f = this.fx.ctx;
+    const S = fxSettings;
+    const fade = clamp(p.life / Math.max(0.001, p.maxLife), 0, 1);
+    const t = 1 - fade;
+    const color = p.hostile ? P.bloodHi : p.color;
+
+    switch (p.behavior) {
+      case 'melee': {
+        if (p.tags.includes('full360')) {
+          const r = p.radius * (0.45 + 0.6 * easeOutCubic(t)) * S.scale;
+          drawSpin(f, ringTexture(color), x, y, r, 0.8, 0, fade);
+          drawSpin(f, swirlTexture(color), x, y, r * 0.9, 0.8, t * 5, fade * 0.7);
+        } else {
+          // Le croissant pivote autour du joueur et balaie l'arc pendant la durée du coup.
+          const reach = p.radius * 1.75 * S.scale;
+          const sweep = (easeOutCubic(t) - 0.5) * 1.5;
+          drawSlash(f, color, plx, ply, reach * 0.94, p.angle + sweep - 0.35, fade * 0.35);
+          drawSlash(f, color, plx, ply, reach, p.angle + sweep, Math.min(1, fade * 2.2));
+        }
+        drawGlow(f, x, y, p.radius * 1.3, p.radius, color, 0.14 * fade);
+        break;
+      }
+
+      case 'wave': {
+        const a = Math.atan2(p.vy, p.vx);
+        const reach = p.radius * 1.5 * S.scale;
+        drawSlash(
+          f, color, x - Math.cos(a) * reach * 0.75, y - Math.sin(a) * reach * 0.75,
+          reach, a, Math.min(1, fade * 1.8) * 0.9,
+        );
+        drawGlow(f, x, y, p.radius * 1.4, p.radius * 1.1, color, 0.14 * fade);
+        break;
+      }
+
+      case 'strike': {
+        const r = p.radius * S.scale;
+        drawBolt(f, color, p.pid + Math.floor(p.anim * 1.6), x, y, 120 * S.scale, Math.min(1, fade * 1.6) * 0.85);
+        drawGlow(f, x, y, r * 1.5, r * 1.1, color, 0.3 * fade);
+        drawSpin(f, flareTexture(color), x, y, r * (0.5 + fade * 0.5), 0.75, p.anim * 0.2, fade * 0.7);
+        drawSpin(f, ringTexture(color), x, y, r * (0.3 + t), ZONE_SQUASH, 0, fade * 0.6);
+        break;
+      }
+
+      case 'orbit':
+      case 'flail': {
+        // Traînée le long de l'orbite : c'est elle qui donne le sens et la vitesse de rotation.
+        const squash = p.behavior === 'orbit' ? 0.8 : 0.7;
+        const dir = p.b >= 0 ? 1 : -1;
+        const len = 1.1 * S.trails;
+        if (len > 0.05 && p.a > 0) {
+          f.lineCap = 'round';
+          f.strokeStyle = color;
+          f.lineWidth = 4;
+          f.globalAlpha = Math.min(1, 0.22 * S.light);
+          f.beginPath();
+          f.ellipse(plx, ply, p.a, p.a * squash, 0, p.c - dir * len, p.c, dir < 0);
+          f.stroke();
+          f.lineWidth = 2;
+          f.globalAlpha = Math.min(1, 0.55 * S.light);
+          f.beginPath();
+          f.ellipse(plx, ply, p.a, p.a * squash, 0, p.c - dir * len * 0.4, p.c, dir < 0);
+          f.stroke();
+          f.globalAlpha = 1;
+        }
+        const g = p.radius * 1.6 + 5;
+        drawGlow(f, x, y, g, g, color, 0.38);
+        drawGlow(f, x, y, g * 0.4, g * 0.4, '#ffffff', 0.25);
+        break;
+      }
+
+      case 'spike':
+        drawGlow(f, x, y + 2, p.radius * 1.8, p.radius * 1.1, color, 0.55 * fade);
+        break;
+
+      default: {
+        const g = p.radius * 1.5 + 5;
+        const flies = p.behavior === 'linear' || p.behavior === 'bounce' ||
+          p.behavior === 'pet' || p.behavior === 'enemyShot';
+        if (flies && S.trails > 0) {
+          for (let k = 1; k <= 4; k++) {
+            const d = k * 0.016 * S.trails;
+            const r = g * (1 - k * 0.16);
+            drawGlow(f, x - p.vx * d, y - p.vy * d, r, r, color, 0.2 * (1 - k / 5));
+          }
+        }
+        drawGlow(f, x, y, g, g, color, 0.38);
+        drawGlow(f, x, y, g * 0.4, g * 0.4, '#ffffff', 0.28);
       }
     }
   }
@@ -486,6 +656,8 @@ export class Renderer {
       ctx.stroke();
       ctx.globalAlpha = 1;
     }
+
+    if (pl.aura) drawAura(this.fx.ctx, pl.aura, x, y + 7, w.time);
 
     // Clignotement d'invulnérabilité : un créneau, pas un fondu – bien plus lisible.
     if (pl.iframes > 0 && Math.floor(pl.iframes * 14) % 2 === 0) return;
@@ -529,6 +701,10 @@ export class Renderer {
       ctx.fillStyle = g;
       ctx.fillRect(0, 0, VW, VH);
     }
+
+    // La lumière s'ajoute **après** l'assombrissement : plus la nuit tombe, plus les sorts
+    // ressortent, au lieu de s'éteindre avec le décor.
+    this.fx.composite(ctx);
 
     if (!reduce && pl.hurtFlash > 0) {
       ctx.fillStyle = rgba(P.bloodHi, clamp(pl.hurtFlash, 0, 0.35) * 0.5);

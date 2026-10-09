@@ -11,9 +11,12 @@ import {
 } from '../gfx/sprites';
 import { enemyById, type EnemyDef, type BossDef } from '../data/enemies';
 import { RELICS, RARITY_WEIGHT, RARITY_LABEL, type RelicDef } from '../data/relics';
-import { DROP_TABLE, hpScale, damageScale, MURS_MAX_ENNEMIS, type Rang } from '../data/waves';
+import {
+  DROP_TABLE, hpScale, damageScale, goldRate, GOLD_BUDGET_MAX, MURS_MAX_ENNEMIS, type Rang,
+} from '../data/waves';
 import type { RunSave } from '../core/save';
 import { Player } from './player';
+import { emitTrail, type TrailStyle } from '../gfx/cosmeticfx';
 import { xpForLevel } from '../data/waves';
 import { Terrain, biomeAt, type Poi } from './terrain';
 import { makeFragment } from '../gfx/sprites';
@@ -55,6 +58,8 @@ const MAX_PICKUPS = 2200;
 const MAX_SPLATS = 500;
 /** Au-delà de ce nombre de gemmes au sol, les plus anciennes fusionnent. */
 const GEM_MERGE_THRESHOLD = 400;
+/** Écart minimal, en secondes de jeu, entre deux coffres d'élite. Réglé à la mesure. */
+const ELITE_CHEST_INTERVAL = 22;
 /** Distance au-delà de laquelle un ennemi ordinaire est recyclé de l'autre côté. */
 const RECYCLE_DIST = 700;
 
@@ -98,6 +103,12 @@ export class World {
   pendingLevelUps = 0;
   /** Coffres ramassés en attente d'ouverture. */
   pendingChests = 0;
+  /** Vrai sur une sauvegarde qui n'a encore jamais ramassé de gemme. Réglé par l'hôte. */
+  explainGems = false;
+  /** Instant de jeu à partir duquel une élite peut de nouveau lâcher un coffre. */
+  nextEliteChestAt = 0;
+  /** Or que les ennemis ordinaires peuvent encore lâcher. Voir `goldRate` */
+  goldBudget = 0;
 
   /** Ralenti temporaire (montée de niveau, boss, critique). */
   timeScale = 1;
@@ -151,8 +162,9 @@ export class World {
   resonanceRange = 1200;
 
   /** Couleur de la traînée cosmétique, `null` si aucune n'est équipée. */
-  trailColor: string | null = null;
+  trail: { style: TrailStyle; color: string } | null = null;
   private trailTimer = 0;
+  private trailTick = 0;
 
   // --- réglages d'accessibilité, appliqués depuis les options ---
   /** Chiffres de dégâts flottants. */
@@ -514,6 +526,7 @@ export class World {
     if (!silent) {
       if (this.showDamage) this.particles.number(e.x, e.y - e.radius - 2, final, crit);
       this.particles.sparks(e.x, e.y, Math.atan2(kby, kbx), crit ? 6 : 3, crit ? P.gold : P.spark);
+      if (crit) this.particles.flash(e.x, e.y, 13, P.gold, 0.16);
       audio.play(crit ? 'crit' : 'hit');
       // Ni secousse ni micro-gel sur un critique : à 5 % de chance et plusieurs dizaines de
       // coups par seconde, l'écran tremblerait sans interruption et le jeu perdrait des
@@ -547,6 +560,7 @@ export class World {
     audio.play(heavy ? 'killHeavy' : 'kill');
     this.particles.blood(e.x, e.y, e.boss ? 26 : e.elite ? 12 : 5);
     this.particles.shards(e.x, e.y, e.boss ? 18 : 4, P.bloodDark);
+    if (e.boss || e.elite) this.particles.flash(e.x, e.y, e.boss ? 90 : 34, P.bloodHi, e.boss ? 0.6 : 0.3);
     if (heavy) this.cam.shake(e.boss ? 0.3 : 0.05);
 
     this.addSplat(e.x, e.y);
@@ -734,9 +748,9 @@ export class World {
     const chance = (p: number): boolean => r.next() < p * luck;
 
     if (chance((e.def.goldChance ?? D.goldCoin) * (e.boss ? 8 : 1))) {
-      this.spawnPickup('gold', e.x, e.y, r.int(1, 10), 0);
+      this.dropGold(e.x, e.y, r.int(1, 10), e.boss);
     }
-    if (chance(D.goldBag)) this.spawnPickup('gold', e.x, e.y, r.int(25, 80), 0);
+    if (chance(D.goldBag)) this.dropGold(e.x, e.y, r.int(25, 80), e.boss);
     if (chance(D.heart)) this.spawnPickup('heart', e.x, e.y, 0, 0);
     if (chance(D.magnet)) this.spawnPickup('magnet', e.x, e.y, 0, 0);
     if (chance(D.censer)) this.spawnPickup('censer', e.x, e.y, 0, 0);
@@ -746,12 +760,48 @@ export class World {
 
     // Coffres et reliques : élites et boss uniquement.
     if (e.elite || e.boss) {
-      const chests = 1 + pl.flag('eliteChests') + (e.boss ? 2 : 0);
-      for (let i = 0; i < chests; i++) {
-        this.spawnPickup('chest', e.x + r.spread(14), e.y + r.spread(10), 0, 0);
+      /*
+       * Un coffre par élite, mais pas plus d'un toutes les `ELITE_CHEST_INTERVAL` secondes.
+       *
+       * Sans cette cadence, le butin suivait le débit de mise à mort. Mesuré au bot : passé
+       * la quinzième minute, les rangs « élite » et « colosse » tombaient assez vite pour
+       * livrer une vingtaine de coffres par minute, soit plus de trente surpassements. Le
+       * joueur devenait intouchable, et la partie se réduisait à valider un écran de coffre
+       * toutes les trois secondes. Hors cadence, l'élite paie en or : la mise à mort reste
+       * récompensée, sans relancer la boucle. Les boss, eux, livrent toujours.
+       */
+      const due = e.boss || this.time >= this.nextEliteChestAt;
+      if (due) {
+        if (!e.boss) this.nextEliteChestAt = this.time + ELITE_CHEST_INTERVAL;
+        const chests = 1 + pl.flag('eliteChests') + (e.boss ? 2 : 0);
+        for (let i = 0; i < chests; i++) {
+          this.spawnPickup('chest', e.x + r.spread(14), e.y + r.spread(10), 0, 0);
+        }
+      } else {
+        // Une poignée de pièces, pas une bourse : à 150 élites par minute en fin de partie,
+        // une bourse à chaque fois rapportait 6 000 pièces par minute, mesuré au bot.
+        this.dropGold(e.x, e.y, r.int(3, 8), false);
       }
       if (e.boss || r.chance(0.35 * luck)) this.dropRelic(e.x, e.y);
     }
+  }
+
+  /**
+   * Fait tomber de l'or, dans la limite du budget en cours.
+   *
+   * Sans budget, l'or suivait le débit de mise à mort : mesuré au bot, 1 200 pièces pour une
+   * partie perdue à la septième minute, **37 000** pour une partie menée au bout. Aucune
+   * grille de prix ne tient devant un tel écart – ce qui coûte dix parties à un débutant
+   * coûtait vingt minutes à un joueur moyen. Le budget se remplit au rythme de l'horloge
+   * (`goldRate`) : tuer plus vite ne rapporte pas plus, survivre plus longtemps, si.
+   * Les boss paient hors budget : leur or est une récompense, pas un débit.
+   */
+  private dropGold(x: number, y: number, value: number, free: boolean): void {
+    if (!free) {
+      if (this.goldBudget < value) return;
+      this.goldBudget -= value;
+    }
+    this.spawnPickup('gold', x, y, value, 0);
   }
 
   /** Tire une relique encore non possédée, pondérée par rareté et modulée par la chance. */
@@ -777,7 +827,9 @@ export class World {
     this.ownedRelics.add(relic.id);
     this.player.addRelic(relic.id);
     audio.play(relic.rarity === 'cursed' ? 'relicCursed' : 'relic');
-    this.announce(relic.name, RARITY_LABEL[relic.rarity]);
+    // L'effet s'affiche au ramassage, et assez longtemps pour être lu : une relique dont on
+    // ne connaît que le nom oblige à retourner au codex, c'est-à-dire à quitter la partie.
+    this.announce(relic.name, `${RARITY_LABEL[relic.rarity]} · ${relic.desc}`, 5);
     this.slowMo(0.8, 0.35);
     this.particles.beam(this.player.x, this.player.y, this.relicColor(relic), 1.1);
     this.particles.ring(this.player.x, this.player.y, 40, this.relicColor(relic), 0.6, 2);
@@ -864,8 +916,8 @@ export class World {
 
   // ---------------------------------------------------------------- effets UX
 
-  announce(text: string, sub = ''): void {
-    this.announcement = { text, sub, time: 2.2 };
+  announce(text: string, sub = '', time = 2.2): void {
+    this.announcement = { text, sub, time };
   }
 
   slowMo(scale: number, duration: number): void {
@@ -901,6 +953,7 @@ export class World {
     audio.play('explode');
     this.cam.shake(0.18);
     this.particles.ring(x, y, radius, P.fire, 0.45, 3);
+    this.particles.flash(x, y, radius * 0.9, P.fire, 0.35);
     for (let i = 0; i < 18; i++) this.particles.ember(x, y, P.fire, 1);
     const n = this.grid.query(x, y, radius);
     for (let i = 0; i < n; i++) {
@@ -954,6 +1007,7 @@ export class World {
     const sdt = dt * this.timeScale * this.speedScale;
 
     this.time += sdt;
+    this.goldBudget = Math.min(GOLD_BUDGET_MAX, this.goldBudget + goldRate(this.minute) * sdt);
     if (this.announcement) {
       this.announcement.time -= dt;
       if (this.announcement.time <= 0) this.announcement = null;
@@ -1022,12 +1076,11 @@ export class World {
    * quand le pool sature — elles ne peuvent donc jamais masquer une information de jeu.
    */
   private emitTrail(dt: number): void {
-    if (!this.trailColor || !this.player.moving) return;
+    if (!this.trail || !this.player.moving) return;
     this.trailTimer -= dt;
     if (this.trailTimer > 0) return;
     this.trailTimer = 0.05;
-    this.particles.dust(this.player.x + fxRng.spread(2), this.player.y + 5, 1);
-    this.particles.ember(this.player.x + fxRng.spread(3), this.player.y + 4, this.trailColor, 1);
+    emitTrail(this.particles, this.trail.style, this.trail.color, this.player.x, this.player.y + 6, this.trailTick++);
   }
 
   /** Déclare les fragments déjà possédés, pour qu'ils ne réapparaissent jamais. */
@@ -1845,6 +1898,11 @@ export class World {
     switch (p.kind) {
       case 'gem': {
         this.gemsCollected++;
+        // Rien ne disait ce qu'est une gemme : un testeur a demandé si elles servaient à
+        // quelque chose. La toute première d'une sauvegarde vierge le dit, une fois.
+        if (this.gemsCollected === 1 && this.explainGems) {
+          this.announce(t('Gemme', 'Gem'), t('de l’expérience : remplissez la barre du haut pour monter de niveau', 'experience: fill the top bar to level up'), 4.5);
+        }
         const bonus = 1 + pl.flag('gemBonus');
         const levels = pl.addXp(p.value * bonus);
         audio.play('gem', 1 + Math.min(this.gemsCollected % 12, 12) * 0.04);

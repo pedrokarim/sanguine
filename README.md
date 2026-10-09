@@ -12,7 +12,7 @@
 ![Vite](https://img.shields.io/badge/Vite-6-646cff?logo=vite&logoColor=white)
 ![Dépendances runtime](https://img.shields.io/badge/dépendances%20runtime-0-4ee88a)
 ![Assets binaires](https://img.shields.io/badge/assets%20binaires-0-4ee88a)
-![Bundle](https://img.shields.io/badge/bundle-79%20ko%20gzip-4ea9e8)
+![Bundle](https://img.shields.io/badge/bundle-133%20ko%20gzip-4ea9e8)
 ![Docker](https://img.shields.io/badge/Docker-prêt-2496ed?logo=docker&logoColor=white)
 
 </div>
@@ -27,9 +27,10 @@ machine à effacer l’écran.
 Une partie dure **30 minutes**. Le temps est le seul véritable adversaire.
 
 > **Aucune dépendance runtime. Aucun fichier binaire.**
-> Sprites, animations, décor, biomes, illustration des menus, ornements d’interface, logo,
-> curseur et sons sont **générés par le code** au démarrage. Le jeu entier tient en 79 ko
-> compressés et fonctionne hors ligne.
+> Sprites, animations, décor, biomes, effets, ornements d’interface, logo, curseur et sons
+> sont **générés par le code** au démarrage. Une seule exception, assumée : l’illustration de
+> l’écran-titre est une image composée à la main, mais stockée elle aussi dans le code, en
+> pixels indexés. Le jeu entier tient en 133 ko compressés et fonctionne hors ligne.
 
 ![Une partie à la quinzième minute](docs/screenshots/03-jeu.png)
 

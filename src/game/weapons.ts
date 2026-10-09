@@ -572,7 +572,8 @@ function fireStrike(w: World, inst: WeaponInstance): void {
     );
     if (p) p.tick = 0.5;
     w.particles.sparks(x, y, -Math.PI / 2, 5, P.spark, 0.6);
-    w.particles.beam(x, y, d.color, 0.28);
+    // L'éclair lui-même est dessiné par le rendu ; ici, seulement l'éblouissement de l'impact.
+    w.particles.flash(x, y, radius * 1.1, d.color, 0.2);
     struck++;
   }
   if (struck > 0) audio.play(d.sfx);

@@ -3,6 +3,7 @@ import { TAU, clamp01, easeOutCubic } from '../core/math';
 import { P } from './palette';
 import * as font from './font';
 import type { Camera } from './camera';
+import { drawGlow, drawSpin, fxSettings, textureOf, type FxTexture } from './fx';
 
 /**
  * Système de particules poolé. Aucune allocation après l'initialisation : le pool est rempli
@@ -25,6 +26,8 @@ export const PKind = {
   Ember: 5,
   Shard: 6,
   Beam: 7,
+  Flash: 8,
+  Glyph: 9,
 } as const;
 
 export type PKind = (typeof PKind)[keyof typeof PKind];
@@ -46,9 +49,26 @@ interface Particle {
   drag: number;
   rot: number;
   priority: number;
+  /** Texture d'un `Glyph` (voir `FxTexture`) ; inutilisé sinon. */
+  tex: FxTexture;
+  squash: number;
+  /** Variation du rayon sur la durée de vie : 1 double, −1 réduit à rien. */
+  grow: number;
+  angle: number;
+  alpha: number;
 }
 
-const MAX = 1400;
+const MAX = 2600;
+
+/**
+ * Applique le réglage de densité. La partie fractionnaire est tirée au sort : à 50 %, une
+ * émission d'une seule particule en produit une fois sur deux au lieu de disparaître.
+ */
+function scaled(n: number): number {
+  const v = n * fxSettings.particles;
+  const whole = Math.floor(v);
+  return whole + (fxRng.chance(v - whole) ? 1 : 0);
+}
 
 export class Particles {
   private pool: Particle[] = [];
@@ -74,6 +94,11 @@ export class Particles {
         drag: 1,
         rot: 0,
         priority: 0,
+        tex: 'glow',
+        squash: 1,
+        grow: 0,
+        angle: 0,
+        alpha: 1,
       });
     }
   }
@@ -140,6 +165,7 @@ export class Particles {
 
   /** Gerbe d'étincelles orientée – impact d'arme. */
   sparks(x: number, y: number, angle: number, n = 4, color: string = P.spark, spread = 1.1): void {
+    n = scaled(n);
     for (let i = 0; i < n; i++) {
       const a = angle + fxRng.spread(spread);
       const s = fxRng.range(28, 82);
@@ -150,6 +176,7 @@ export class Particles {
 
   /** Éclaboussure de sang – retombe et s'immobilise. */
   blood(x: number, y: number, n = 5, color: string = P.blood): void {
+    n = scaled(n);
     for (let i = 0; i < n; i++) {
       const a = fxRng.angle();
       const s = fxRng.range(20, 95);
@@ -163,6 +190,7 @@ export class Particles {
 
   /** Poussière au sol – priorité minimale, première sacrifiée quand ça sature. */
   dust(x: number, y: number, n = 3, color: string = P.stoneHi): void {
+    n = scaled(n);
     for (let i = 0; i < n; i++) {
       const a = fxRng.angle();
       this.spawn(PKind.Dust, x, y, Math.cos(a) * fxRng.range(4, 16), Math.sin(a) * fxRng.range(2, 8), fxRng.range(0.25, 0.5), color, fxRng.range(1, 2), 0);
@@ -205,6 +233,7 @@ export class Particles {
 
   /** Braise qui monte – feu, magie, aura. */
   ember(x: number, y: number, color: string = P.fire, n = 2): void {
+    n = scaled(n);
     for (let i = 0; i < n; i++) {
       const p = this.spawn(PKind.Ember, x + fxRng.spread(3), y + fxRng.spread(3), fxRng.spread(9), fxRng.range(-30, -12), fxRng.range(0.3, 0.7), color, fxRng.range(1, 2), 1);
       if (p) p.drag = 0.96;
@@ -213,6 +242,7 @@ export class Particles {
 
   /** Éclat pixel qui tourne – mort d'ennemi, bris. */
   shards(x: number, y: number, n: number, color: string): void {
+    n = scaled(n);
     for (let i = 0; i < n; i++) {
       const a = fxRng.angle();
       const s = fxRng.range(30, 90);
@@ -231,8 +261,45 @@ export class Particles {
     if (p) p.scale = 1;
   }
 
-  // ------------------------------------------------------------------- update
+  /** Éclair de lumière qui se dilate puis s'éteint – explosion, impact critique, foudre. */
+  flash(x: number, y: number, radius: number, color: string, life = 0.25): void {
+    this.spawn(PKind.Flash, x, y, 0, 0, life, color, radius, 2);
+  }
 
+  /**
+   * Texture précalculée qui vit sa vie : elle tourne, grandit ou se referme, dérive.
+   *
+   * C'est ce qui manquait pour qu'une particule soit autre chose qu'un carré – un cristal
+   * qui scintille, une faille qui se referme, une flaque qui s'éteint. Priorité minimale :
+   * ces formes sont décoratives, et les premières sacrifiées quand le pool sature.
+   */
+  glyph(
+    x: number, y: number, tex: FxTexture, color: string, radius: number, life: number,
+    o: { spin?: number; squash?: number; grow?: number; vx?: number; vy?: number; alpha?: number } = {},
+  ): void {
+    const p = this.spawn(PKind.Glyph, x, y, o.vx ?? 0, o.vy ?? 0, life, color, radius, 0);
+    if (!p) return;
+    p.tex = tex;
+    p.rot = o.spin ?? 0;
+    p.squash = o.squash ?? 1;
+    p.grow = o.grow ?? 0;
+    p.alpha = o.alpha ?? 1;
+    p.angle = fxRng.angle();
+  }
+
+  /** Flocon qui retombe en se balançant – cendre, goutte d'or. */
+  fall(x: number, y: number, color: string, n = 1): void {
+    n = scaled(n);
+    for (let i = 0; i < n; i++) {
+      const p = this.spawn(PKind.Ember, x + fxRng.spread(3), y, fxRng.spread(10), fxRng.range(4, 14), fxRng.range(0.5, 0.9), color, fxRng.range(1, 1.8), 0);
+      if (p) {
+        p.gravity = 26;
+        p.drag = 0.94;
+      }
+    }
+  }
+
+  // ------------------------------------------------------------------- update
   update(dt: number): void {
     const pool = this.pool;
     let live = 0;
@@ -245,7 +312,7 @@ export class Particles {
         continue;
       }
       live++;
-      if (p.kind === PKind.Ring || p.kind === PKind.Beam) continue; // statiques
+      if (p.kind === PKind.Ring || p.kind === PKind.Beam || p.kind === PKind.Flash) continue; // statiques
       p.vy += p.gravity * dt;
       if (p.drag !== 1) {
         const d = Math.pow(p.drag, dt * 60);
@@ -254,13 +321,19 @@ export class Particles {
       }
       p.x += p.vx * dt;
       p.y += p.vy * dt;
+      if (p.kind === PKind.Glyph) p.angle += p.rot * dt;
     }
     this.liveCount = live;
   }
 
   // ------------------------------------------------------------------- render
 
-  render(ctx: CanvasRenderingContext2D, cam: Camera): void {
+  /**
+   * `fx` est la couche de lumière (voir `fx.ts`). Ce qui brille – étincelles, braises,
+   * anneaux, colonnes – y part en fusion additive ; le sang, la poussière et les chiffres
+   * restent sur la scène, parce qu'ils sont de la matière et non de la lumière.
+   */
+  render(ctx: CanvasRenderingContext2D, cam: Camera, fx: CanvasRenderingContext2D = ctx): void {
     const ox = cam.offsetX;
     const oy = cam.offsetY;
     const pool = this.pool;
@@ -283,22 +356,54 @@ export class Particles {
           break;
         }
         case PKind.Ring: {
-          const r = p.scale * easeOutCubic(1 - t);
-          ctx.globalAlpha = t * 0.9;
-          ctx.strokeStyle = p.color;
-          ctx.lineWidth = p.size;
-          ctx.beginPath();
-          ctx.arc(Math.round(sx), Math.round(sy), Math.max(0.5, r), 0, TAU);
-          ctx.stroke();
-          ctx.globalAlpha = 1;
+          // Trait coloré épais, puis un cœur blanc fin : c'est le cœur qui donne le « chaud ».
+          const r = Math.max(0.5, p.scale * easeOutCubic(1 - t));
+          fx.globalAlpha = t * 0.6;
+          fx.strokeStyle = p.color;
+          fx.lineWidth = p.size + 1.5;
+          fx.beginPath();
+          fx.arc(sx, sy, r, 0, TAU);
+          fx.stroke();
+          fx.globalAlpha = t * 0.5;
+          fx.strokeStyle = '#ffffff';
+          fx.lineWidth = 1;
+          fx.stroke();
+          fx.globalAlpha = 1;
           break;
         }
         case PKind.Beam: {
-          const w = p.size * (t > 0.7 ? (1 - t) / 0.3 : t / 0.7);
-          ctx.globalAlpha = t * 0.75;
-          ctx.fillStyle = p.color;
-          ctx.fillRect(Math.round(sx - w / 2), Math.round(sy - 60), Math.max(1, w), 62);
-          ctx.globalAlpha = 1;
+          const w = Math.max(1, p.size * (t > 0.7 ? (1 - t) / 0.3 : t / 0.7));
+          fx.fillStyle = p.color;
+          fx.globalAlpha = t * 0.3;
+          fx.fillRect(sx - w * 1.5, sy - 66, w * 3, 68);
+          fx.globalAlpha = t * 0.7;
+          fx.fillRect(sx - w / 2, sy - 62, w, 64);
+          fx.fillStyle = '#ffffff';
+          fx.globalAlpha = t;
+          fx.fillRect(Math.round(sx) - 0.5, sy - 62, 1, 64);
+          drawGlow(fx, sx, sy, 14 + w * 2, 8 + w, p.color, t * 0.8);
+          break;
+        }
+        case PKind.Glyph: {
+          // Fondu d'entrée bref, fondu de sortie long : la forme s'installe puis s'efface.
+          const life = 1 - t;
+          const fade = Math.min(1, life * 8) * Math.min(1, t * 2.2);
+          const r = p.size * Math.max(0.05, 1 + p.grow * life);
+          drawSpin(fx, textureOf(p.tex, p.color), sx, sy, r, p.squash, p.angle, fade * p.alpha);
+          break;
+        }
+        case PKind.Flash: {          const r = p.size * (0.55 + 0.45 * easeOutCubic(1 - t));
+          drawGlow(fx, sx, sy, r, r * 0.85, p.color, t * 0.6);
+          drawGlow(fx, sx, sy, r * 0.45, r * 0.38, '#ffffff', t * t * 0.45);
+          break;
+        }
+        case PKind.Spark:
+        case PKind.Ember: {
+          const s = Math.max(1, p.size * t);
+          fx.globalAlpha = t;
+          fx.fillStyle = p.color;
+          fx.fillRect(Math.round(sx - s / 2), Math.round(sy - s / 2), Math.ceil(s), Math.ceil(s));
+          drawGlow(fx, sx, sy, 2 + s * 1.4, 2 + s * 1.4, p.color, t * 0.2);
           break;
         }
         case PKind.Shard: {

@@ -321,6 +321,11 @@ export function applyTheme(color: string, accent: string): void {
   root.setProperty('--corner', url(corner(color, accent)));
 }
 
+/** Cadre d'un thème, prêt pour `border-image-source` – sert aux aperçus de la boutique. */
+export function frameUrl(color: string, accent: string): string {
+  return url(frame(color, accent));
+}
+
 /** Applique un curseur : teinte du corps et de la gemme. */
 export function applyCursor(color: string, accent: string): void {
   document.documentElement.style.setProperty('--cursor', cursor(color, '#05060a', accent));

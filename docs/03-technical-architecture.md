@@ -221,7 +221,12 @@ pnpm preview  # sert le build
 
 `base: './'` dans la configuration Vite pour que `dist/index.html` fonctionne aussi en `file://`.
 
-Poids mesuré : **161 ko** non compressé, **54 ko** en gzip, aucun asset binaire. Le budget
+Poids mesuré le 09/10/2026 : **376 ko** non compressé (336 de script, 40 de styles), **133 ko**
+en gzip, aucun asset binaire. Les chiffres qui suivent datent d’un relevé antérieur, avant la
+couche de lumière, les effets cosmétiques et l’illustration de l’écran-titre (une trentaine de
+ko à elle seule, stockée en pixels indexés dans `src/data/menuart.ts`).
+
+Relevé d’origine : 161 ko non compressé, 54 ko en gzip. Le budget
 initial était de 150 ko ; les biomes, les structures, l’illustration des menus et les ornements
 d’interface l’ont porté à 161 ko, ce qui reste très largement sous le seuil où le chargement
 devient perceptible.
