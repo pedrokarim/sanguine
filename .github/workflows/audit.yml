@@ -1,6 +1,6 @@
 # Audit de sécurité — NE DÉPLOIE RIEN.
 #
-# Ce dépôt se déploie à la main (voir DEPLOY.md). Cette chaîne ne fait que constater et
+# Ce dépôt se déploie à la main. Cette chaîne ne fait que constater et
 # signaler. Deux garde-fous rendent un déploiement accidentel impossible plutôt
 # qu'improbable : le jeton n'a que le droit de lecture (`permissions`), et aucun secret
 # n'est déclaré — il n'existe donc ni clé SSH, ni jeton de registre à voler si une

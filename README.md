@@ -171,7 +171,6 @@ Aucune identité persistante n’est créée : la session vit en mémoire et meu
 docker compose up -d --build     # → http://127.0.0.1:4020
 ```
 
-Mise en production complète dans **[DEPLOY.md](DEPLOY.md)**.
 Publication du manuel : `./tools/publish-docs.sh`.
 
 ---
