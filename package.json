@@ -16,6 +16,11 @@
     "vite": "^6.0.11"
   },
   "packageManager": "pnpm@9.7.0",
+  "pnpm": {
+    "overrides": {
+      "source-map-js": ">=1.2.2"
+    }
+  },
   "license": "MIT",
   "repository": {
     "type": "git",
