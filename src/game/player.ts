@@ -50,6 +50,19 @@ const IFRAME_TIME = 0.7;
  */
 const ARMOR_FLOOR = 0.35;
 
+/**
+ * Plafond du vol de vie : part des PV max rendue par seconde, pour chaque point de vol de
+ * vie (3 % de vol de vie et 100 PV max donnent au plus 1,5 PV par seconde).
+ *
+ * Le vol de vie se calcule sur les dégâts infligés, et ceux-ci explosent avec la partie :
+ * les PV des ennemis suivent le temps **et** le niveau du joueur. Mesuré au bot, 3 % de vol
+ * de vie rendaient 150 PV par seconde à la dixième minute et 1 500 à la quatorzième, pour
+ * cent à deux cents PV max. On pouvait lâcher la manette : chaque coup reçu était effacé
+ * avant le suivant. Le plafond garde au vol de vie sa raison d'être – tenir en se déplaçant,
+ * là où l'on encaisse peu – sans le laisser racheter l'immobilité.
+ */
+const LIFESTEAL_RATE = 0.5;
+
 export class Player {
   x = 0;
   y = 0;
@@ -108,6 +121,8 @@ export class Player {
   buffSpeedTimer = 0;
   /** Cumul, seulement pour l'affichage de fin. */
   damageDealt = 0;
+  /** Soin par vol de vie encore disponible, rechargé en continu – voir `LIFESTEAL_RATE`. */
+  private lifestealBudget = 0;
 
   /** Aura de la teinte équipée – purement décorative. */
   aura: Aura | null = null;
@@ -323,6 +338,12 @@ export class Player {
     return this.hp - before;
   }
 
+  /** Soigne d'une part des dégâts réellement infligés, dans la limite du plafond. */
+  drainLife(dealt: number): void {
+    const amount = Math.min(dealt * this.stats.lifesteal, this.lifestealBudget);
+    if (amount > 0) this.lifestealBudget -= this.heal(amount);
+  }
+
   /** Retourne le nombre de niveaux gagnés (plusieurs sont possibles d'un coup). */
   addXp(amount: number): number {
     this.xp += amount * this.stats.growth;
@@ -407,6 +428,10 @@ export class Player {
     if (this.stats.regen > 0 && this.hp < this.stats.maxHp) {
       this.hp = Math.min(this.stats.maxHp, this.hp + this.stats.regen * dt);
     }
+    // La réserve ne dépasse jamais une seconde de vol de vie : une accalmie ne se change
+    // pas en soin massif au premier ennemi touché.
+    const drainRate = this.stats.maxHp * this.stats.lifesteal * LIFESTEAL_RATE;
+    this.lifestealBudget = Math.min(drainRate, this.lifestealBudget + drainRate * dt);
     // Cœur Battant : régénération accélérée quand la situation est critique.
     const lowRegen = this.flag('lowHpRegen');
     if (lowRegen > 0 && this.hpRatio < 0.3) {

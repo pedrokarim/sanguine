@@ -111,7 +111,9 @@ export const ENEMIES: EnemyDef[] = [
     id: 'spitter', name: 'Nécrophage',
     hp: 55, damage: 10, speed: 34, radius: 6.5, gemRank: 2, ai: 'ranged', kbResist: 0.3,
     art: { plan: 'blob', w: 15, h: 14, cols: ['#2d3320', '#465238', '#5e6b4a'], eye: P.poison, frames: 4 },
-    from: 12, weight: 40, goldChance: 0.2,
+    // Avancé de la douzième à la huitième minute : seule menace à distance avant le seizième,
+    // c'est elle qui oblige à aller au contact plutôt qu'à reculer indéfiniment.
+    from: 8, weight: 40, goldChance: 0.2,
   },
   {
     id: 'leech', name: 'Sangsue',
