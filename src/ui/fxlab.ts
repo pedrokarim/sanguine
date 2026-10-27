@@ -47,6 +47,7 @@ const SLIDERS: SliderDef[] = [
   { key: 'trails', label: t('Traînées', 'Trails'), hint: t('Longueur des traînées de projectiles.', 'Length of projectile trails.'), max: 3 },
   { key: 'sigils', label: t('Cercles', 'Sigils'), hint: t('Opacité des cercles magiques au sol.', 'Opacity of ground sigils.'), max: 2 },
   { key: 'scale', label: t('Taille', 'Size'), hint: t('Taille des coups, éclairs et explosions.', 'Size of slashes, bolts and blasts.'), max: 2 },
+  { key: 'ceiling', label: t('Plafond', 'Ceiling'), hint: t('Atténue les zones où la lumière s’empile, sans toucher aux lueurs isolées.', 'Tames areas where light piles up, leaving lone glows untouched.'), max: 0.5 },
 ];
 
 const VIEWS: [FxView, string][] = [
