@@ -26,10 +26,45 @@ export const RUN_DURATION = 30 * 60; // 30 minutes
  *
  * Le plafond de population (`spawnCap`) reste le garde-fou : cette courbe décide de la
  * vitesse à laquelle on s'en approche, jamais de la charge maximale de l'appareil.
+ *
+ * Troisième réglage : le terme carré a été adouci (`m / 6` au lieu de `m / 4.2`). Tout le
+ * butin suivait le nombre de morts, et le carré en faisait tomber deux mille par minute à
+ * la dix-huitième – un sol jonché de cœurs et de reliques, qu'il suffisait de traverser.
+ * Moins de corps arrivent, chacun un peu plus dur (voir `bodyWeight`) : la horde se
+ * compte en moins de morts, donc en moins de butin.
  */
 export function spawnRate(m: number): number {
-  return 1.1 + m * 0.55 + Math.pow(m / 4.2, 2);
+  return 1.1 + m * 0.55 + Math.pow(m / 6, 2);
 }
+
+/**
+ * Surcroît de PV qui compense en partie l'adoucissement de `spawnRate`.
+ *
+ * C'est la racine du rapport de l'ancienne courbe à la nouvelle : 1,07 à la cinquième
+ * minute, 1,15 à la dixième, 1,27 à la trentième. La compensation entière (le rapport
+ * lui-même) a été essayée et rejetée à la mesure : chaque corps devenant nettement plus
+ * long à abattre, ils s'attardaient, et l'écran de la quatorzième minute comptait 60 %
+ * de corps en plus au lieu de moins. Le reste de la difficulté vient d'ailleurs : des
+ * secours rationnés (`DROP_INTERVAL`) et une horde plus rapide (`hordeSpeed`).
+ */
+export function bodyWeight(m: number): number {
+  return Math.sqrt((1.1 + m * 0.55 + Math.pow(m / 4.2, 2)) / spawnRate(m));
+}
+
+/**
+ * Accélération de la horde : multiplicateur de vitesse des ennemis ordinaires.
+ *
+ * Avant la seizième minute, aucun ennemi n'allait plus vite que le joueur (100) : le plus
+ * rapide plafonnait à 96. Qui savait reculer ne pouvait donc jamais être rattrapé, et la
+ * partie se réduisait à quelques réflexes. La horde gagne 1,5 % par minute, jusqu'à 25 % :
+ * loups et spectres dépassent le joueur vers la dixième minute, sauf s'il a monté ses
+ * bottes, et la fuite redevient un choix à payer.
+ */
+export function hordeSpeed(m: number): number {
+  return 1 + Math.min(HORDE_SPEED_MAX, m * 0.015);
+}
+
+export const HORDE_SPEED_MAX = 0.25;
 
 /**
  * Nombre maximal d'ennemis vivants simultanément.
@@ -80,7 +115,7 @@ export const PLAFOND_DUR = 1100;
  */
 export function hpScale(m: number, level = 1): number {
   const fin = 1 + Math.max(0, m - LATE_FROM) * LATE_HP;
-  const temps = (1 + m * 0.22 + Math.pow(m / 7.6, 2)) * fin;
+  const temps = (1 + m * 0.22 + Math.pow(m / 7.6, 2)) * fin * bodyWeight(m);
   const au = Math.max(0, level - LEVEL_FRANC);
   const puissance = 1 + au * LEVEL_HP + Math.pow(Math.max(0, level - LEVEL_EMBALLE) / 22, 2);
   return temps * puissance;
@@ -233,8 +268,10 @@ export interface Rodeur {
 
 export const RODEURS: Rodeur[] = [
   { enemy: 'matron', label: 'Une Matrone', from: 7 },
-  { enemy: 'exsanguine', label: 'Un Chevalier Exsangue', from: 12 },
-  { enemy: 'ashchoir', label: 'Un Chœur de Cendres', from: 17 },
+  // Avancés de deux et trois minutes : une partie de quatorze minutes ne croisait que des
+  // Matrones, et le joueur concluait qu'il n'existait qu'un seul boss.
+  { enemy: 'exsanguine', label: 'Un Chevalier Exsangue', from: 10 },
+  { enemy: 'ashchoir', label: 'Un Chœur de Cendres', from: 14 },
 ];
 
 /**
@@ -287,6 +324,10 @@ export const WAVE_EVENTS: WaveEvent[] = [
   { at: 27, kind: 'boss', enemy: 'ashchoir', count: 2, label: 'Les Chœurs' },
   { at: 28, kind: 'surge', enemy: '', count: 0, label: 'Déferlante', mult: 3, duration: 90 },
   { at: 30, kind: 'boss', enemy: 'sanguine', count: 1, label: 'Le Sanguinaire' },
+  // Ajouté en fin de liste et non à sa minute : une partie sauvegardée retient les
+  // événements joués par leur indice, et une insertion décalerait tous les suivants.
+  // L'ordre n'a pas d'importance, chaque événement guette seulement sa minute.
+  { at: 13, kind: 'boss', enemy: 'exsanguine', count: 1, label: 'Le Chevalier Exsangue' },
 ];
 
 if (language() === 'en') {
@@ -294,7 +335,7 @@ if (language() === 'en') {
   for (const rank of RANGS) rank.nom = ranks[rank.id] ?? rank.nom;
   const roamers = ['A Matron', 'A Bloodless Knight', 'A Choir of Ashes'];
   RODEURS.forEach((roamer, i) => { if (roamers[i]) roamer.label = roamers[i]!; });
-  const events = ['Swarm', 'Pack', 'Tide', 'The Matron', 'Nest', 'Column', 'The Matrons', 'The Bloodless Knights', 'Charge', 'The Bloodless Guard', 'Choir of Ashes', 'Crushing Force', 'The Choirs', 'Onslaught', 'The Sanguinary'];
+  const events = ['Swarm', 'Pack', 'Tide', 'The Matron', 'Nest', 'Column', 'The Matrons', 'The Bloodless Knights', 'Charge', 'The Bloodless Guard', 'Choir of Ashes', 'Crushing Force', 'The Choirs', 'Onslaught', 'The Sanguinary', 'The Bloodless Knight'];
   WAVE_EVENTS.forEach((event, i) => { if (events[i]) event.label = events[i]!; });
 }
 
@@ -344,3 +385,36 @@ export const DROP_TABLE = {
   hourglass: 0.003,
   scroll: 0.0025,
 } as const;
+
+export type ConsumableDrop = 'heart' | 'magnet' | 'censer' | 'bomb' | 'hourglass' | 'scroll';
+
+/**
+ * Délai minimal, en secondes, entre deux chutes du même objet sur un ennemi ordinaire.
+ *
+ * Même défaut que l'or avant son budget : la probabilité s'appliquait à chaque mort, et
+ * les morts se comptent par milliers. Mesuré au bot, à la quatorzième minute, il tombait
+ * 28 cœurs par minute – sept soins complets –, 6 encensoirs qui rasent l'écran, et le
+ * sol en restait jonché. Tuer davantage ne doit pas rapporter davantage de secours.
+ *
+ * Les deux premières minutes ne sont pas touchées : on y voit un à deux cœurs par minute,
+ * sous le plafond. Il mord dès la cinquième, et franchement au milieu de partie, là où la
+ * boucle s'emballe – c'est voulu : un essai à 45 secondes ramenait la sixième minute de
+ * six cœurs à un seul, ce qui punissait l'apprentissage plus que la maîtrise.
+ */
+export const DROP_INTERVAL: Readonly<Record<ConsumableDrop, number>> = {
+  heart: 30,
+  magnet: 60,
+  censer: 150,
+  bomb: 60,
+  hourglass: 90,
+  scroll: 90,
+};
+
+/**
+ * Délai minimal entre deux reliques lâchées par une élite. Les boss livrent toujours.
+ *
+ * Une élite sur trois en donnait une, et les élites tombent par dizaines en fin de partie :
+ * mesuré, 12 reliques par minute à la quatorzième, 22 à la dix-huitième. Une relique est
+ * une décision de build ; à ce rythme, ce n'était plus qu'un objet de plus à ramasser.
+ */
+export const ELITE_RELIC_INTERVAL = 75;

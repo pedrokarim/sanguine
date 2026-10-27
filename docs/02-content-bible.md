@@ -102,7 +102,7 @@ Niveau max **5**. Le gain est linéaire par niveau.
 | **Araignée** | 16 | 9 | 70 | Apparaît par grappes de 8 | 7 min |
 | **Zombie** | 90 | 16 | 26 | Très lent, très résistant | 8 min |
 | **Spectre** | 30 | 14 | 96 | Traverse les autres ennemis | 10 min |
-| **Nécrophage** | 55 | 10 | 34 | **Crache un projectile** à distance | 12 min |
+| **Nécrophage** | 55 | 10 | 34 | **Crache un projectile** à distance | 8 min |
 | **Sangsue** | 45 | 18 | 52 | Se soigne en touchant le joueur | 14 min |
 | **Cavalier** | 70 | 22 | 130 | Ruée en ligne droite, traverse l’écran | 16 min |
 | **Golem de Chair** | 220 | 28 | 22 | Énorme, écrase, recul immunisé | 19 min |
@@ -154,7 +154,7 @@ pendant que l’écran se remplit.
 | 6 | **Meute** : 20 loups sur un seul flanc |
 | 9 | **Marée** : mur de goules qui traverse l’écran |
 | 10 | **BOSS – La Matrone** |
-| 13 | **Nid** : 12 grappes d’araignées |
+| 13 | **Nid** : 12 grappes d’araignées ; **BOSS – Le Chevalier Exsangue** |
 | 15 | **Colonne** : 30 squelettes en formation |
 | 18 | **BOSS – Le Chevalier Exsangue** |
 | 21 | **Charge** : 25 cavaliers en salves successives |
@@ -262,7 +262,9 @@ Probabilité de rareté à la découverte, modulée par la `luck` :
 
 ## 10. Table de butin complète
 
-Chaque ennemi tué lance un jet. Les probabilités sont modulées par `luck`.
+Chaque ennemi tué lance un jet. Les probabilités sont modulées par `luck`. Les objets
+consommables ont en plus un **délai minimal** entre deux chutes : la chance décide si l’objet
+tombe, le délai quand il en a de nouveau le droit.
 
 | Objet | Chance | Effet | Rendu |
 |---|---|---|---|
@@ -272,17 +274,17 @@ Chaque ennemi tué lance un jet. Les probabilités sont modulées par `luck`.
 | **Gemme violette** | 0,4 % | 140 XP | Losange 7 pointes, halo large |
 | **Pièce d’or** | 12 % | 1–10 or | Rotation sur 6 frames |
 | **Sac d’or** | 1 % | 25–80 or | Rebondit puis se pose |
-| **Cœur** | 1,5 % | +25 % PV max | Pulsation cardiaque |
-| **Aimant** | 0,5 % | Attire toutes les gemmes | Ondes concentriques |
-| **Encensoir** | 0,3 % | Tue tout à l’écran | Explosion blanche + flash |
-| **Bombe** | 0,4 % | Explosion massive à l’endroit | Mèche animée |
-| **Sablier** | 0,3 % | Fige les ennemis 4 s | Teinte bleue plein écran |
-| **Parchemin** | 0,25 % | +1 reroll | Se déroule |
-| **Relique** | Élites/boss | Voir §9 | Colonne de lumière + fracas |
+| **Cœur** | 1,5 %, toutes les 30 s au plus | +25 % PV max | Pulsation cardiaque |
+| **Aimant** | 0,5 %, toutes les 60 s au plus | Attire toutes les gemmes | Ondes concentriques |
+| **Encensoir** | 0,3 %, toutes les 150 s au plus | Tue tout à l’écran | Explosion blanche + flash |
+| **Bombe** | 0,4 %, toutes les 60 s au plus | Explosion massive à l’endroit | Mèche animée |
+| **Sablier** | 0,3 %, toutes les 90 s au plus | Fige les ennemis 4 s | Teinte bleue plein écran |
+| **Parchemin** | 0,25 %, toutes les 90 s au plus | +1 reroll | Se déroule |
+| **Relique** | Boss ; élites au plus une toutes les 75 s | Voir §9 | Colonne de lumière + fracas |
 | **Coffre** | Élites/boss | Voir §8 | Ouverture en 8 frames + rayons |
 
-**Fusion automatique** : au-delà de 400 gemmes au sol, les plus anciennes fusionnent en gemmes
-de rang supérieur. Aucune valeur n’est perdue, et le nombre d’entités reste borné.
+**Fusion automatique** : une gemme ordinaire qui tombe tout près d’une autre s’y fond ; au-delà
+de 400 gemmes au sol, les plus anciennes fusionnent aussi en gemmes de rang supérieur. Aucune valeur n’est perdue, et le nombre d’entités reste borné.
 
 ---
 

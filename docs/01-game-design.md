@@ -247,7 +247,9 @@ La passivité est punie dès la douzième minute, sans que jouer correctement le
 
 Les quatre boss scriptés tombent toujours aux mêmes minutes : au troisième run, on sait ce
 qui arrive et quand. Trois **rôdeurs** s’y ajoutent au hasard – une Matrone à partir de la
-7ᵉ minute, un Chevalier Exsangue à partir de la 12ᵉ, un Chœur de Cendres à partir de la 17ᵉ.
+7ᵉ minute, un Chevalier Exsangue à partir de la 10ᵉ, un Chœur de Cendres à partir de la 14ᵉ.
+Un Chevalier Exsangue est aussi levé à la 13ᵉ minute : une partie de quatorze minutes ne
+croisait jusque-là que des Matrones.
 
 | Réglage | Valeur |
 |---|---|
@@ -278,13 +280,19 @@ sans récompense se lirait comme une punition, pas comme un événement.
 | Gemme verte | 5 XP | Ennemi moyen |
 | Gemme rouge | 25 XP | Ennemi lourd / élite |
 | Pièce d’or | 1–10 or (méta) | 12 % des ennemis |
-| Cœur | Soigne 25 % des PV max | 1,5 % des ennemis |
-| Encensoir | Tue tous les ennemis à l’écran | Rare, coffres |
-| Aimant | Attire toutes les gemmes de la carte | Rare |
+| Cœur | Soigne 25 % des PV max | 1,5 % des ennemis, au plus un toutes les 30 s |
+| Encensoir | Tue tous les ennemis à l’écran | Rare, au plus un toutes les 150 s |
+| Aimant | Attire toutes les gemmes de la carte | Rare, au plus un par minute |
 | Coffre | 1 à 5 améliorations + or | Boss toujours ; élites au plus un toutes les 22 s, de l’or sinon |
 
-Les gemmes ont une **durée de vie infinie** mais fusionnent au-delà de 400 gemmes au sol
-(les plus anciennes se combinent en gemmes de valeur supérieure) pour protéger les performances.
+Les gemmes ont une **durée de vie infinie**. Une gemme ordinaire qui tombe à moins de 14 px
+d’une autre s’y fond, et la gemme change de couleur en atteignant la valeur du rang supérieur ;
+au-delà de 400 gemmes au sol, les plus anciennes se combinent aussi, pour protéger les
+performances. Aucune valeur n’est perdue, et chaque gemme fondue compte dans le total ramassé.
+
+Les secours tombent **au rythme de l’horloge, pas des morts** : chaque objet consommable a un
+délai minimal entre deux chutes, et une élite ne lâche une relique qu’au plus toutes les 75 s.
+Sans ce délai, la quatorzième minute faisait tomber 28 cœurs et 12 reliques par minute.
 
 ## 10. Méta-progression – le Sanctuaire
 

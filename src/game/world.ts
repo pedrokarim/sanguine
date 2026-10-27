@@ -12,7 +12,8 @@ import {
 import { enemyById, type EnemyDef, type BossDef } from '../data/enemies';
 import { RELICS, RARITY_WEIGHT, RARITY_LABEL, type RelicDef } from '../data/relics';
 import {
-  DROP_TABLE, hpScale, damageScale, goldRate, GOLD_BUDGET_MAX, MURS_MAX_ENNEMIS, type Rang,
+  DROP_TABLE, DROP_INTERVAL, ELITE_RELIC_INTERVAL, hpScale, damageScale, hordeSpeed, goldRate,
+  GOLD_BUDGET_MAX, MURS_MAX_ENNEMIS, type ConsumableDrop, type Rang,
 } from '../data/waves';
 import type { RunSave } from '../core/save';
 import { Player } from './player';
@@ -60,6 +61,11 @@ const MAX_SPLATS = 500;
 const GEM_MERGE_THRESHOLD = 400;
 /** Écart minimal, en secondes de jeu, entre deux coffres d'élite. Réglé à la mesure. */
 const ELITE_CHEST_INTERVAL = 22;
+
+/** Expérience d'une gemme selon son rang. */
+const GEM_XP = [2, 9, 35, 140] as const;
+/** Écart, en pixels sur chaque axe, sous lequel une nouvelle gemme se fond dans une voisine. */
+const GEM_MERGE_RADIUS = 14;
 /** Distance au-delà de laquelle un ennemi ordinaire est recyclé de l'autre côté. */
 const RECYCLE_DIST = 700;
 
@@ -107,6 +113,12 @@ export class World {
   explainGems = false;
   /** Instant de jeu à partir duquel une élite peut de nouveau lâcher un coffre. */
   nextEliteChestAt = 0;
+  /** Même chose pour une relique. Voir `ELITE_RELIC_INTERVAL`. */
+  private nextEliteRelicAt = 0;
+  /** Instant à partir duquel chaque objet peut de nouveau tomber. Voir `DROP_INTERVAL`. */
+  private readonly nextDropAt: Record<ConsumableDrop, number> = {
+    heart: 0, magnet: 0, censer: 0, bomb: 0, hourglass: 0, scroll: 0,
+  };
   /** Or que les ennemis ordinaires peuvent encore lâcher. Voir `goldRate` */
   goldBudget = 0;
 
@@ -345,8 +357,8 @@ export class World {
     e.hp = e.maxHp;
     e.damage = def.damage * damageScale(m);
     // Ce qui encaisse avance moins vite : sans cela, un colosse serait une punition qu'on
-    // ne peut ni tuer ni distancer.
-    e.speed = def.speed * (e.rang ? e.rang.vitesse : 1);
+    // ne peut ni tuer ni distancer. Les boss gardent leur allure : chacun a la sienne.
+    e.speed = def.speed * (e.rang ? e.rang.vitesse : 1) * (isBoss ? 1 : hordeSpeed(m));
     e.radius = def.radius * (e.rang ? e.rang.taille : (e.elite ? 1.4 : 1));
     e.sprite = this.enemySprite(def);
     e.anim = fxRng.next() * 4;
@@ -471,12 +483,38 @@ export class World {
     p.vy = Math.sin(a) * fxRng.range(0, eject);
     p.value = value;
     p.rank = rank;
+    p.count = 1;
     p.anim = fxRng.next() * 4;
     p.drawn = false;
     p.armTime = kind === 'gem' ? 0 : 0.35;
     p.relicId = relicId;
     p.sprite = this.pickupSprite(kind, rank);
     return p;
+  }
+
+  /**
+   * Pose une gemme, ou la fond dans une gemme déjà posée tout près.
+   *
+   * Une horde qu'on fauche au même endroit tapissait le sol de centaines de gemmes d'une
+   * valeur dérisoire, qui masquaient le reste. Fondues, elles laissent quelques gemmes plus
+   * grosses : l'expérience totale est identique, le sol redevient lisible, et la gemme
+   * change de couleur quand sa valeur atteint celle du rang supérieur.
+   */
+  private spawnGem(x: number, y: number, value: number, rank: number): void {
+    for (const p of this.pickups) {
+      if (!p.active || p.kind !== 'gem' || p.drawn) continue;
+      if (Math.abs(p.x - x) > GEM_MERGE_RADIUS || Math.abs(p.y - y) > GEM_MERGE_RADIUS) continue;
+      p.value += value;
+      p.count++;
+      let merged = p.rank;
+      while (merged < 3 && p.value >= GEM_XP[merged + 1]!) merged++;
+      if (merged !== p.rank) {
+        p.rank = merged;
+        p.sprite = this.pickupSprite('gem', merged);
+      }
+      return;
+    }
+    this.spawnPickup('gem', x, y, value, rank);
   }
 
   // ------------------------------------------------------------------- dégâts
@@ -503,11 +541,15 @@ export class World {
     if (exec > 0 && !e.boss && this.rng.next() < exec) dmg = e.hp;
 
     const final = Math.max(1, Math.round(dmg));
+    // Seul ce qui entame vraiment l'ennemi compte. L'Encensoir frappe à 99 999 pour tout
+    // raser : compté brut, chaque chauve-souris de vingt PV rendait trois mille PV au vol
+    // de vie, et gonflait d'autant le total affiché en fin de partie.
+    const landed = Math.min(final, Math.max(0, e.hp));
     e.hp -= final;
     e.flash = 0.09;
-    pl.damageDealt += final;
+    pl.damageDealt += landed;
 
-    if (pl.stats.lifesteal > 0) pl.heal(final * pl.stats.lifesteal);
+    if (pl.stats.lifesteal > 0) pl.drainLife(landed);
 
     // Chapelet Brisé : étourdissement périodique.
     const stunEvery = pl.flag('stunEvery');
@@ -738,10 +780,12 @@ export class World {
 
     // Gemme d'XP – toujours, sauf pour les scissions déjà comptées.
     const rank = e.boss ? 3 : e.elite ? 2 : e.def.gemRank;
-    const xpValue = [2, 9, 35, 140][rank]!;
+    const xpValue = GEM_XP[rank]!;
     const gems = e.boss ? 14 : e.elite ? 3 : 1;
     for (let i = 0; i < gems; i++) {
-      this.spawnPickup('gem', e.x + r.spread(6), e.y + r.spread(6), xpValue, rank);
+      // La pluie de gemmes d'un boss reste une pluie : seule la menue monnaie se fond.
+      if (rank <= 1) this.spawnGem(e.x + r.spread(6), e.y + r.spread(6), xpValue, rank);
+      else this.spawnPickup('gem', e.x + r.spread(6), e.y + r.spread(6), xpValue, rank);
     }
 
     const D = DROP_TABLE;
@@ -751,12 +795,19 @@ export class World {
       this.dropGold(e.x, e.y, r.int(1, 10), e.boss);
     }
     if (chance(D.goldBag)) this.dropGold(e.x, e.y, r.int(25, 80), e.boss);
-    if (chance(D.heart)) this.spawnPickup('heart', e.x, e.y, 0, 0);
-    if (chance(D.magnet)) this.spawnPickup('magnet', e.x, e.y, 0, 0);
-    if (chance(D.censer)) this.spawnPickup('censer', e.x, e.y, 0, 0);
-    if (chance(D.bomb)) this.spawnPickup('bomb', e.x, e.y, 0, 0);
-    if (chance(D.hourglass)) this.spawnPickup('hourglass', e.x, e.y, 0, 0);
-    if (chance(D.scroll)) this.spawnPickup('scroll', e.x, e.y, 0, 0);
+    // Chaque objet a son délai (`DROP_INTERVAL`) : la chance décide **si** il tombe, le délai
+    // décide **quand** il en a de nouveau le droit.
+    const drop = (kind: ConsumableDrop): void => {
+      if (this.time < this.nextDropAt[kind] || !chance(D[kind])) return;
+      this.nextDropAt[kind] = this.time + DROP_INTERVAL[kind];
+      this.spawnPickup(kind, e.x, e.y, 0, 0);
+    };
+    drop('heart');
+    drop('magnet');
+    drop('censer');
+    drop('bomb');
+    drop('hourglass');
+    drop('scroll');
 
     // Coffres et reliques : élites et boss uniquement.
     if (e.elite || e.boss) {
@@ -782,7 +833,12 @@ export class World {
         // une bourse à chaque fois rapportait 6 000 pièces par minute, mesuré au bot.
         this.dropGold(e.x, e.y, r.int(3, 8), false);
       }
-      if (e.boss || r.chance(0.35 * luck)) this.dropRelic(e.x, e.y);
+      if (e.boss) {
+        this.dropRelic(e.x, e.y);
+      } else if (this.time >= this.nextEliteRelicAt && r.chance(0.35 * luck)) {
+        this.nextEliteRelicAt = this.time + ELITE_RELIC_INTERVAL;
+        this.dropRelic(e.x, e.y);
+      }
     }
   }
 
@@ -1873,10 +1929,13 @@ export class World {
   private mergeGems(excess: number): void {
     let merged = 0;
     let carry = 0;
+    // Gemmes contenues, reportées sur l'hôte : voir `Pickup.count`.
+    let carryCount = 0;
     for (const p of this.pickups) {
       if (merged >= excess) break;
       if (!p.active || p.kind !== 'gem' || p.drawn || p.rank >= 3) continue;
       carry += p.value;
+      carryCount += p.count;
       p.active = false;
       merged++;
       if (carry >= 25) {
@@ -1884,11 +1943,16 @@ export class World {
         if (host) {
           host.vx = 0;
           host.vy = 0;
+          host.count = carryCount;
         }
         carry = 0;
+        carryCount = 0;
       }
     }
-    if (carry > 0) this.spawnPickup('gem', this.player.x + this.rng.spread(40), this.player.y + this.rng.spread(30), carry, 1);
+    if (carry > 0) {
+      const rest = this.spawnPickup('gem', this.player.x + this.rng.spread(40), this.player.y + this.rng.spread(30), carry, 1);
+      if (rest) rest.count = carryCount;
+    }
   }
 
   private collect(p: Pickup): void {
@@ -1897,10 +1961,12 @@ export class World {
 
     switch (p.kind) {
       case 'gem': {
-        this.gemsCollected++;
+        // Une gemme fondue compte pour toutes celles qu'elle contient : Marguerite se
+        // débloque toujours à 3 000 gemmes ramassées, pas à 3 000 ramassages.
+        this.gemsCollected += p.count;
         // Rien ne disait ce qu'est une gemme : un testeur a demandé si elles servaient à
         // quelque chose. La toute première d'une sauvegarde vierge le dit, une fois.
-        if (this.gemsCollected === 1 && this.explainGems) {
+        if (this.gemsCollected === p.count && this.explainGems) {
           this.announce(t('Gemme', 'Gem'), t('de l’expérience : remplissez la barre du haut pour monter de niveau', 'experience: fill the top bar to level up'), 4.5);
         }
         const bonus = 1 + pl.flag('gemBonus');

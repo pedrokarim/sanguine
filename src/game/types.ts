@@ -177,6 +177,8 @@ export interface Pickup {
   value: number;
   /** Rang de gemme 0..3, ou rareté de relique. */
   rank: number;
+  /** Nombre de gemmes fondues dans celle-ci (voir `World.spawnGem`). 1 pour tout le reste. */
+  count: number;
   anim: number;
   /** Le ramassage a commencé : l'objet fonce vers le joueur. */
   drawn: boolean;
@@ -268,7 +270,7 @@ export function makePickup(): Pickup {
   return {
     active: false, kind: 'gem',
     x: 0, y: 0, px: 0, py: 0, vx: 0, vy: 0,
-    value: 1, rank: 0, anim: 0, drawn: false, armTime: 0, relicId: '',
+    value: 1, rank: 0, count: 1, anim: 0, drawn: false, armTime: 0, relicId: '',
     sprite: null as unknown as SpriteSet,
   };
 }
