@@ -10,10 +10,18 @@ import { rgba } from './palette';
  *
  * Deux principes corrigent le défaut à la racine.
  *
- * **La lumière s'additionne.** Tout ce qui brille est dessiné à part, en fusion additive :
- * deux lueurs qui se croisent s'ajoutent et chauffent vers le blanc. La couche est ensuite
- * recopiée sur la scène, puis recopiée encore en version floutée – le halo (*bloom*), qui
- * fait déborder la lumière au-delà de sa forme.
+ * **La lumière se cumule, sans jamais aveugler.** Tout ce qui brille est dessiné à part :
+ * deux lueurs qui se croisent se renforcent et chauffent vers le blanc. La couche est
+ * ensuite recopiée sur la scène, puis recopiée encore en version floutée – le halo
+ * (*bloom*), qui fait déborder la lumière au-delà de sa forme.
+ *
+ * Le cumul n'est pas une simple addition. Additionnées, dix lueurs qui se chevauchent
+ * dépassent 100 % et sont écrêtées en un aplat blanc, que le halo étale ensuite : en fin de
+ * partie, avec des orbes qui tournent dans des cercles qui s'empilent, le personnage
+ * disparaissait dans une boule de lumière. La couche cumule donc en `screen`
+ * (`1 − (1 − a)(1 − b)`), qui approche le blanc sans l'atteindre, puis passe par un
+ * épaulement (voir `FxLayer.composite`) qui plafonne ce qui reste trop chaud. Une lueur
+ * isolée, elle, ressort presque intacte : seul l'empilement est atténué.
  *
  * **Les formes sont peintes une fois.** Un cercle magique, un croissant de faux, un éclair
  * sont dessinés avec soin dans une texture au premier usage – contours doublés, ombre
@@ -44,6 +52,12 @@ export interface FxSettings {
   sigils: number;
   /** Taille des effets ponctuels : coups, éclairs, explosions. */
   scale: number;
+  /**
+   * Épaulement des zones saturées : 0 laisse la couche intacte, 0,5 ramène le blanc pur à
+   * mi-hauteur. Au-delà de 0,5 la courbe redescendrait : un cœur deviendrait plus sombre
+   * que son pourtour.
+   */
+  ceiling: number;
   /** `light` isole la couche de lumière, `flat` la masque : pour voir ce qu'elle apporte. */
   view: FxView;
 }
@@ -55,6 +69,7 @@ export const FX_DEFAULTS: Readonly<FxSettings> = {
   trails: 1,
   sigils: 1,
   scale: 1,
+  ceiling: 0.45,
   view: 'normal',
 };
 
@@ -70,7 +85,17 @@ export const fxStats = { glows: 0, sprites: 0 };
 
 export class FxLayer {
   readonly canvas = document.createElement('canvas');
-  readonly ctx = this.canvas.getContext('2d')!;
+  /**
+   * Couche **opaque**, noire au repos : recopiée en `screen`, le noir ne change rien à la
+   * scène, et le cumul en `screen` à l'intérieur de la couche se calcule sur un fond franc.
+   */
+  readonly ctx = this.canvas.getContext('2d', { alpha: false })!;
+
+  /** Carré de la couche, pour l'épaulement (voir `composite`). */
+  private readonly square = (() => {
+    const canvas = document.createElement('canvas');
+    return { canvas, ctx: canvas.getContext('2d', { alpha: false })! };
+  })();
 
   /** Réductions successives : ½, ¼, ⅛. Réduire d'un seul coup ferait scintiller le halo. */
   private readonly steps = [0, 1, 2].map(() => {
@@ -88,6 +113,8 @@ export class FxLayer {
     if (this.canvas.width !== w || this.canvas.height !== h) {
       this.canvas.width = w;
       this.canvas.height = h;
+      this.square.canvas.width = w;
+      this.square.canvas.height = h;
       let sw = w;
       let sh = h;
       for (const s of this.steps) {
@@ -101,7 +128,9 @@ export class FxLayer {
       this.ctx.globalCompositeOperation = 'source-over';
       this.ctx.clearRect(0, 0, w, h);
     }
-    this.ctx.globalCompositeOperation = 'lighter';
+    // `screen` et non `lighter` : additionnées, les lueurs empilées dépassent 100 % et
+    // s'écrêtent en blanc pur ; en `screen`, chacune ne comble qu'une part de ce qui reste.
+    this.ctx.globalCompositeOperation = 'screen';
     this.ctx.globalAlpha = 1;
     this.ctx.imageSmoothingEnabled = true;
   }
@@ -118,8 +147,26 @@ export class FxLayer {
       target.fillRect(0, 0, w, h);
     }
 
-    // `screen` plutôt que `lighter` pour la recopie : à l'intérieur de la couche les lueurs
-    // s'additionnent franchement, mais posées sur la scène elles saturent en douceur au
+    // Épaulement : chaque canal L devient L − k·L². La pente reste 1 près du noir – une
+    // lueur faible passe telle quelle – et s'aplatit vers le blanc, là où s'empilent les
+    // sorts. Le canvas n'offre pas de soustraction, mais `difference` en tient lieu
+    // (L ≥ L², donc |L − L²| = L − L²) et `globalAlpha` y applique k. Le halo, calculé
+    // ensuite à partir de la couche, en hérite.
+    const k = Math.min(0.5, fxSettings.ceiling);
+    if (k > 0) {
+      const sq = this.square.ctx;
+      sq.globalCompositeOperation = 'copy';
+      sq.drawImage(this.canvas, 0, 0);
+      sq.globalCompositeOperation = 'multiply';
+      sq.drawImage(this.canvas, 0, 0);
+      this.ctx.globalCompositeOperation = 'difference';
+      this.ctx.globalAlpha = k;
+      this.ctx.drawImage(this.square.canvas, 0, 0);
+      this.ctx.globalAlpha = 1;
+      this.ctx.globalCompositeOperation = 'screen';
+    }
+
+    // `screen` aussi pour la recopie : posée sur la scène, la lumière sature en douceur au
     // lieu d'écraser un combat entier sous un aplat blanc.
     target.globalCompositeOperation = 'screen';
     target.globalAlpha = 1;
