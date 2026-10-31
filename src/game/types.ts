@@ -49,14 +49,26 @@ export interface Enemy {
 
   /** Horloge d'animation, en secondes. */
   anim: number;
+  /** Position dans la boucle de marche, de 0 à 1. Elle avance avec le pas, pas avec le temps. */
+  walk: number;
   /** Durée restante du flash blanc de dégâts. */
   flash: number;
   facing: number;
+  /** Délai avant de pouvoir se retourner à nouveau. */
+  faceLock: number;
+  /** Poussée de séparation, lissée d'un pas à l'autre. */
+  sepX: number;
+  sepY: number;
+  /** Direction de contournement retenue, −1 pour aller droit, et délai avant de la revoir. */
+  navDir: number;
+  navHold: number;
   /** Délai avant de pouvoir blesser le joueur à nouveau. */
   touchCd: number;
 
   slow: number;
   stun: number;
+  /** Secondes restantes pour sortir de terre. */
+  rise: number;
   poison: number;
   poisonDps: number;
   /** Marque le dernier projectile ayant touché : évite les coups multiples en perforation. */
@@ -235,8 +247,8 @@ export function makeEnemy(id: number): Enemy {
     def: null as unknown as EnemyDef,
     sprite: null as unknown as SpriteSet,
     boss: false, elite: false, rang: null,
-    anim: 0, flash: 0, facing: 1, touchCd: 0,
-    slow: 0, stun: 0, poison: 0, poisonDps: 0, lastPid: -1,
+    anim: 0, walk: 0, flash: 0, facing: 1, faceLock: 0, sepX: 0, sepY: 0, navDir: -1, navHold: 0, touchCd: 0,
+    slow: 0, stun: 0, rise: 0, poison: 0, poisonDps: 0, lastPid: -1,
     immuneSrc: new Int32Array(IMMUNE_SLOTS).fill(-1),
     immuneUntil: new Float32Array(IMMUNE_SLOTS),
     immuneCursor: 0,

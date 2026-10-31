@@ -31,7 +31,7 @@ export const CHARACTERS: CharacterDef[] = [
     perk: '+10 % de dégâts',
     flaw: '–',
     mods: { might: 0.1 },
-    art: { cloak: '#3f5a3a', cloth: '#8a6a3c', skin: '#e0b088', accent: P.gold, hat: 'hood' },
+    art: { cloak: '#3f5a3a', cloth: '#8a6a3c', skin: '#e0b088', accent: P.gold, hat: 'hood', trait: 'quiver', figure: 'hunter' },
     unlock: null,
   },
   {
@@ -42,7 +42,7 @@ export const CHARACTERS: CharacterDef[] = [
     perk: '+25 % de zone, +40 PV',
     flaw: '−10 % de vitesse',
     mods: { area: 0.25, maxHp: 40, moveSpeed: -0.1 },
-    art: { cloak: '#5a4a6b', cloth: '#d8cfc0', skin: '#d9a880', accent: P.ice, hat: 'hood' },
+    art: { cloak: '#5a4a6b', cloth: '#d8cfc0', skin: '#d9a880', accent: P.ice, hat: 'hood', trait: 'robe', figure: 'monk' },
     unlock: null,
   },
   {
@@ -53,7 +53,7 @@ export const CHARACTERS: CharacterDef[] = [
     perk: '+20 % de vitesse, +1 projectile',
     flaw: '−25 PV max',
     mods: { moveSpeed: 0.2, amount: 1, maxHp: -25 },
-    art: { cloak: '#6b4a2a', cloth: '#4a5c3a', skin: '#c99060', accent: P.poison, hat: 'wide' },
+    art: { cloak: '#6b4a2a', cloth: '#4a5c3a', skin: '#c99060', accent: P.poison, hat: 'wide', figure: 'poacher' },
     unlock: { kind: 'time', value: 600, label: t('Survivre 10 minutes', 'Survive for 10 minutes') },
   },
   {
@@ -64,7 +64,7 @@ export const CHARACTERS: CharacterDef[] = [
     perk: '+60 % de ramassage, +20 % de chance',
     flaw: '−10 % de dégâts',
     mods: { pickup: 0.6, luck: 0.2, might: -0.1 },
-    art: { cloak: '#3a4a6b', cloth: '#c0b8a8', skin: '#e8c0a0', accent: P.xp1, hat: 'veil' },
+    art: { cloak: '#3a4a6b', cloth: '#c0b8a8', skin: '#e8c0a0', accent: P.xp1, hat: 'veil', figure: 'witch' },
     unlock: { kind: 'gems', value: 3000, label: t('Ramasser 3 000 gemmes', 'Collect 3,000 gems') },
   },
   {
@@ -75,7 +75,7 @@ export const CHARACTERS: CharacterDef[] = [
     perk: '−20 % de recharge, +10 % de critique',
     flaw: '−30 PV max',
     mods: { cooldown: 0.2, crit: 0.1, maxHp: -30 },
-    art: { cloak: '#1e1e2c', cloth: '#3a3a4e', skin: '#c8b8b0', accent: P.steel, hat: 'hood' },
+    art: { cloak: '#1e1e2c', cloth: '#3a3a4e', skin: '#c8b8b0', accent: P.steel, hat: 'hood', trait: 'scarf', figure: 'nun' },
     unlock: { kind: 'kills', value: 5000, label: t('Terrasser 5 000 ennemis', 'Slay 5,000 enemies') },
   },
   {
@@ -86,7 +86,7 @@ export const CHARACTERS: CharacterDef[] = [
     perk: '+30 % de dégâts, 3 % de vol de vie',
     flaw: 'Aucune régénération, −40 PV',
     mods: { might: 0.3, lifesteal: 0.03, maxHp: -40 },
-    art: { cloak: '#4a0e1c', cloth: '#1a1a24', skin: '#d8d0d8', accent: P.bloodHi, hat: 'crown' },
+    art: { cloak: '#4a0e1c', cloth: '#1a1a24', skin: '#d8d0d8', accent: P.bloodHi, hat: 'crown', figure: 'count' },
     unlock: { kind: 'win', value: 1, label: t('Remporter une partie', 'Win a run') },
   },
 ];

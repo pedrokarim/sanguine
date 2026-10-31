@@ -3,8 +3,8 @@ import { locale, setLanguage, t } from '../i18n';
 import { load, save, update, wipe, type SaveData, type RunSave } from '../core/save';
 import { audio } from '../audio/audio';
 import {
-  makeHero, makeIcon, makeProjectile, makeBody, makeRelic, makeGem, makeCoin, makeHeart,
-  makeChest, makeItem, makePassiveSprite, spriteSheet,
+  makeHero, makeIcon, makeBody, makeGem, makeCoin, makeHeart,
+  makeChest, makeItem, spriteSheet,
   type Sheet, type SpriteSet,
 } from '../gfx/sprites';
 import { CHARACTERS, characterById, type CharacterDef } from '../data/characters';
@@ -14,6 +14,7 @@ import { WEAPONS } from '../data/weapons';
 import { PASSIVE_BY_ID, passiveById } from '../data/passives';
 import { ENEMIES, BOSSES, enemyById, type EnemyAI } from '../data/enemies';
 import type { Rarity } from '../gfx/palette';
+import { LIVING_LOOP, livingSkillSet, relicChipArt, skillIconSet } from '../gfx/skillicons';
 import { iconFor, type Offer, type ChestResult } from '../game/upgrades';
 import type { Player } from '../game/player';
 import { BloodLogo, BLOOD, DAWN } from './logo';
@@ -21,13 +22,16 @@ import { iconValue } from './icons';
 import { isTouch } from './mobile';
 import { frameUrl } from './decor';
 import { FxLayer } from '../gfx/fx';
-import { Particles } from '../gfx/particles';
 import type { Camera } from '../gfx/camera';
-import { drawAura, drawAmbience, emitTrail } from '../gfx/cosmeticfx';
+import { drawAmbience } from '../gfx/cosmeticfx';
+import { Vfx } from '../gfx/vfx';
 import {
   FRAGMENTS, CYCLES, EPILOGUE, TOTAL, TYPE_LABEL, roman,
   type FragmentDef,
 } from '../data/fragments';
+
+/** Même requête que la réduction des cartes dans `style.css`. */
+const COMPACT_CARDS = '(max-height: 460px) and (pointer: coarse)';
 import { makeFragment } from '../gfx/sprites';
 import {
   SKINS, TRAILS, THEMES, CURSORS, KIND_LABEL,
@@ -95,7 +99,6 @@ export interface RunSummary {
  * calculée : un écran-titre dont le copyright change tout seul au 1er janvier est un
  * détail qui trahit le bricolage.
  */
-const P_GOLD = '#f2c46b';
 
 const YEAR = 2026;
 const VERSION = '1.0.0';
@@ -103,6 +106,8 @@ const VERSION = '1.0.0';
 type Cleanup = () => void;
 
 /** Taille logique d'un aperçu de boutique, agrandie trois fois à l'écran. */
+/** Côté de l'icône d'un héros : la hauteur de son sprite, pour ne jamais le réduire. */
+const HERO_ICON = 40;
 const PREVIEW_W = 64;
 const PREVIEW_H = 42;
 
@@ -371,7 +376,7 @@ export class Screens {
       ]));
       el.appendChild(this.statCorner('br', [
         ['wins', makeChest(), String(sv.stats.wins), t('victoires', 'victories')],
-        ['relics', makeRelic('epic'), `${sv.seenRelics.length}/24`, t('reliques', 'relics')],
+        ['relics', skillIconSet('relic', 'fracturedorb'), `${sv.seenRelics.length}/24`, t('reliques', 'relics')],
       ]));
     } else {
       const stats = document.createElement('div');
@@ -445,10 +450,11 @@ export class Screens {
       const card = document.createElement('div');
       card.className = `pick${unlocked ? '' : ' locked'}`;
 
-      const icon = makeIcon(makeHero(`hero:${c.id}`, c.art, false), 24);
+      // À sa taille exacte : réduit à une petite icône, le héros perdait son dessin.
+      const icon = makeIcon(makeHero(`hero:${c.id}`, c.art, false), HERO_ICON);
       const big = document.createElement('canvas');
-      big.width = 24;
-      big.height = 24;
+      big.width = HERO_ICON;
+      big.height = HERO_ICON;
       big.getContext('2d')!.drawImage(icon, 0, 0);
       card.appendChild(big);
 
@@ -635,17 +641,17 @@ export class Screens {
         d.appendChild(this.spriteBlock(spriteSheet(cle, set, this.fitScale(set, 34, 34)), vu, 1));
         return d;
       };
-      ligne.appendChild(bloc(makeProjectile(w.sprite, w.color), connue, `prog:w:${w.id}`));
+      ligne.appendChild(bloc(skillIconSet('weapon', w.id), connue, `prog:w:${w.id}`));
       const plus = document.createElement('span');
       plus.className = 'prog-op';
       plus.textContent = '+';
       ligne.appendChild(plus);
-      ligne.appendChild(bloc(makePassiveSprite(pas.icon, pas.color ?? '#f2c46b'), connue, `prog:p:${pas.id}`));
+      ligne.appendChild(bloc(skillIconSet('passive', pas.id), connue, `prog:p:${pas.id}`));
       const fleche = document.createElement('span');
       fleche.className = 'prog-op fleche';
       fleche.textContent = '→';
       ligne.appendChild(fleche);
-      ligne.appendChild(bloc(makeProjectile(evo.sprite, evo.color), faite, `prog:e:${evo.id}`));
+      ligne.appendChild(bloc(skillIconSet('weapon', evo.id), faite, `prog:e:${evo.id}`));
 
       const nom = document.createElement('div');
       nom.className = 'prog-nom';
@@ -683,11 +689,7 @@ export class Screens {
       const card = document.createElement('div');
       card.className = `card${o.isNew ? ' is-new' : ''}`;
 
-      const cv = document.createElement('canvas');
-      cv.width = 20;
-      cv.height = 20;
-      cv.getContext('2d')!.drawImage(o.icon, 0, 0);
-      card.appendChild(cv);
+      card.appendChild(this.offerArt(o));
 
       const kind = document.createElement('div');
       kind.className = 'kind';
@@ -756,11 +758,7 @@ export class Screens {
       card.className = 'card';
       card.style.width = '11em';
       card.style.minHeight = '9em';
-      const cv = document.createElement('canvas');
-      cv.width = 20;
-      cv.height = 20;
-      cv.getContext('2d')!.drawImage(o.icon, 0, 0);
-      card.appendChild(cv);
+      card.appendChild(this.offerArt(o));
       const name = document.createElement('div');
       name.className = 'name';
       name.textContent = o.name;
@@ -1111,9 +1109,9 @@ export class Screens {
     const groundY = PREVIEW_H - 12;
 
     const drawHero = (set: SpriteSet, x: number, time: number, flip: boolean): void => {
-      const f = set.frames[Math.floor(time * 6) % set.frames.length]!;
+      const f = set.frames[Math.floor(time * 12) % set.frames.length]!;
       const dx = Math.round(x - f.width / 2);
-      const dy = Math.round(groundY - f.height / 2 - 2);
+      const dy = Math.round(groundY + 10 - f.height);
       if (flip) {
         ctx.setTransform(-1, 0, 0, 1, 0, 0);
         ctx.drawImage(f, -dx - f.width, dy);
@@ -1126,10 +1124,11 @@ export class Screens {
     if (item.kind === 'skin') {
       const c = characterById(item.charId ?? 'ysolde');
       const set = makeHero(`shop:${item.id}`, { ...c.art, ...(item.art ?? {}) }, false);
+      const vfx = new Vfx();
       this.previews.push((time) => {
         ctx.clearRect(0, 0, PREVIEW_W, PREVIEW_H);
         fx.begin(PREVIEW_W, PREVIEW_H);
-        if (item.aura) drawAura(fx.ctx, item.aura, PREVIEW_W / 2, groundY + 7, time);
+        if (item.aura) vfx.drawHeroAura(ctx, fx.ctx, item.aura, PREVIEW_W / 2, groundY + 7, time);
         drawHero(set, PREVIEW_W / 2, time * 0.5, false);
         fx.composite(ctx);
       });
@@ -1138,23 +1137,23 @@ export class Screens {
 
     if (item.kind === 'trail') {
       const set = makeHero('shop:walker', characterById('ysolde').art, true);
-      const particles = new Particles();
+      const vfx = new Vfx();
       const cam = { offsetX: 0, offsetY: 0, viewW: PREVIEW_W, viewH: PREVIEW_H } as unknown as Camera;
       let emit = 0;
-      let tick = 0;
       this.previews.push((time, dt) => {
         // Aller-retour : le personnage traverse la vignette, et la traînée a le temps de vivre.
         const x = PREVIEW_W / 2 + Math.sin(time * 1.1) * (PREVIEW_W / 2 - 12);
         const goingLeft = Math.cos(time * 1.1) < 0;
         emit -= dt;
         if (item.trail && item.color && emit <= 0) {
-          emit = 0.05;
-          emitTrail(particles, item.trail, item.color, x, groundY + 6, tick++);
+          emit = 0.16;
+          vfx.trail(item.trail, item.color, x, groundY + 6);
         }
-        particles.update(dt);
+        vfx.update(dt);
         ctx.clearRect(0, 0, PREVIEW_W, PREVIEW_H);
         fx.begin(PREVIEW_W, PREVIEW_H);
-        particles.render(ctx, cam, fx.ctx);
+        vfx.renderBack(ctx, cam, 1);
+        vfx.renderFront(ctx, fx.ctx, cam, 1, 1);
         drawHero(set, x, time, goingLeft);
         fx.composite(ctx);
       });
@@ -1201,17 +1200,17 @@ export class Screens {
       // Chaque amélioration reçoit l'icône du passif ou de l'objet qu'elle prolonge : le
       // Sanctuaire parle alors le même vocabulaire visuel que le reste du jeu.
       const ICONS: Record<string, () => SpriteSet> = {
-        power: () => makePassiveSprite('gem', P_GOLD),
+        power: () => skillIconSet('passive', 'reliquary'),
         vitality: () => makeHeart(),
-        celerity: () => makePassiveSprite('boot', '#c96f2a'),
-        armor: () => makePassiveSprite('shield', '#232b40'),
-        regen: () => makePassiveSprite('cup', '#c42639'),
-        magnetism: () => makePassiveSprite('magnet', '#4ea9e8'),
+        celerity: () => skillIconSet('passive', 'boots'),
+        armor: () => skillIconSet('passive', 'talisman'),
+        regen: () => skillIconSet('passive', 'chalice'),
+        magnetism: () => skillIconSet('passive', 'magnet'),
         greed: () => makeCoin(),
         growth: () => makeGem(1),
-        fortune: () => makePassiveSprite('clover', '#8ef07a'),
+        fortune: () => skillIconSet('passive', 'clover'),
         reroll: () => makeItem('scroll'),
-        revive: () => makeRelic('epic'),
+        revive: () => skillIconSet('relic', 'lastbreath'),
       };
 
       for (const up of META_UPGRADES) {
@@ -1308,6 +1307,23 @@ export class Screens {
    * sprites animés simultanément sans qu'une seule ligne de JavaScript ne tourne – là où une
    * boucle d'animation par vignette coûterait cher pour un écran purement contemplatif.
    */
+  /** L'objet d'une carte : vivant s'il a son dessin, l'icône simple pour le reste. */
+  private offerArt(o: Offer): HTMLElement {
+    const kind = o.kind === 'weapon-up' || o.kind === 'weapon-new' ? 'weapon' : o.kind === 'passive-up' || o.kind === 'passive-new' ? 'passive' : null;
+    if (!kind) {
+      const cv = document.createElement('canvas');
+      cv.width = o.icon.width;
+      cv.height = o.icon.height;
+      cv.getContext('2d')!.drawImage(o.icon, 0, 0);
+      return cv;
+    }
+    const box = document.createElement('div');
+    box.className = 'card-art';
+    const scale = matchMedia(COMPACT_CARDS).matches ? 2 : 3;
+    box.appendChild(this.spriteBlock(spriteSheet(`card:${kind}:${o.id}`, livingSkillSet(kind, o.id), scale), true, LIVING_LOOP));
+    return box;
+  }
+
   private spriteBlock(sheet: Sheet, discovered: boolean, speed = 0.6): HTMLDivElement {
     const el = document.createElement('div');
     el.className = `codex-sprite${discovered ? '' : ' unknown'}`;
@@ -1403,7 +1419,7 @@ export class Screens {
     for (const def of base) {
       const seen = sv.seenWeapons.includes(def.id);
       gWeapons.appendChild(this.codexCell(
-        sheetOf(`codex:w:${def.id}`, makeProjectile(def.sprite, def.color)),
+        sheetOf(`codex:w:${def.id}`, skillIconSet('weapon', def.id)),
         seen, def.name, def.desc, t(`${def.damage} dégâts · ${def.cooldown} s`, `${def.damage} damage · ${def.cooldown} s`), 'var(--mist)',
       ));
     }
@@ -1416,7 +1432,7 @@ export class Screens {
         ? `${from.name} + ${from.requires ? PASSIVE_BY_ID.get(from.requires)?.name ?? '' : ''}`
         : t('Évolution', 'Evolution');
       gEvos.appendChild(this.codexCell(
-        sheetOf(`codex:w:${def.id}`, makeProjectile(def.sprite, def.color)),
+        sheetOf(`codex:w:${def.id}`, skillIconSet('weapon', def.id)),
         seen, def.name, def.desc, recipe, 'var(--rar-epic)',
       ));
     }
@@ -1442,7 +1458,7 @@ export class Screens {
     for (const r of RELICS) {
       const seen = sv.seenRelics.includes(r.id);
       gRelics.appendChild(this.codexCell(
-        sheetOf(`codex:r:${r.rarity}`, makeRelic(r.rarity)),
+        sheetOf(`codex:r:${r.id}`, skillIconSet('relic', r.id)),
         seen, r.name, r.desc, RARITY_LABEL[r.rarity], `var(--rar-${RARITY_CSS[r.rarity]})`, 1.1,
         seen ? MONTURE[r.rarity] : undefined,
       ));
@@ -1697,7 +1713,7 @@ export class Screens {
       if (!def) continue;
       const chip = document.createElement('div');
       chip.className = `relic-chip ${def.rarity}`;
-      chip.textContent = def.name.charAt(0).toUpperCase();
+      chip.appendChild(relicChipArt(id));
       relics.appendChild(row(chip, def.name, RARITY_LABEL[def.rarity], def.desc));
     }
     return box;
@@ -1733,9 +1749,9 @@ export class Screens {
       ['t', makeItem('hourglass'), formatTime(sum.time), t('Temps', 'Time')],
       ['lv', makeGem(3), String(sum.level), t('Niveau', 'Level')],
       ['k', makeBody('enemy:ghoul', enemyById('ghoul').art), abbrev(sum.kills), t('Abattus', 'Slain')],
-      ['d', makeProjectile('stake', '#f7ede0'), abbrev(sum.damage), t('Dégâts', 'Damage')],
+      ['d', skillIconSet('weapon', 'scythe'), abbrev(sum.damage), t('Dégâts', 'Damage')],
       ['g', makeGem(1), abbrev(sum.gems), t('Gemmes', 'Gems')],
-      ['r', makeRelic('epic'), String(sum.relics), t('Reliques', 'Relics')],
+      ['r', skillIconSet('relic', 'fracturedorb'), String(sum.relics), t('Reliques', 'Relics')],
       ['o', makeCoin(), abbrev(sum.gold), t('Or', 'Gold')],
     ]));
 

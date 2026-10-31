@@ -193,6 +193,27 @@ export class Minimap {
       ctx.fillRect(x | 0, y | 0, 1, 1);
     }
 
+    // --- lieux : leur emprise, en aplat, pour qu'un château ait sa taille sur la carte ---
+    for (const s of w.terrain.sites.near(pl.x, pl.y, WORLD_RADIUS)) {
+      if (s.name === '') continue;
+      const b = s.bounds;
+      ctx.fillStyle = s.kind === 'castle' ? 'rgba(196,38,57,0.2)' : s.kind === 'cemetery' ? 'rgba(90,220,150,0.18)' : s.kind === 'priory' ? 'rgba(242,196,107,0.18)' : 'rgba(168,154,139,0.18)';
+      ctx.fillRect(px(b.x), py(b.y), b.w * SCALE, b.h * SCALE);
+    }
+
+    // --- quête : le but, au bord de la carte s'il est plus loin qu'elle ---
+    const quest = w.quests.target;
+    if (quest) {
+      const x = clamp(px(quest.x), 3, SIZE - 3);
+      const y = clamp(py(quest.y), 3, SIZE - 3);
+      ctx.fillStyle = '#05060a';
+      ctx.fillRect((x | 0) - 2, (y | 0) - 2, 4, 4);
+      ctx.fillStyle = P.gold;
+      ctx.globalAlpha = 0.65 + Math.sin(this.pulse * 5) * 0.35;
+      ctx.fillRect((x | 0) - 1, (y | 0) - 1, 2, 2);
+      ctx.globalAlpha = 1;
+    }
+
     // --- boss : impossible à manquer ---
     for (const b of w.bossGroup) {
       if (!b.active || b.dying > 0) continue;

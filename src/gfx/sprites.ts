@@ -1,7 +1,15 @@
 import { Rng } from '../core/rng';
 import { TAU, PI } from '../core/math';
-import { P, RARITY_COLOR, shade, mix, type Rarity } from './palette';
+import { P, shade, mix } from './palette';
+import { COIN_ART, FRAGMENT_ART, GEM_ART, LOOT_ART } from './lootart';
+import { floatingFrames, spinningFrames } from './skillicons';
 import { Pix, toCanvas, tint, silhouette } from './pix';
+import { clearFrame, composite, createFrame, createFx, effects } from '../../vendor/pixelfx/src/sanguine.js';
+import type { CritterId } from '../../vendor/pixelfx/src/sanguine.js';
+import { heroFrames } from './hero';
+import type { HeroFigure } from './herofigures';
+import { PLAN_GAITS, PLANS as SCULPTED } from './bodies';
+import { polish, Sculpt } from './sculpt';
 
 /**
  * Générateur de sprites procéduraux.
@@ -20,11 +28,44 @@ export interface SpriteSet {
   elite: HTMLCanvasElement[];
   w: number;
   h: number;
+  /** Allure d'une créature. Absente sur ce qui n'est pas un corps. */
+  gait?: Gait;
+}
+
+/** Ce qui relie une boucle d'animation au déplacement réel de la créature. */
+export interface Gait {
+  /** Pixels de sol couverts par une boucle. À 0, la boucle suit le temps : ce corps ne pose rien. */
+  stride: number;
+  /** Durée d'une boucle au temps, en secondes. */
+  period: number;
+  /** Boucle calée sur l'alternance élan et pause de l'IA, pas sur la distance. */
+  leap: boolean;
+  /** Avance ou retard du corps sur sa position réelle, en pixels, le long de la boucle. */
+  surge: readonly number[];
+  /** Distance du centre du sprite au sol, et largeur de l'ombre. Absentes pour ce qui vole. */
+  feet?: number;
+  shadow?: number;
+  /** Marge vide autour du corps dans chaque image : cerne et barre de vie s'y calent sans elle. */
+  margin: number;
+}
+
+/** Position de dessin le long de la boucle : la table se parcourt sans à-coup entre ses points. */
+export function surgeAt(g: Gait, phase: number): number {
+  const n = g.surge.length;
+  if (n === 0) return 0;
+  const p = phase * n, i = Math.floor(p);
+  const a = g.surge[i % n]!, b = g.surge[(i + 1) % n]!;
+  return a + (b - a) * (p - i);
 }
 
 export interface BodyArt {
-  plan: 'humanoid' | 'beast' | 'flying' | 'spider' | 'blob' | 'ghost' | 'rider' | 'armored'
-    | 'objet';
+  plan: 'humanoid' | 'beast' | 'spider' | 'blob' | 'rider' | 'armored' | 'objet' | 'skeleton'
+    | 'zombie' | 'knight' | 'choir' | 'lord' | 'reaper' | 'colossus' | 'worm' | 'bellman'
+    | 'critter';
+  /** Passe au-dessus du décor : les ruines ne l'arrêtent pas. */
+  flies?: boolean;
+  /** Créature de la bibliothèque pixelfx, retexturée. Remplace le plan si elle est présente. */
+  critter?: { id: CritterId; zoom: number; options?: Record<string, unknown> };
   /** Forme précise, pour le plan `objet`. Les plans corporels l'ignorent. */
   forme?: 'brasero' | 'jarre' | 'reliquaire' | 'sarcophage';
   w: number;
@@ -36,323 +77,26 @@ export interface BodyArt {
   horns?: boolean;
   tail?: boolean;
   crown?: boolean;
+  /** Images de la boucle, pour ce qui n'a pas d'allure propre (voir `PLAN_GAITS`). */
   frames?: number;
 }
 
 const cache = new Map<string, SpriteSet>();
 
 function build(pixFrames: Pix[], colors: readonly string[]): SpriteSet {
-  const frames = pixFrames.map((p) => toCanvas(p, colors));
+  return setOf(pixFrames.map((p) => polish(toCanvas(p, colors))));
+}
+
+function setOf(frames: HTMLCanvasElement[]): SpriteSet {
   return {
     frames,
-    flash: frames.map((f) => tint(f, '#ffffff', 0.85)),
+    // Un grand corps tout blanc masquerait la scène : il blanchit moins fort qu'un petit.
+    flash: frames.map((f) => tint(f, '#ffffff', f.width > 44 ? 0.32 : 0.85)),
     elite: frames.map((f) => tint(f, P.bloodHi, 0.42)),
     w: frames[0]!.width,
     h: frames[0]!.height,
   };
 }
-
-/**
- * Palette d'une créature.
- *
- * Les six premières teintes sont celles d'origine, et les plans corporels continuent de s'y
- * référer par leurs indices — c'est ce qui permet d'enrichir l'ombrage sans réécrire les
- * huit plans. Les trois dernières ne sont posées par aucun plan : ce sont les passes
- * d'éclairage de `makeBody` qui les appliquent.
- *
- * Toutes sont dérivées des trois couleurs de la créature. Une créature reste donc définie
- * par trois teintes dans `data/enemies.ts`, ce qui garde la table lisible.
- */
-function paletteOf(a: BodyArt): string[] {
-  return [
-    shade(a.cols[0], -0.55), // 0 contour
-    a.cols[0],               // 1 corps, ombre
-    a.cols[1],               // 2 corps
-    a.cols[2],               // 3 corps, lumière
-    a.eye,                   // 4 œil
-    a.accent ?? a.eye,       // 5 accent
-    shade(a.cols[1], 0.22),  // 6 rasante — bord opposé à la lumière
-    shade(a.cols[0], -0.4),  // 7 occlusion — sous un rebord
-    shade(a.cols[0], -0.42), // 8 contour du côté éclairé
-  ];
-}
-
-// ---------------------------------------------------------------------------
-// Plans corporels
-// ---------------------------------------------------------------------------
-
-function humanoid(p: Pix, a: BodyArt, t: number): void {
-  const cx = p.w / 2 - 0.5;
-  const h = p.h;
-  const swing = Math.sin(t * TAU);
-  const bob = Math.abs(Math.cos(t * TAU)) * 0.7;
-  const hipY = h * 0.66 - bob;
-  const shY = h * 0.40 - bob;
-  const headR = p.w * 0.3;
-  const headCy = h * 0.2 - bob;
-
-  // Jambes – la phase opposée des deux jambes crée la marche.
-  p.limb(cx - 1.3, hipY, cx - 1.3 + swing * 1.9, h - 1.5, 2, 1);
-  p.limb(cx + 1.3, hipY, cx + 1.3 - swing * 1.9, h - 1.5, 2, 1);
-  // Bras – balancés à contretemps des jambes.
-  p.limb(cx - p.w * 0.26, shY, cx - p.w * 0.32 - swing * 1.3, shY + h * 0.3, 2, 1);
-  p.limb(cx + p.w * 0.26, shY, cx + p.w * 0.32 + swing * 1.3, shY + h * 0.3, 2, 1);
-  // Torse
-  p.ellipse(cx, (shY + hipY) / 2, p.w * 0.27, (hipY - shY) / 2 + 1.2, 2);
-  // Tête
-  p.ellipse(cx, headCy, headR, headR * 0.98, 2);
-
-  if (a.horns) {
-    p.line(cx - headR * 0.8, headCy - headR * 0.5, cx - headR * 1.5, headCy - headR * 1.6, 3);
-    p.line(cx + headR * 0.8, headCy - headR * 0.5, cx + headR * 1.5, headCy - headR * 1.6, 3);
-  }
-
-  p.shadeVertical(2, 3, 1);
-  p.set(cx - headR * 0.45, headCy + 0.2, 4);
-  p.set(cx + headR * 0.45, headCy + 0.2, 4);
-}
-
-function armored(p: Pix, a: BodyArt, t: number): void {
-  humanoid(p, a, t);
-  const cx = p.w / 2 - 0.5;
-  const bob = Math.abs(Math.cos(t * TAU)) * 0.7;
-  const headCy = p.h * 0.2 - bob;
-  const headR = p.w * 0.3;
-  // Heaume : bandeau sombre à hauteur des yeux, avec une fente lumineuse.
-  p.rect(cx - headR, headCy - headR * 0.9, headR * 2 + 1, headR * 1.1, 1);
-  p.set(cx - headR * 0.5, headCy + 0.2, 5);
-  p.set(cx + headR * 0.5, headCy + 0.2, 5);
-  // Spallières
-  p.ellipse(cx - p.w * 0.32, p.h * 0.4 - bob, 1.8, 1.4, 3);
-  p.ellipse(cx + p.w * 0.32, p.h * 0.4 - bob, 1.8, 1.4, 3);
-}
-
-function beast(p: Pix, a: BodyArt, t: number): void {
-  // Orienté vers la droite ; le rendu retourne le sprite selon la direction.
-  const w = p.w;
-  const h = p.h;
-  const step = Math.sin(t * TAU);
-  const bodyCy = h * 0.5;
-
-  if (a.tail !== false) p.limb(w * 0.14, bodyCy, w * 0.02, bodyCy - h * 0.22 - step, 1.6, 1);
-
-  // Pattes : avant et arrière en opposition de phase.
-  p.limb(w * 0.28, bodyCy + h * 0.1, w * 0.28 + step * 2, h - 1, 1.8, 1);
-  p.limb(w * 0.66, bodyCy + h * 0.1, w * 0.66 - step * 2, h - 1, 1.8, 1);
-  p.limb(w * 0.38, bodyCy + h * 0.1, w * 0.38 - step * 1.6, h - 1, 1.6, 1);
-  p.limb(w * 0.76, bodyCy + h * 0.1, w * 0.76 + step * 1.6, h - 1, 1.6, 1);
-
-  p.ellipse(w * 0.48, bodyCy, w * 0.34, h * 0.24, 2); // corps
-  p.ellipse(w * 0.76, bodyCy - h * 0.14, w * 0.19, h * 0.19, 2); // tête
-  p.ellipse(w * 0.92, bodyCy - h * 0.08, w * 0.1, h * 0.1, 2); // museau
-
-  if (a.horns) {
-    p.line(w * 0.7, bodyCy - h * 0.3, w * 0.62, bodyCy - h * 0.52, 3);
-    p.line(w * 0.84, bodyCy - h * 0.3, w * 0.9, bodyCy - h * 0.52, 3);
-  }
-  p.shadeVertical(2, 3, 1);
-  p.set(w * 0.82, bodyCy - h * 0.16, 4);
-}
-
-function flying(p: Pix, a: BodyArt, t: number): void {
-  const cx = p.w / 2 - 0.5;
-  const cy = p.h * 0.5;
-  const flap = Math.sin(t * TAU); // -1 = ailes basses, +1 = ailes hautes
-  const tipY = cy - flap * p.h * 0.3;
-  const midY = cy - flap * p.h * 0.12;
-
-  // Ailes membraneuses : deux segments par aile pour suggérer l'articulation.
-  for (const s of [-1, 1]) {
-    p.limb(cx + s * 1.2, cy, cx + s * p.w * 0.26, midY, 1.6, 1);
-    p.limb(cx + s * p.w * 0.26, midY, cx + s * p.w * 0.5, tipY, 1.4, 1);
-    p.line(cx + s * p.w * 0.26, midY, cx + s * p.w * 0.44, tipY + 2, 1);
-    p.line(cx + s * 1.2, cy + 1, cx + s * p.w * 0.42, tipY + 2.5, 1);
-  }
-  p.ellipse(cx, cy, p.w * 0.15, p.h * 0.26, 2); // corps
-  p.ellipse(cx, cy - p.h * 0.2, p.w * 0.13, p.h * 0.15, 2); // tête
-  if (a.horns) {
-    p.set(cx - 1, cy - p.h * 0.34, 3);
-    p.set(cx + 1, cy - p.h * 0.34, 3);
-  }
-  p.shadeVertical(2, 3, 1);
-  p.set(cx - 1, cy - p.h * 0.2, 4);
-  p.set(cx + 1, cy - p.h * 0.2, 4);
-}
-
-function spider(p: Pix, a: BodyArt, t: number): void {
-  const cx = p.w / 2 - 0.5;
-  const cy = p.h * 0.52;
-  for (let i = 0; i < 4; i++) {
-    const ph = Math.sin(t * TAU + i * 1.4);
-    const ay = cy - p.h * 0.16 + i * (p.h * 0.13);
-    const reach = p.w * (0.38 + i * 0.03);
-    for (const s of [-1, 1]) {
-      const kneeX = cx + s * reach * 0.6;
-      const kneeY = ay - 1.6 - ph * 1.2;
-      p.limb(cx + s * 1.5, ay, kneeX, kneeY, 1.2, 1);
-      p.limb(kneeX, kneeY, cx + s * reach, ay + 2.2 + ph * 0.8, 1.2, 1);
-    }
-  }
-  p.ellipse(cx, cy + p.h * 0.08, p.w * 0.22, p.h * 0.24, 2); // abdomen
-  p.ellipse(cx, cy - p.h * 0.16, p.w * 0.16, p.h * 0.14, 2); // céphalothorax
-  p.shadeVertical(2, 3, 1);
-  p.set(cx - 1, cy - p.h * 0.18, 4);
-  p.set(cx + 1, cy - p.h * 0.18, 4);
-  if (a.accent) {
-    p.set(cx, cy + p.h * 0.1, 5);
-    p.set(cx, cy + p.h * 0.2, 5);
-  }
-}
-
-function blob(p: Pix, a: BodyArt, t: number): void {
-  const cx = p.w / 2 - 0.5;
-  const wob = Math.sin(t * TAU);
-  const cy = p.h * 0.56 - Math.abs(wob) * 0.8;
-  const rx = p.w * 0.4 * (1 + wob * 0.05);
-  const ry = p.h * 0.42 * (1 - wob * 0.05);
-
-  p.limb(cx - rx * 0.85, cy, cx - rx * 1.25, cy + ry * 0.85 + wob, 2.4, 1);
-  p.limb(cx + rx * 0.85, cy, cx + rx * 1.25, cy + ry * 0.85 - wob, 2.4, 1);
-  p.ellipse(cx, cy, rx, ry, 2);
-  // Boursouflures asymétriques : sans elles, la masse ressemble à une simple ellipse.
-  p.ellipse(cx - rx * 0.4, cy - ry * 0.3, rx * 0.3, ry * 0.28, 3);
-  p.ellipse(cx + rx * 0.45, cy + ry * 0.2, rx * 0.26, ry * 0.24, 1);
-  p.shadeVertical(2, 3, 1);
-  p.set(cx - rx * 0.35, cy - ry * 0.35, 4);
-  p.set(cx + rx * 0.3, cy - ry * 0.2, 4);
-  if (a.horns) {
-    p.line(cx - rx * 0.6, cy - ry, cx - rx * 0.9, cy - ry * 1.5, 3);
-    p.line(cx + rx * 0.6, cy - ry, cx + rx * 0.9, cy - ry * 1.5, 3);
-  }
-}
-
-function ghost(p: Pix, a: BodyArt, t: number): void {
-  const cx = p.w / 2 - 0.5;
-  const float = Math.sin(t * TAU) * 0.9;
-  const top = p.h * 0.16 + float;
-  const rx = p.w * 0.34;
-
-  p.ellipse(cx, top + rx, rx, rx * 1.05, 2);
-  // Corps qui s'effiloche : chaque colonne descend d'une hauteur ondulée.
-  for (let x = -Math.ceil(rx); x <= Math.ceil(rx); x++) {
-    const nx = x / rx;
-    if (Math.abs(nx) > 1) continue;
-    const bottom = p.h - 1.5 - Math.abs(Math.sin(x * 0.9 + t * TAU)) * 2.2 - Math.abs(nx) * 2;
-    for (let y = top + rx; y <= bottom; y++) {
-      const halfW = rx * Math.sqrt(Math.max(0, 1 - Math.pow((y - top - rx) / (p.h * 0.7), 2) * 0.35));
-      if (Math.abs(x) <= halfW) p.set(cx + x, y, 2);
-    }
-  }
-  p.shadeVertical(2, 3, 1);
-  p.set(cx - rx * 0.4, top + rx, 4);
-  p.set(cx + rx * 0.4, top + rx, 4);
-  if (a.accent) p.set(cx, top + rx + 2, 5);
-}
-
-/** Cavalier : une monture bestiale surmontée d'un buste cuirassé. */
-function rider(p: Pix, a: BodyArt, t: number): void {
-  beast(p, { ...a, horns: false }, t);
-  const cx = p.w * 0.5;
-  const bob = Math.abs(Math.cos(t * TAU)) * 0.5;
-  const shY = p.h * 0.26 - bob;
-  p.limb(cx - 1, shY, cx - 1, p.h * 0.44, 2.2, 1);
-  p.ellipse(cx, shY, p.w * 0.13, p.h * 0.12, 3);
-  p.ellipse(cx, shY - p.h * 0.13, p.w * 0.1, p.h * 0.1, 2);
-  p.set(cx, shY - p.h * 0.13, 5);
-  // Lance
-  p.line(cx + 1, shY - 1, p.w - 1, shY + p.h * 0.16, 3);
-}
-
-/**
- * Décor destructible.
- *
- * Les plans corporels dessinent tous des créatures — silhouette organique et deux yeux. Un
- * brasero tracé avec le plan `blob` sortait en flaque à regard, ce qui est exactement ce
- * qu'un objet ne doit pas être.
- *
- * L'indice 4, réservé à l'œil chez les créatures, sert ici de teinte vive : la flamme du
- * brasero, l'or du reliquaire. C'est cohérent — dans les deux cas, c'est ce qui accroche
- * l'œil du joueur.
- */
-function objet(p: Pix, a: BodyArt, t: number): void {
-  const W = p.w;
-  const H = p.h;
-  const cx = W / 2 - 0.5;
-  const bat = Math.sin(t * TAU);
-
-  switch (a.forme) {
-    case 'brasero': {
-      // Vasque sur trépied, flamme qui vacille.
-      p.limb(cx - W * 0.24, H - 1, cx - W * 0.1, H * 0.55, 1.6, 1);
-      p.limb(cx + W * 0.24, H - 1, cx + W * 0.1, H * 0.55, 1.6, 1);
-      p.limb(cx, H - 1, cx, H * 0.55, 1.6, 2);
-      p.ellipse(cx, H * 0.5, W * 0.42, H * 0.14, 2);
-      p.rect(cx - W * 0.42, H * 0.44, W * 0.84, 2, 3);
-      // Flamme : trois langues de hauteurs inégales, la centrale la plus haute.
-      for (const [dx, h] of [[-0.16, 0.2], [0, 0.32], [0.16, 0.22]] as const) {
-        const ht = H * h * (0.8 + bat * 0.2);
-        for (let k = 0; k < ht; k++) {
-          const l = Math.max(0, (1 - k / ht) * W * 0.12);
-          for (let x = -l; x <= l; x++) p.set(cx + dx * W + x, H * 0.44 - k, 4);
-        }
-      }
-      break;
-    }
-
-    case 'jarre': {
-      // Panse ronde, col étroit, deux anses. Le col est ce qui la distingue d'un caillou.
-      p.ellipse(cx, H * 0.62, W * 0.42, H * 0.34, 2);
-      p.rect(cx - W * 0.16, H * 0.2, W * 0.32, H * 0.2, 2);
-      p.ellipse(cx, H * 0.2, W * 0.24, H * 0.07, 3);
-      p.limb(cx - W * 0.4, H * 0.42, cx - W * 0.2, H * 0.28, 1.4, 1);
-      p.limb(cx + W * 0.4, H * 0.42, cx + W * 0.2, H * 0.28, 1.4, 1);
-      p.ellipse(cx - W * 0.16, H * 0.5, W * 0.12, H * 0.1, 3);
-      break;
-    }
-
-    case 'reliquaire': {
-      // Coffret sur pieds, couvercle à deux pentes, serrure au centre.
-      p.rect(cx - W * 0.38, H * 0.45, W * 0.76, H * 0.4, 2);
-      p.rect(cx - W * 0.38, H * 0.45, W * 0.76, 2, 3);
-      for (let k = 0; k <= H * 0.2; k++) {
-        const l = W * 0.4 * (1 - k / (H * 0.24));
-        for (let x = -l; x <= l; x++) p.set(cx + x, H * 0.45 - k, k < 2 ? 4 : 3);
-      }
-      p.rect(cx - 1, H * 0.55, 3, H * 0.14, 4);
-      p.rect(cx - W * 0.34, H - 3, 3, 3, 1);
-      p.rect(cx + W * 0.24, H - 3, 3, 3, 1);
-      break;
-    }
-
-    case 'sarcophage': {
-      // Cuve trapézoïdale et couvercle décalé : c'est le décalage qui dit « entrouvert ».
-      for (let k = 0; k < H * 0.5; k++) {
-        const l = W * 0.4 - k * W * 0.006;
-        for (let x = -l; x <= l; x++) p.set(cx + x, H * 0.48 + k, 2);
-      }
-      p.rect(cx - W * 0.42, H * 0.34, W * 0.84, H * 0.14, 3);
-      p.rect(cx - W * 0.42 + 2, H * 0.3, W * 0.84, 3, 1);
-      // Effigie sommaire sur le couvercle : deux traits croisés.
-      p.limb(cx, H * 0.36, cx, H * 0.46, 1.4, 4);
-      p.limb(cx - W * 0.16, H * 0.4, cx + W * 0.16, H * 0.4, 1.2, 4);
-      break;
-    }
-  }
-
-  p.shadeVertical(2, 3, 1);
-}
-
-const PLANS: Record<BodyArt['plan'], (p: Pix, a: BodyArt, t: number) => void> = {
-  humanoid,
-  armored,
-  beast,
-  flying,
-  spider,
-  blob,
-  ghost,
-  rider,
-  objet,
-};
 
 // ---------------------------------------------------------------------------
 // Fabrique publique
@@ -388,43 +132,189 @@ function pixObjet(w: number, h: number): Pix {
   return new Pix(w, h);
 }
 
+/** Retard d'un corps qui avance par bonds : il stationne au sol et rattrape sa position en l'air. */
+function hopSurge(length: number, takeoff: number, landing: number): number[] {
+  const n = 16;
+  const table = Array.from({ length: n }, (_, i) => {
+    const q = i / n;
+    const done = q < takeoff ? 0 : q < landing ? (q - takeoff) / (landing - takeoff) : 1;
+    return (done - q) * length;
+  });
+  const mean = table.reduce((sum, v) => sum + v, 0) / n;
+  return table.map((v) => v - mean);
+}
+
+/** Découpe d'une boucle de pixelfx pour le jeu. */
+interface CritterBake {
+  frames: number;
+  /** Portion gardée de la boucle d'origine, en secondes. Par défaut, toute la boucle. */
+  from?: number;
+  span?: number;
+  /** Durée d'une boucle en jeu. */
+  period?: number;
+  /** Pixels de sol par boucle, pour ce qui touche le sol. */
+  stride?: number;
+  leap?: boolean;
+  surge?: readonly number[];
+  /** Trajet de vitrine de la créature, en fonction de l'angle de la boucle. Voir `critterFrames`. */
+  path?: (angle: number) => readonly [number, number];
+  /** Retire la poussière, la mouche et la plume détachées du corps. */
+  clean?: boolean;
+}
+
+/**
+ * Comment chaque créature passe de la vitrine au jeu.
+ *
+ * Une boucle de pixelfx est une petite scène de démonstration : deux à trois secondes, en général
+ * jouées à 30 images par seconde. Six images prises à intervalles réguliers en faisaient un
+ * diaporama, et tombaient parfois pile sur la période du geste : six battements d'aile en 2,4 s,
+ * échantillonnés six fois, c'est six fois la même aile. On garde donc ici un seul geste entier,
+ * à sa vraie cadence, et les chiffres de `span` viennent des constantes de chaque module.
+ */
+const CRITTER_BAKES: Partial<Record<CritterId, CritterBake>> = {
+  // Six battements par boucle, quatre poses par battement.
+  bat: { frames: 4, from: 0.05, span: 0.4, period: 0.4, clean: true, path: (a) => [22 * Math.sin(a), 7 * Math.sin(2 * a)] },
+  // Quatre battements en 1,5 s, puis un plané qu'on écarte : un corbeau de poursuite ne plane pas.
+  bird: { frames: 6, span: 0.375, period: 0.375, clean: true },
+  wisp: { frames: 8, period: 1, path: (a) => [34 * Math.sin(a), -10 * Math.sin(2 * a)] },
+  ghost: { frames: 8, period: 1.2 },
+  flyingSkull: { frames: 8, period: 1.2 },
+  eyeball: { frames: 8, period: 2.4 },
+  // Une boucle contient deux pulsations.
+  jellyfish: { frames: 8, span: 1.6, period: 1.6 },
+  // Le bond occupe la moitié à 80 % de la boucle d'origine.
+  slime: { frames: 8, stride: 37, surge: hopSurge(14, 0.5, 0.8), clean: true },
+  // Une ondulation entière sur les deux que compte la boucle.
+  snake: { frames: 8, span: 1.2, stride: 30, clean: true },
+  // Accroupi, en l'air, retombé : le reste de la boucle est un numéro avec une mouche.
+  frog: { frames: 10, from: 0.75, span: 1.3, period: 1.45, leap: true, clean: true },
+};
+
+/** Efface ce qui flotte autour du corps : seuls les amas d'une taille sérieuse restent. */
+function dropSpecks(img: ImageData): void {
+  const { width: w, height: h, data } = img;
+  const label = new Int32Array(w * h).fill(-1);
+  const sizes: number[] = [];
+  const stack: number[] = [];
+  for (let i = 0; i < w * h; i++) {
+    if (label[i] !== -1 || data[i * 4 + 3]! < 150) continue;
+    const id = sizes.length;
+    let size = 0;
+    label[i] = id;
+    stack.push(i);
+    while (stack.length > 0) {
+      const c = stack.pop()!;
+      size++;
+      const x = c % w;
+      for (const n of [x > 0 ? c - 1 : -1, x < w - 1 ? c + 1 : -1, c - w, c + w]) {
+        if (n < 0 || n >= w * h || label[n] !== -1 || data[n * 4 + 3]! < 150) continue;
+        label[n] = id;
+        stack.push(n);
+      }
+    }
+    sizes.push(size);
+  }
+  const keep = Math.max(...sizes) * 0.12;
+  for (let i = 0; i < w * h; i++) {
+    if (label[i] !== -1 && sizes[label[i]!]! < keep) data[i * 4 + 3] = 0;
+  }
+}
+
+/**
+ * Fait tourner une créature de pixelfx et garde ses images : couleur et lumière réunies, sur
+ * fond transparent, recadrées sur la zone utilisée par l'ensemble du cycle.
+ *
+ * Le trajet de vitrine est annulé image par image. Une chauve-souris de pixelfx vole en huit dans
+ * sa case : gardé tel quel, ce vol faisait sauter son corps de vingt pixels à chaque image,
+ * par-dessus la trajectoire du jeu.
+ */
+function critterFrames(art: BodyArt): HTMLCanvasElement[] {
+  const { id, zoom, options } = art.critter!;
+  const mod = effects[id];
+  const bake = CRITTER_BAKES[id];
+  const n = bake?.frames ?? art.frames ?? 6;
+  const duration = mod.meta.duration;
+  const span = bake?.span ?? duration;
+  const [mw, mh] = mod.meta.size;
+  const w = Math.ceil(mw * zoom) + 8;
+  const h = Math.ceil(mh * zoom) + 8;
+  const homeX = Math.ceil(mod.meta.origin[0] * zoom) + 4;
+  const homeY = Math.ceil(mod.meta.origin[1] * zoom) + 4;
+  const frame = createFrame(w, h);
+  const images: ImageData[] = [];
+  let x0 = w, y0 = h, x1 = 0, y1 = 0;
+  for (let i = 0; i < n; i++) {
+    const time = (bake?.from ?? 0) + (i * span) / n;
+    const [dx, dy] = bake?.path?.((time / duration) * TAU) ?? [0, 0];
+    // Ces boucles ne dépendent que du temps : une instance posée au bon endroit, à chaque image.
+    const fx = createFx(mod, { ...options, zoom, x: homeX - dx * zoom, y: homeY - dy * zoom });
+    fx.update(time);
+    clearFrame(frame);
+    fx.draw(frame, 'back');
+    fx.draw(frame, 'front');
+    const img = new ImageData(w, h);
+    composite(frame, img.data, null);
+    if (bake?.clean) dropSpecks(img);
+    images.push(img);
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        if (img.data[(y * w + x) * 4 + 3]! < 40) continue;
+        if (x < x0) x0 = x;
+        if (x > x1) x1 = x;
+        if (y < y0) y0 = y;
+        if (y > y1) y1 = y;
+      }
+    }
+  }
+  return images.map((img) => {
+    const c = document.createElement('canvas');
+    c.width = x1 - x0 + 1;
+    c.height = y1 - y0 + 1;
+    c.getContext('2d')!.putImageData(img, -x0, -y0);
+    return c;
+  });
+}
+
+/** Marge autour d'un corps sculpté : tronc soulevé, cloche qui balance, pas qui décolle. */
+const BODY_MARGIN = 4;
+
+/** Allure tirée du plan ou de la découpe, pour un corps de `h` pixels de haut. */
+function gaitOf(art: BodyArt, w: number, h: number, frames: number): Gait {
+  if (art.critter) {
+    const bake = CRITTER_BAKES[art.critter.id];
+    return { stride: bake?.stride ?? 0, period: bake?.period ?? frames / 4, leap: bake?.leap ?? false, surge: bake?.surge ?? [], margin: 0 };
+  }
+  const plan = PLAN_GAITS[art.plan];
+  const amount = plan?.surge ?? 0;
+  return {
+    stride: plan?.pace ? plan.pace * Math.sqrt(h) : 0,
+    // Un décor animé garde sa cadence d'origine, deux images par seconde.
+    period: plan?.period ?? frames / 2,
+    leap: false,
+    // Au contact, le corps retient son élan ; il se jette en avant quand la jambe passe.
+    surge: amount > 0 ? Array.from({ length: 16 }, (_, i) => -amount * Math.sin((i / 16) * TAU * 2)) : [],
+    feet: h / 2 - 2,
+    shadow: Math.round(w * 0.8),
+    margin: BODY_MARGIN,
+  };
+}
+
 export function makeBody(key: string, art: BodyArt): SpriteSet {
   const hit = cache.get(key);
   if (hit) return hit;
 
-  const n = art.frames ?? 4;
+  const n = PLAN_GAITS[art.plan]?.frames ?? art.frames ?? 4;
   const S = CORPS_ECHELLE;
-  const pixFrames: Pix[] = [];
-  for (let i = 0; i < n; i++) {
-    const p = new Pix(Math.round(art.w * S), Math.round(art.h * S));
-    p.unit = S;
-    PLANS[art.plan](p, art, i / n);
-    if (art.crown) {
-      const cx = p.w / 2 - 0.5;
-      const k0 = Math.round(2 * S);
-      for (let k = -k0; k <= k0; k++) p.set(cx + k, Math.round(S), 5);
-      for (const k of [-k0, 0, k0]) p.set(cx + k, 0, 5);
-    }
-    /*
-     * Passes d'éclairage.
-     *
-     * Elles s'appliquent après le plan, sur la silhouette déjà formée, et c'est ce qui les
-     * rend valables pour les huit plans sans en toucher un seul. Mesuré avant : cinq teintes
-     * par créature contre neuf pour le héros — les corps avaient grandi sans être éclairés.
-     *
-     * L'ordre compte : la rasante se pose sur les bords, l'occlusion creuse sous les
-     * rebords, et le contour vient en dernier pour ne pas être mangé par les deux autres.
-     *
-     * Les écarts sont volontairement faibles. Une première version prenait la teinte la plus
-     * claire du corps et l'éclaircissait de moitié : chaque créature se retrouvait cernée
-     * d'un liseré presque blanc, et l'écran ressemblait à une planche d'autocollants.
-     */
-    p.rimLight(1, 0, 6);
-    p.occlusion(7);
-    p.outlineDouble(0, 8);
-    pixFrames.push(p);
-  }
-  const set = build(pixFrames, paletteOf(art));
+  const w = Math.round(art.w * S), h = Math.round(art.h * S);
+  const plan = SCULPTED[art.plan];
+  const frames = art.critter
+    ? critterFrames(art)
+    : Array.from({ length: n }, (_, i) => {
+      const sculpt = new Sculpt(w, h, BODY_MARGIN);
+      plan!(sculpt, art, i / n);
+      return sculpt.render();
+    });
+  const set: SpriteSet = { ...setOf(frames), gait: gaitOf(art, w, h, frames.length) };
   cache.set(key, set);
   return set;
 }
@@ -486,6 +376,9 @@ export interface HeroArt {
   skin: string;
   accent: string;
   hat: 'hood' | 'wide' | 'none' | 'veil' | 'crown';
+  /** Le signe qui distingue un personnage à sa seule silhouette. */
+  trait?: 'quiver' | 'robe' | 'scarf';
+  figure: HeroFigure;
 }
 
 /**
@@ -588,127 +481,12 @@ export function makeHeroClassique(key: string, art: HeroArt, moving: boolean): S
   return set;
 }
 
-/**
- * Héros détaillé — variante à l'essai.
- *
- * Même personnage que `makeHero`, à 19 × 23 au lieu de 13 × 15, et sur neuf teintes au lieu
- * de six. Ce que la définition supplémentaire achète : une capuche qui laisse voir un
- * visage, un plastron distinct de la chemise, une ceinture, des bottes, et des plis de cape.
- *
- * Trois contraintes qu'il fallait tenir pour que ce soit remplaçable sans rien casser :
- *
- *   - **les cosmétiques continuent de fonctionner.** `HeroArt` ne fournit que quatre
- *     couleurs ; les neuf teintes en sont dérivées par éclaircissement et assombrissement,
- *     jamais posées en dur. Une teinte de boutique repeint donc toujours le personnage ;
- *   - **la collision ne bouge pas.** Le rayon de contact du joueur est fixé à 5 dans le
- *     monde, indépendamment du sprite : agrandir le dessin ne change rien à la difficulté ;
- *   - **les cinq coiffes existent toujours**, sinon quatre personnages sur six perdraient
- *     ce qui les distingue au premier coup d'œil.
- *
- * Le héros devient nettement plus grand que les ennemis courants, qui font 11 à 16 pixels.
- * C'est assumé : dans ce genre, un protagoniste un peu plus imposant se suit mieux du regard
- * au milieu de quatre cents silhouettes.
- */
+/** Héros détaillé, dessiné au pixel près : voir `hero.ts`. */
 export function makeHeroDetaille(key: string, art: HeroArt, moving: boolean): SpriteSet {
   const ck = `detail:${key}:${moving ? 'walk' : 'idle'}`;
   const hit = cache.get(ck);
   if (hit) return hit;
-
-  const W = 19;
-  const H = 23;
-  const n = moving ? 6 : 4;
-
-  // Neuf marches, toutes dérivées des quatre couleurs du cosmétique.
-  const cols = [
-    shade(art.cloak, -0.72),  // 0 contour
-    shade(art.cloak, -0.42),  // 1 cape, ombre
-    art.cloak,                // 2 cape
-    shade(art.cloak, 0.28),   // 3 cape, lumière
-    shade(art.cloth, -0.35),  // 4 vêtement, ombre
-    art.cloth,                // 5 vêtement
-    shade(art.skin, -0.3),    // 6 peau, ombre
-    art.skin,                 // 7 peau
-    art.accent,               // 8 accent
-  ];
-
-  const pixFrames: Pix[] = [];
-  for (let i = 0; i < n; i++) {
-    const t = i / n;
-    const p = new Pix(W, H);
-    const cx = W / 2 - 0.5;
-    const swing = moving ? Math.sin(t * TAU) : 0;
-    const bob = moving ? Math.abs(Math.cos(t * TAU)) * 1.1 : Math.sin(t * TAU) * 0.6;
-
-    const hipY = 15.5 - bob;
-    const shY = 9.5 - bob;
-    const headCy = 5.2 - bob;
-
-    // --- jambes et bottes -------------------------------------------------
-    p.limb(cx - 2, hipY, cx - 2 + swing * 2.6, H - 3, 2.4, 4);
-    p.limb(cx + 2, hipY, cx + 2 - swing * 2.6, H - 3, 2.4, 4);
-    p.rect(Math.round(cx - 3.4 + swing * 2.6), H - 3, 3, 2, 1);
-    p.rect(Math.round(cx + 1.4 - swing * 2.6), H - 3, 3, 2, 1);
-
-    // --- cape, derrière le corps -----------------------------------------
-    p.ellipse(cx - swing * 1.1, shY + 4.2, 6.4, 5.6, 1);
-    p.ellipse(cx - swing * 1.8, shY + 6.6, 5.0, 3.6, 1);
-    // Plis : deux creux verticaux d'écart inégal.
-    p.limb(cx - 2.6 - swing, shY + 3, cx - 3.2 - swing, shY + 8, 1, 0);
-    p.limb(cx + 2.2 - swing, shY + 3, cx + 2.8 - swing, shY + 8, 1, 0);
-
-    // --- buste ------------------------------------------------------------
-    p.ellipse(cx, shY + 2.2, 3.6, 4.0, 5);          // chemise
-    p.ellipse(cx, shY + 1.6, 3.4, 2.8, 4);          // plastron, plus sombre
-    p.rect(Math.round(cx - 3.2), Math.round(shY + 4.4), 7, 1, 8);   // ceinture
-    p.set(cx, Math.round(shY + 4.4), 3);            // boucle
-
-    // --- bras -------------------------------------------------------------
-    p.limb(cx - 3.6, shY + 0.6, cx - 4.4 - swing * 1.8, shY + 5.0, 2, 4);
-    p.limb(cx + 3.6, shY + 0.6, cx + 4.4 + swing * 1.8, shY + 5.0, 2, 4);
-    p.ellipse(cx - 4.4 - swing * 1.8, shY + 5.2, 1.3, 1.3, 6);      // mains
-    p.ellipse(cx + 4.4 + swing * 1.8, shY + 5.2, 1.3, 1.3, 6);
-
-    // --- tête -------------------------------------------------------------
-    p.ellipse(cx, headCy, 3.4, 3.6, 7);
-    p.ellipse(cx, headCy + 1.6, 2.8, 1.8, 6);       // mâchoire dans l'ombre
-
-    switch (art.hat) {
-      case 'hood':
-        // La capuche est posée par-dessus puis creusée : c'est elle qui doit mordre sur le
-        // visage, et non l'inverse.
-        p.ellipse(cx, headCy - 0.9, 4.3, 4.0, 2);
-        p.ellipse(cx, headCy + 0.7, 2.7, 2.4, 7);
-        p.ellipse(cx, headCy + 2.2, 3.4, 1.4, 1);   // retombée sur les épaules
-        break;
-      case 'wide':
-        p.ellipse(cx, headCy - 1.8, 6.8, 1.6, 2);
-        p.ellipse(cx, headCy - 1.4, 6.8, 1.0, 1);
-        p.ellipse(cx, headCy - 3.2, 3.2, 2.0, 2);
-        break;
-      case 'veil':
-        p.ellipse(cx, headCy - 0.5, 4.4, 4.1, 8);
-        p.ellipse(cx, headCy + 1.1, 2.6, 2.2, 7);
-        p.ellipse(cx, headCy + 3.0, 3.6, 1.6, 8);
-        break;
-      case 'crown':
-        for (let k = -3; k <= 3; k++) p.set(cx + k, headCy - 3.6, 8);
-        for (const k of [-3, 0, 3]) { p.set(cx + k, headCy - 4.6, 8); p.set(cx + k, headCy - 5.3, 3); }
-        break;
-      case 'none':
-        break;
-    }
-
-    // Traits : deux yeux et l'arête du nez. Un trait de plus ferait grimace.
-    p.set(cx - 1.4, headCy + 0.4, 0);
-    p.set(cx + 1.4, headCy + 0.4, 0);
-    p.set(cx, headCy + 1.1, 6);
-
-    p.shadeVertical(2, 3, 1);
-    p.outline(0);
-    pixFrames.push(p);
-  }
-
-  const set = build(pixFrames, cols);
+  const set = setOf(heroFrames(art, moving));
   cache.set(ck, set);
   return set;
 }
@@ -718,310 +496,35 @@ export function makeHeroDetaille(key: string, art: HeroArt, moving: boolean): Sp
 // ---------------------------------------------------------------------------
 
 /** Gemme d'XP : losange qui oscille et scintille. La forme varie par rang (daltonisme). */
-export function makeGem(rank: 0 | 1 | 2 | 3): SpriteSet {
-  const key = `gem:${rank}`;
-  const hit = cache.get(key);
-  if (hit) return hit;
-
-  const colors = [P.xp1, P.xp2, P.xp3, P.xp4];
-  const base = colors[rank]!;
-  const size = 8 + rank * 3;
-  const cols = [
-    shade(base, -0.68), shade(base, -0.32), base,
-    shade(base, 0.4), shade(base, 0.7), '#ffffff',
-  ];
-  const frames: Pix[] = [];
-
-  for (let i = 0; i < 8; i++) {
-    const t = i / 8;
-    const p = pixObjet(size + 6, size + 6);
-    const cx = p.w / 2 - 0.5;
-    const cy = p.h / 2 - 0.5 + Math.sin(t * TAU) * 0.9;
-    const r = size / 2;
-
-    /*
-     * Le rang se lit au nombre de pointes, et non à la seule couleur : un joueur daltonien
-     * doit pouvoir trier ses gemmes. Le taillage est marqué par une arête verticale claire
-     * à gauche et sombre à droite, ce qui donne le relief que la seule silhouette ne donne
-     * pas.
-     */
-    const spikes = 4 + rank;
-    for (let y = -r - 1; y <= r + 1; y++) {
-      for (let x = -r - 1; x <= r + 1; x++) {
-        const ang = Math.atan2(y, x);
-        const rad = Math.hypot(x, y);
-        const edge = r * (0.7 + 0.3 * Math.abs(Math.cos(ang * (spikes / 2))));
-        if (rad > edge) continue;
-        // Trois plans : lumière en haut à gauche, teinte propre, ombre en bas à droite.
-        const n = (x + y) / (r * 2);
-        p.set(cx + x, cy + y, n < -0.28 ? 3 : n > 0.3 ? 1 : 2);
-      }
-    }
-    for (let k = -r; k <= r; k++) p.set(cx, cy + k * 0.9, 3);   // arête centrale
-    p.ellipse(cx - r * 0.34, cy - r * 0.42, r * 0.24, r * 0.2, 4);
-    p.set(cx - r * 0.34, cy - r * 0.42, 5);
-    // Scintillement qui tourne autour de la pierre.
-    const sa = t * TAU * 2;
-    p.set(cx + Math.cos(sa) * (r + 2.2), cy + Math.sin(sa) * (r + 2.2), 4);
-    p.outline(0);
-    frames.push(p);
+/** Ce qui se ramasse : les dessins vivent dans `lootart.ts`, seule l'animation se décide ici. */
+function paintedLoot(key: string, frames: () => HTMLCanvasElement[]): SpriteSet {
+  let set = cache.get(key);
+  if (!set) {
+    set = setOf(frames());
+    cache.set(key, set);
   }
-
-  const set = build(frames, cols);
-  cache.set(key, set);
   return set;
+}
+
+export function makeGem(rank: 0 | 1 | 2 | 3): SpriteSet {
+  return paintedLoot(`gem:${rank}`, () => floatingFrames(GEM_ART[rank]!));
 }
 
 export function makeCoin(): SpriteSet {
-  const key = 'coin';
-  const hit = cache.get(key);
-  if (hit) return hit;
-  const cols = [
-    shade(P.gold, -0.72), shade(P.gold, -0.36), P.gold,
-    shade(P.gold, 0.38), shade(P.gold, 0.7), '#ffffff',
-  ];
-  const frames: Pix[] = [];
-  for (let i = 0; i < 8; i++) {
-    const t = i / 8;
-    const p = pixObjet(14, 14);
-    const cx = 6.5;
-    const cy = 6.5;
-    // La pièce tourne : sa largeur suit un cosinus, sa hauteur ne bouge pas.
-    const rx = Math.max(0.7, Math.abs(Math.cos(t * TAU)) * 5.6);
-    p.ellipse(cx, cy, rx, 5.6, 2);
-    if (rx > 2.2) {
-      // De face : bord frappé, motif au centre, reflet en haut à gauche.
-      p.ellipse(cx, cy, rx - 1, 4.6, 3);
-      p.ellipse(cx, cy, rx - 2.2, 3.2, 2);
-      p.ellipse(cx - rx * 0.35, cy - 2, rx * 0.3, 1.2, 4);
-      p.rect(cx - 1, cy - 2, 2, 5, 4);        // le motif frappé
-      p.rect(cx - 2, cy - 1, 4, 1, 4);
-      p.set(cx - rx * 0.4, cy - 3, 5);
-    } else {
-      // De tranche : une simple barre, mais éclairée en haut pour garder le volume.
-      p.ellipse(cx, cy - 1.6, rx, 1.6, 4);
-    }
-    p.outline(0);
-    frames.push(p);
-  }
-  const set = build(frames, cols);
-  cache.set(key, set);
-  return set;
+  return paintedLoot('coin', () => spinningFrames(COIN_ART));
 }
 
 export function makeHeart(): SpriteSet {
-  const key = 'heart';
-  const hit = cache.get(key);
-  if (hit) return hit;
-  const cols = [
-    shade(P.blood, -0.72), P.bloodDark, P.blood,
-    P.bloodHi, shade(P.bloodHi, 0.45), '#ffd0d8',
-  ];
-  const beat = [1.0, 1.16, 1.03, 1.1, 0.99, 1.0];
-  const frames: Pix[] = [];
-  for (let i = 0; i < 6; i++) {
-    const s2 = beat[i]!;
-    const p = pixObjet(16, 16);
-    const cx = 7.5;
-    const cy = 6.4;
-    /*
-     * La pointe est tracée ligne à ligne plutôt qu'avec une ellipse tronquée : c'est le V
-     * franc du bas qui fait lire « cœur ». Sur la version précédente, en 10 × 10, la pointe
-     * et les lobes se confondaient et l'objet passait pour un triangle.
-     */
-    p.ellipse(cx - 2.6 * s2, cy - 0.8 * s2, 3.3 * s2, 3.1 * s2, 2);
-    p.ellipse(cx + 2.6 * s2, cy - 0.8 * s2, 3.3 * s2, 3.1 * s2, 2);
-    for (let y = 0; y < 8; y++) {
-      const hw = (5.6 - y * 0.72) * s2;
-      if (hw <= 0) break;
-      p.rect(cx - hw, cy + 1 + y, hw * 2 + 1, 1, 2);
-    }
-    // Volume : ombre sur le lobe droit et le long de la pointe, lumière sur le gauche.
-    p.ellipse(cx + 3.2 * s2, cy, 2.0 * s2, 1.9 * s2, 1);
-    for (let y = 3; y < 9; y++) p.rect(cx + 0.5, cy + y, Math.max(1, 3 - y * 0.4), 1, 1);
-    p.ellipse(cx - 2.8, cy - 1.6, 1.5, 1.3, 3);
-    p.ellipse(cx - 3.0, cy - 2.1, 0.9, 0.7, 4);
-    p.set(cx - 3, cy - 2, 5);
-    p.outline(0);
-    frames.push(p);
-  }
-  const set = build(frames, cols);
-  cache.set(key, set);
-  return set;
+  return paintedLoot('heart', () => floatingFrames(LOOT_ART.heart!));
 }
 
 export function makeChest(): SpriteSet {
-  const key = 'chest';
-  const hit = cache.get(key);
-  if (hit) return hit;
-  const cols = [
-    shade(P.leather, -0.72), shade(P.leather, -0.3), P.leather,
-    P.gold, '#fff3c4', '#ffffff',
-  ];
-  const frames: Pix[] = [];
-  for (let i = 0; i < 8; i++) {
-    const open = Math.min(1, i / 5);
-    const p = pixObjet(24, 22);
-    // Caisse : planches verticales, cerclage en haut et en bas.
-    p.rect(3, 10, 18, 10, 2);
-    p.rect(3, 10, 18, 1, 1);
-    p.rect(3, 19, 18, 1, 1);
-    for (const x of [7, 12, 17]) p.rect(x, 11, 1, 8, 1);
-    p.rect(3, 14, 18, 1, 3);                    // ferrure médiane
-    // Serrure, au centre : c'est elle qui dit « coffre » plutôt que « caisse ».
-    p.rect(11, 13, 3, 4, 3);
-    p.set(12, 15, 0);
-    p.set(12, 16, 0);
-
-    // Couvercle bombé, qui pivote vers l'arrière en s'ouvrant.
-    const lidY = 9 - open * 6;
-    const lidH = 5 * (1 - open * 0.5);
-    for (let y = 0; y <= lidH; y++) {
-      const hw = Math.round(9 * Math.sqrt(Math.max(0, 1 - (y / (lidH + 0.6)) ** 2)));
-      p.rect(12 - hw, lidY - y, hw * 2, 1, y > lidH * 0.6 ? 3 : 2);
-    }
-    p.rect(3, lidY, 18, 1, 1);
-    p.rect(3, lidY - 1, 18, 1, 3);
-
-    if (open > 0.15) {
-      // Lueur intérieure, puis rayons quand le couvercle est franchement levé.
-      p.rect(5, 10, 14, Math.round(open * 4), 4);
-      p.rect(6, 10, 12, Math.max(1, Math.round(open * 2)), 5);
-      for (let k = 0; k < 5 && open > 0.5; k++) {
-        const a = -PI / 2 + (k - 2) * 0.42;
-        p.line(12, 10, 12 + Math.cos(a) * 11 * open, 10 + Math.sin(a) * 11 * open, 5);
-      }
-    }
-    p.outline(0);
-    frames.push(p);
-  }
-  const set = build(frames, cols);
-  cache.set(key, set);
-  return set;
+  return paintedLoot('chest', () => floatingFrames(LOOT_ART.chest!));
 }
 
-export function makeRelic(rarity: Rarity): SpriteSet {
-  const key = `relic:${rarity}`;
-  const hit = cache.get(key);
-  if (hit) return hit;
-  const base = RARITY_COLOR[rarity];
-  const cols = [shade(base, -0.75), shade(base, -0.35), base, shade(base, 0.5), '#ffffff'];
-  const frames: Pix[] = [];
-  for (let i = 0; i < 8; i++) {
-    const t = i / 8;
-    const p = pixObjet(12, 14);
-    const cx = 5.5;
-    const cy = 7.5 + Math.sin(t * TAU) * 0.9;
-    const rx = 3.4 * Math.abs(Math.cos(t * PI * 0.5)) + 1.2;
-    p.line(cx, 1, cx, cy - 3, 1); // chaîne
-    p.set(cx - 1, 2, 1);
-    p.set(cx + 1, 2, 1);
-    p.ellipse(cx, cy, rx, 4, 2);
-    p.ellipse(cx, cy - 0.8, rx * 0.55, 2.0, 3);
-    p.set(cx, cy, 4);
-    p.shadeVertical(2, 3, 1);
-    p.outline(0);
-    frames.push(p);
-  }
-  const set = build(frames, cols);
-  cache.set(key, set);
-  return set;
-}
-
-/** Petits objets consommables : aimant, bombe, sablier, parchemin, encensoir. */
+/** Petits objets consommables : aimant, bombe, sablier, parchemin, encensoir. */
 export function makeItem(kind: 'magnet' | 'bomb' | 'hourglass' | 'scroll' | 'censer'): SpriteSet {
-  const key = `item:${kind}`;
-  const hit = cache.get(key);
-  if (hit) return hit;
-
-  let cols: string[];
-  const frames: Pix[] = [];
-  const N = 6;
-
-  switch (kind) {
-    case 'magnet':
-      cols = [shade(P.steel, -0.75), P.bloodDark, P.blood, P.steel, '#ffffff'];
-      for (let i = 0; i < N; i++) {
-        const p = pixObjet(12, 12);
-        const t = i / N;
-        p.limb(3, 9, 3, 4, 2.4, 2);
-        p.limb(8, 9, 8, 4, 2.4, 2);
-        p.ellipse(5.5, 4, 3.2, 3.0, 2);
-        p.ellipse(5.5, 4.6, 1.6, 1.6, -1);
-        p.rect(2, 8, 3, 2, 3);
-        p.rect(7, 8, 3, 2, 3);
-        const r = 1 + t * 4;
-        p.ring(5.5, 9, r, r * 0.6, 4);
-        p.outline(0);
-        frames.push(p);
-      }
-      break;
-    case 'bomb':
-      cols = [shade(P.stone, -0.8), P.stone, P.stoneHi, P.fire, '#fff3c4'];
-      for (let i = 0; i < N; i++) {
-        const t = i / N;
-        const p = pixObjet(12, 12);
-        p.ellipse(5.5, 7.5, 4, 4, 2);
-        p.ellipse(4.2, 6.2, 1.4, 1.2, 1);
-        p.line(6, 3.6, 7.5 + Math.sin(t * TAU) * 1.2, 1.4, 1);
-        p.ellipse(7.6 + Math.sin(t * TAU) * 1.2, 1, 1 + t * 0.6, 1 + t * 0.6, 3);
-        p.set(7.6 + Math.sin(t * TAU) * 1.2, 0.6, 4);
-        p.outline(0);
-        frames.push(p);
-      }
-      break;
-    case 'hourglass':
-      cols = [shade(P.ice, -0.8), shade(P.leather, -0.2), P.leather, P.ice, '#ffffff'];
-      for (let i = 0; i < N; i++) {
-        const t = i / N;
-        const p = pixObjet(10, 12);
-        p.rect(1, 1, 8, 1, 2);
-        p.rect(1, 10, 8, 1, 2);
-        for (let y = 2; y <= 5; y++) p.rect(1 + (y - 2), y, 8 - (y - 2) * 2, 1, 3);
-        for (let y = 6; y <= 9; y++) p.rect(1 + (9 - y), y, 8 - (9 - y) * 2, 1, 3);
-        const sand = Math.floor(t * 3);
-        for (let y = 7 + sand; y <= 9; y++) p.rect(3, y, 4, 1, 4);
-        p.set(4.5, 5 + (i % 2), 4);
-        p.outline(0);
-        frames.push(p);
-      }
-      break;
-    case 'scroll':
-      cols = [shade(P.linen, -0.75), shade(P.linen, -0.3), P.linen, P.leather, P.blood];
-      for (let i = 0; i < N; i++) {
-        const t = i / N;
-        const p = pixObjet(12, 10);
-        const w = 6 + Math.sin(t * TAU) * 1.2;
-        p.rect(6 - w / 2, 2, w, 6, 2);
-        p.ellipse(6 - w / 2, 5, 1.2, 3.2, 3);
-        p.ellipse(6 + w / 2, 5, 1.2, 3.2, 3);
-        p.rect(6 - w / 2 + 1, 4, Math.max(1, w - 2), 1, 1);
-        p.set(6, 6, 4);
-        p.outline(0);
-        frames.push(p);
-      }
-      break;
-    case 'censer':
-      cols = [shade(P.gold, -0.75), shade(P.gold, -0.3), P.gold, '#fff3c4', '#ffffff'];
-      for (let i = 0; i < N; i++) {
-        const t = i / N;
-        const p = pixObjet(12, 13);
-        const sw = Math.sin(t * TAU) * 1.6;
-        p.line(6, 0, 6 + sw, 4, 1);
-        p.ellipse(6 + sw, 7, 3.4, 3.2, 2);
-        p.rect(6 + sw - 3, 5, 7, 1, 3);
-        p.ellipse(6 + sw, 8.6, 2.2, 1.4, 1);
-        for (let k = 0; k < 3; k++)
-          p.set(6 + sw + (k - 1) * 1.6, 3 - Math.abs(Math.sin(t * TAU + k)) * 1.5, 4);
-        p.outline(0);
-        frames.push(p);
-      }
-      break;
-  }
-
-  const set = build(frames, cols);
-  cache.set(key, set);
-  return set;
+  return paintedLoot(`item:${kind}`, () => floatingFrames(LOOT_ART[kind]!));
 }
 
 // ---------------------------------------------------------------------------
@@ -1204,332 +707,9 @@ export function makeProjectile(kind: ProjKind, color?: string): SpriteSet {
   return set;
 }
 
-export type PassiveIcon =
-  | 'gem' | 'boot' | 'heart' | 'glass' | 'lens' | 'flask'
-  | 'feather' | 'book' | 'magnet' | 'shield' | 'clover' | 'cup';
-
-/** Icônes des passifs – dessinées à la main en 12×12, une forme reconnaissable par passif. */
-export function makePassiveSprite(icon: PassiveIcon, color: string): SpriteSet {
-  const key = `passive:${icon}`;
-  const hit = cache.get(key);
-  if (hit) return hit;
-
-  /*
-   * Icônes des passifs, redessinées en 20 × 20.
-   *
-   * Elles tenaient en 13 × 13, où une plume n'était qu'un trait oblique et un calice qu'une
-   * ellipse sur un bâton. À cette taille il n'y a pas de place pour dire ce qu'est l'objet ;
-   * on ne peut qu'en suggérer la masse.
-   *
-   * Une tentative d'agrandissement par mise à l'échelle des coordonnées avait tout cassé :
-   * une forme tracée pixel par pixel ne survit pas à une multiplication non entière, et le
-   * sablier était devenu un carré. Elles sont donc **redessinées**, pas agrandies.
-   *
-   * Six teintes, toutes dérivées de la couleur du passif : la table reste à une couleur par
-   * entrée. L'ombre est en bas à droite, la lumière en haut à gauche, sans exception — c'est
-   * cette constance qui fait que douze objets d'origines différentes ont l'air d'une série.
-   */
-  const cols = [
-    shade(color, -0.75), // 0 contour
-    shade(color, -0.38), // 1 ombre
-    color,               // 2 teinte propre
-    shade(color, 0.3),   // 3 lumière
-    shade(color, 0.62),  // 4 reflet
-    '#ffffff',           // 5 éclat
-  ];
-  const p = pixObjet(20, 20);
-
-  switch (icon) {
-    case 'gem': {
-      /*
-       * Gemme taillée en brillant : table plate en haut, couronne évasée, pavillon en
-       * pointe. Les arêtes de facettes comptent plus que la silhouette — sans elles on
-       * obtient une pastille bombée, qui se lit comme un galet et non comme une pierre.
-       */
-      p.rect(6, 3, 8, 1, 2);                       // table
-      for (let y = 4; y <= 6; y++) {               // couronne, qui s'évase
-        const hw = 4 + (y - 3) * 1.2;
-        p.rect(10 - hw, y, hw * 2, 1, 2);
-      }
-      for (let y = 7; y <= 16; y++) {              // pavillon, qui se referme
-        const hw = 7.6 - (y - 7) * 0.78;
-        p.rect(10 - hw, y, hw * 2 + 1, 1, 2);
-      }
-      // Facettes : deux arêtes claires à gauche, deux sombres à droite. C'est le contraste
-      // entre ces plans, pas le contour, qui donne le tranchant du taillage.
-      p.rect(6, 3, 8, 1, 4);
-      p.line(6, 4, 3, 7, 3);
-      p.line(14, 4, 17, 7, 1);
-      p.line(3, 7, 9, 16, 3);
-      p.line(17, 7, 11, 16, 1);
-      p.line(6, 4, 8, 16, 3);
-      p.line(14, 4, 12, 16, 1);
-      p.rect(4, 7, 13, 1, 1);                      // ceinture, la ligne la plus large
-      p.rect(6, 4, 3, 1, 4);
-      p.set(7, 5, 5);
-      break;
-    }
-    case 'boot': {
-      // Botte de marche : tige, cou-de-pied, semelle qui dépasse vers l'avant.
-      p.rect(5, 3, 6, 9, 2);            // tige
-      p.rect(5, 3, 6, 1, 3);            // ouverture
-      p.rect(5, 11, 11, 4, 2);          // pied
-      p.rect(4, 15, 13, 2, 1);          // semelle
-      p.rect(4, 16, 13, 1, 0);
-      p.rect(5, 6, 6, 1, 1);            // pli du cuir
-      p.rect(11, 12, 5, 1, 3);
-      p.rect(6, 4, 2, 5, 3);            // lumière sur la tige
-      p.set(6, 4, 4);
-      break;
-    }
-
-    case 'heart': {
-      // Cœur : deux lobes et une pointe. La pointe est tracée ligne à ligne pour que le V
-      // reste net — une ellipse tronquée donne une base molle.
-      p.ellipse(7, 7, 3.6, 3.4, 2);
-      p.ellipse(13, 7, 3.6, 3.4, 2);
-      for (let y = 0; y < 8; y++) {
-        const hw = 6.4 - y * 0.82;
-        p.rect(10 - hw, 8 + y, hw * 2 + 1, 1, 2);
-      }
-      // Volume : ombre sur le lobe droit et sous la pointe, lumière sur le gauche.
-      p.ellipse(14, 8, 2.4, 2.2, 1);
-      for (let y = 11; y < 16; y++) p.rect(10, y, 3 - (y - 11) * 0.5, 1, 1);
-      p.ellipse(6, 6, 1.8, 1.6, 3);
-      p.ellipse(6, 5, 1.0, 0.8, 4);
-      p.set(6, 5, 5);
-      break;
-    }
-
-    case 'glass': {
-      // Sablier : deux montants, deux cônes qui se touchent, le sable en bas.
-      p.rect(3, 2, 14, 2, 1);
-      p.rect(3, 16, 14, 2, 1);
-      p.rect(4, 4, 1, 12, 1);
-      p.rect(15, 4, 1, 12, 1);
-      for (let y = 4; y <= 9; y++) {
-        const hw = 5 - (y - 4) * 0.8;
-        p.rect(10 - hw, y, hw * 2, 1, 2);
-      }
-      for (let y = 10; y <= 15; y++) {
-        const hw = 0.6 + (y - 10) * 0.8;
-        p.rect(10 - hw, y, hw * 2, 1, 2);
-      }
-      // Le sable : tas en bas, filet au centre, vide en haut. C'est ce qui dit « il coule ».
-      for (let y = 12; y <= 15; y++) {
-        const hw = (y - 11) * 1.1;
-        p.rect(10 - hw, y, hw * 2, 1, 4);
-      }
-      p.rect(9, 9, 1, 4, 4);
-      p.rect(5, 4, 4, 1, 3);
-      p.set(5, 3, 5);
-      break;
-    }
-
-    case 'lens': {
-      // Longue-vue : un tube en perspective, pas un cercle avec un manche.
-      p.rect(3, 6, 6, 7, 2);            // corps
-      p.rect(9, 7, 5, 5, 2);            // fût
-      p.rect(14, 8, 4, 3, 1);           // oculaire
-      p.rect(3, 6, 6, 1, 3);
-      p.rect(3, 12, 6, 1, 1);
-      p.rect(9, 7, 5, 1, 3);
-      p.ellipse(3, 9.5, 1.6, 3.4, 3);   // lentille
-      p.ellipse(3, 9.5, 0.9, 2.2, 4);
-      p.set(3, 8, 5);
-      p.rect(8, 6, 1, 7, 1);            // bagues
-      p.rect(13, 7, 1, 5, 1);
-      break;
-    }
-
-    case 'flask': {
-      // Fiole : col étroit, panse ronde, bouchon, niveau de liquide net.
-      p.rect(8, 2, 4, 2, 1);            // bouchon
-      p.rect(8, 4, 4, 4, 3);            // col
-      p.ellipse(10, 13, 6, 5.4, 2);     // panse
-      for (let y = 11; y <= 17; y++) {  // liquide, arrêté à une ligne franche
-        const hw = Math.round(Math.sqrt(Math.max(0, 1 - ((y - 13) / 5.4) ** 2)) * 6);
-        if (hw > 0) p.rect(10 - hw, y, hw * 2, 1, 1);
-      }
-      p.rect(5, 11, 10, 1, 4);          // surface
-      p.ellipse(7, 11, 1.4, 1.8, 3);    // reflet vertical sur le verre
-      p.set(7, 10, 5);
-      break;
-    }
-
-    case 'feather': {
-      // Plume : un rachis courbe, et des barbes de part et d'autre, plus courtes vers la
-      // pointe. Sans les deux côtés, on ne lit qu'une branche.
-      const rachis = (t: number): [number, number] => [4 + t * 11, 17 - t * 15];
-      for (let k = 0; k <= 26; k++) {
-        const t = k / 26;
-        const [x, y] = rachis(t);
-        // Barbes : longueur maximale au milieu, nulle aux deux bouts.
-        const l = Math.sin(t * Math.PI) * 5.2 * (1 - t * 0.3);
-        for (let i = 1; i <= l; i++) {
-          p.set(x - i * 0.85, y - i * 0.24, i > l - 1.6 ? 1 : 2);
-          p.set(x + i * 0.62, y + i * 0.5, i > l - 1.6 ? 1 : 3);
-        }
-      }
-      for (let k = 0; k <= 26; k++) {
-        const [x, y] = rachis(k / 26);
-        p.set(x, y, 4);                 // le rachis, clair, par-dessus les barbes
-      }
-      p.set(...rachis(1), 5);
-      break;
-    }
-
-    case 'book': {
-      // Grimoire vu de trois quarts : plat, tranche de pages, dos épais.
-      p.rect(2, 4, 15, 13, 2);          // plat
-      p.rect(2, 4, 15, 1, 3);
-      p.rect(2, 16, 15, 1, 1);
-      p.rect(13, 5, 4, 11, 4);          // tranche des pages
-      for (let y = 6; y < 16; y += 2) p.rect(13, y, 4, 1, 3);
-      p.rect(2, 4, 3, 13, 1);           // dos
-      p.rect(3, 7, 1, 7, 3);            // nerfs
-      p.rect(6, 8, 6, 1, 3);            // fermoir
-      p.rect(6, 11, 6, 1, 3);
-      p.set(6, 5, 5);
-      break;
-    }
-
-    case 'magnet': {
-      // Aimant en fer à cheval, ouvert vers le bas, avec ses deux pôles marqués.
-      p.ellipse(10, 9, 7, 7, 2);
-      p.ellipse(10, 9, 3.4, 3.4, -1);
-      p.rect(3, 9, 14, 9, -1);          // on ouvre le bas
-      p.rect(3, 9, 4, 7, 2);            // branche gauche
-      p.rect(13, 9, 4, 7, 2);           // branche droite
-      p.rect(3, 15, 4, 3, 4);           // pôles
-      p.rect(13, 15, 4, 3, 1);
-      p.rect(3, 3, 4, 2, 3);            // lumière sur l'arceau
-      p.ellipse(7, 4, 2.2, 1.4, 3);
-      p.set(7, 3, 5);
-      break;
-    }
-
-    case 'shield': {
-      // Écusson : épaules droites, flancs qui se resserrent, pointe basse.
-      p.rect(3, 3, 15, 6, 2);
-      for (let y = 9; y <= 17; y++) {
-        const hw = 7.5 - (y - 9) * 0.85;
-        p.rect(10 - hw, y, hw * 2 + 1, 1, 2);
-      }
-      p.rect(3, 3, 15, 1, 3);
-      for (let y = 4; y <= 16; y++) p.set(11 + (y - 4) * 0.35, y, 1);   // flanc d'ombre
-      p.rect(5, 5, 4, 1, 3);
-      p.limb(10, 6, 10, 14, 1.6, 4);    // nervure centrale
-      p.set(5, 4, 5);
-      break;
-    }
-
-    case 'clover': {
-      // Trèfle à quatre feuilles : quatre cœurs disposés en croix, plus la tige.
-      for (const [dx, dy] of [[-4, -4], [4, -4], [-4, 3], [4, 3]] as const) {
-        const cx = 10 + dx;
-        const cy = 8 + dy;
-        p.ellipse(cx - 1.6, cy, 2.4, 2.4, 2);
-        p.ellipse(cx + 1.6, cy, 2.4, 2.4, 2);
-        p.ellipse(cx, cy + 1.4, 2.6, 2.4, 2);
-        p.ellipse(cx - 1.8, cy - 1, 1.1, 1.0, 3);
-      }
-      p.ellipse(10, 8, 1.6, 1.6, 1);    // cœur du trèfle
-      for (let k = 0; k < 7; k++) p.set(10 + k * 0.28, 12 + k, 1);   // tige
-      p.set(5, 3, 5);
-      break;
-    }
-
-    case 'cup': {
-      // Calice : coupe évasée, nœud, pied. Les trois éléments doivent se distinguer.
-      for (let y = 3; y <= 10; y++) {
-        const hw = 6.2 - (y - 3) * 0.62;
-        p.rect(10 - hw, y, hw * 2 + 1, 1, 2);
-      }
-      p.rect(4, 3, 13, 1, 4);           // lèvre
-      p.rect(5, 4, 11, 2, 1);           // le vin, sous la lèvre
-      for (let y = 4; y <= 9; y++) p.set(13 - (y - 4) * 0.5, y, 1);   // ombre de la coupe
-      p.ellipse(10, 11.5, 2.2, 1.4, 2); // nœud
-      p.rect(9, 12, 3, 4, 2);           // tige
-      p.rect(9, 12, 1, 4, 3);
-      p.ellipse(10, 17, 5.4, 1.8, 2);   // pied
-      p.rect(5, 17, 11, 1, 3);
-      p.set(6, 4, 5);
-      break;
-    }
-  }
-
-  p.outline(0);
-  const set = build([p], cols);
-  cache.set(key, set);
-  return set;
-}
-
-/** Pièce de collection à demi enfouie : parchemin, sceau, hiéroglyphe ou pierre gravée. */
+/** Pièce de collection : parchemin, sceau, hiéroglyphe ou pierre gravée. */
 export function makeFragment(kind: 'parchemin' | 'sceau' | 'hieroglyphe' | 'pierre'): SpriteSet {
-  const key = `frag:${kind}`;
-  const hit = cache.get(key);
-  if (hit) return hit;
-
-  const base = kind === 'parchemin' ? P.linen
-    : kind === 'sceau' ? P.gold
-      : kind === 'hieroglyphe' ? P.ice : P.steel;
-  const cols = [shade(base, -0.75), shade(base, -0.35), base, shade(base, 0.4), P.spark];
-  const frames: Pix[] = [];
-
-  for (let i = 0; i < 6; i++) {
-    const t = i / 6;
-    const p = pixObjet(14, 16);
-    const cx = 6.5;
-    // Léger flottement : une pièce enfouie qui « respire » se repère bien mieux au sol.
-    const lift = Math.sin(t * TAU) * 0.7;
-
-    switch (kind) {
-      case 'parchemin':
-        p.rect(3, 4 + lift, 8, 9, 2);
-        p.ellipse(3, 8.5 + lift, 1.3, 4.6, 3);
-        p.ellipse(11, 8.5 + lift, 1.3, 4.6, 3);
-        for (let k = 0; k < 4; k++) p.rect(4.5, 6 + k * 2 + lift, 5, 1, 1);
-        break;
-      case 'sceau':
-        p.ellipse(cx, 8 + lift, 4.4, 4.4, 2);
-        p.ring(cx, 8 + lift, 3, 3, 1);
-        p.set(cx, 8 + lift, 4);
-        p.rect(cx - 1, 12 + lift, 3, 3, 1);
-        break;
-      case 'hieroglyphe':
-        p.rect(2, 3 + lift, 11, 11, 2);
-        p.shadeVertical(2, 3, 1);
-        for (let r = 0; r < 3; r++) {
-          for (let c = 0; c < 3; c++) {
-            if ((r + c + i) % 2 === 0) p.set(4 + c * 3, 5 + r * 3 + lift, 1);
-          }
-        }
-        break;
-      case 'pierre':
-        // À demi enfouie : seule la face gravée dépasse du sol.
-        p.rect(3, 5 + lift, 9, 10, 2);
-        p.ellipse(cx, 5 + lift, 4.5, 1.8, 2);
-        p.shadeVertical(2, 3, 1);
-        p.rect(5, 8 + lift, 5, 1, 1);
-        p.rect(5, 10 + lift, 3, 1, 1);
-        p.rect(5, 12 + lift, 4, 1, 1);
-        break;
-    }
-
-    /*
-     * Mêmes passes que sur les créatures, pour que projectiles et monde aient l'air éclairés
-     * par la même lumière. L'occlusion est écartée : sur un sprite de dix pixels, chercher
-     * un rebord ne produit que du bruit.
-     */
-    p.rimLight(1, 0, 5);
-    p.outlineDouble(0, 6);
-    frames.push(p);
-  }
-
-  const set = build(frames, cols);
-  cache.set(key, set);
-  return set;
+  return paintedLoot(`frag:${kind}`, () => floatingFrames(FRAGMENT_ART[kind]!));
 }
 
 /** Disque plein utilisé pour les auras, flaques et zones – teinté au rendu. */

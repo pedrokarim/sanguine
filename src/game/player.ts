@@ -416,9 +416,9 @@ export class Player {
     if (this.moving) {
       this.facingX = inputX;
       this.facingY = inputY;
-      this.anim += dt * 9;
+      this.anim += dt * 12;
     } else {
-      this.anim += dt * 3;
+      this.anim += dt * 6;
     }
     if (this.anim > 1e6) this.anim = 0;
 

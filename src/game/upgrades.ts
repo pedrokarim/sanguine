@@ -1,5 +1,6 @@
 import { clamp } from '../core/math';
-import { makeProjectile, makePassiveSprite, makeIcon, type SpriteSet, type PassiveIcon } from '../gfx/sprites';
+import type { SpriteSet } from '../gfx/sprites';
+import { skillIcon, skillIconSet, tintedPassive } from '../gfx/skillicons';
 import { audio } from '../audio/audio';
 import { P } from '../gfx/palette';
 import { BASE_WEAPONS, weaponById, levelUpText, type WeaponDef } from '../data/weapons';
@@ -39,51 +40,26 @@ const WEIGHT = {
   passiveNew: 60,
 } as const;
 
-const iconCache = new Map<string, HTMLCanvasElement>();
-
 /**
- * Icône d'un surpassement.
- *
- * Elle réemploie les planches de passifs plutôt que d'en dessiner de nouvelles : un
- * surpassement prolonge une statistique que le joueur connaît déjà par son objet, et lui
- * montrer la même forme dit cela sans une ligne de texte. La teinte, elle, est propre au
- * rang : on ne les confond pas avec un objet qu'on pourrait encore ramasser.
+ * Icône d'un surpassement : le passif que le joueur connaît déjà, dans la teinte du rang. Il prolonge
+ * une statistique, mais ne se confond pas avec un objet qu'on pourrait encore ramasser.
  */
-const SURPASSEMENT_FORME: Record<string, PassiveIcon> = {
-  'sur-might': 'gem', 'sur-area': 'lens', 'sur-cooldown': 'glass',
-  'sur-hp': 'heart', 'sur-speed': 'boot', 'sur-pickup': 'magnet',
-  'sur-armor': 'shield', 'sur-crit': 'clover',
+const SURPASSEMENT_ART: Record<string, string> = {
+  'sur-might': 'reliquary', 'sur-area': 'scope', 'sur-cooldown': 'hourglass',
+  'sur-hp': 'silverheart', 'sur-speed': 'boots', 'sur-pickup': 'magnet',
+  'sur-armor': 'talisman', 'sur-crit': 'clover',
 };
 
 function surpassementIcon(id: string): HTMLCanvasElement {
-  const key = `s:${id}`;
-  let c = iconCache.get(key);
-  if (!c) {
-    c = makeIcon(makePassiveSprite(SURPASSEMENT_FORME[id] ?? 'ring', '#c9a6ff'), 20);
-    iconCache.set(key, c);
-  }
-  return c;
+  return tintedPassive(SURPASSEMENT_ART[id] ?? 'reliquary', '#c9a6ff');
 }
 
 function weaponIcon(def: WeaponDef): HTMLCanvasElement {
-  const key = `w:${def.id}`;
-  let c = iconCache.get(key);
-  if (!c) {
-    c = makeIcon(makeProjectile(def.sprite, def.color), 20);
-    iconCache.set(key, c);
-  }
-  return c;
+  return skillIcon('weapon', def.id);
 }
 
 function passiveIcon(id: string): HTMLCanvasElement {
-  const key = `p:${id}`;
-  let c = iconCache.get(key);
-  if (!c) {
-    const def = passiveById(id);
-    c = makeIcon(makePassiveSprite(def.icon, def.color), 20);
-    iconCache.set(key, c);
-  }
-  return c;
+  return skillIcon('passive', id);
 }
 
 /** Sprite d'icône brut, réutilisé par le HUD. */
@@ -92,7 +68,7 @@ export function iconFor(kind: 'weapon' | 'passive', id: string): HTMLCanvasEleme
 }
 
 export function weaponSpriteSet(def: WeaponDef): SpriteSet {
-  return makeProjectile(def.sprite, def.color);
+  return skillIconSet('weapon', def.id);
 }
 
 // ---------------------------------------------------------------------------
@@ -420,8 +396,7 @@ export function applyChest(w: World, res: ChestResult): void {
     pl.evolveWeapon(res.evolution.from.id, res.evolution.to.id);
     audio.play('evolve');
     w.announce(res.evolution.to.name, t('évolution', 'evolution'));
-    w.particles.beam(pl.x, pl.y, '#a855f7', 1.2);
-    w.particles.ring(pl.x, pl.y, 60, '#a855f7', 0.7, 3);
+    w.vfx.beam(0, 0, '#a855f7', pl);
     w.cam.shake(0.25, true);
   }
 

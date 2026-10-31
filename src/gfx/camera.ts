@@ -150,6 +150,25 @@ export class Camera {
   get offsetY(): number {
     return Math.round(-this.viewY + Math.floor(this.viewH / 2)) + Math.round(this.shakeY);
   }
+
+  /**
+   * Ce que l'arrondi de `offsetX` et `offsetY` a retiré.
+   *
+   * Tout ce qui marche à l'écran l'ajoute à sa position **avant** d'arrondir. Une créature
+   * arrondie de son côté, puis décalée d'une caméra arrondie du sien, retombe sur le défaut que
+   * `frame` a corrigé pour le héros : la somme de deux arrondis oscille, et un monstre qui suit
+   * le héros à son allure tremble d'un pixel, jusqu'à vingt-trois fois par seconde.
+   */
+  get remainderX(): number {
+    const exact = -this.viewX + Math.floor(this.viewW / 2);
+    return exact - Math.round(exact);
+  }
+
+  get remainderY(): number {
+    const exact = -this.viewY + Math.floor(this.viewH / 2);
+    return exact - Math.round(exact);
+  }
+
   /** Test de culling : l'entité est-elle visible (avec une marge) ? */
   visible(x: number, y: number, margin = 32): boolean {
     const hx = this.viewW / 2 + margin;

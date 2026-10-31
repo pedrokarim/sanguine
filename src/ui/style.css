@@ -438,14 +438,20 @@ body.cursor-hidden #game { cursor: none; }
 .slot-row { display: flex; gap: 3px; margin-top: 6px; flex-wrap: wrap; max-width: 15em; }
 .slot {
   position: relative;
-  width: calc(26px * var(--hud-scale)); height: calc(26px * var(--hud-scale));
+  width: calc(28px * var(--hud-scale)); height: calc(28px * var(--hud-scale));
   background: rgba(11, 13, 20, .8);
   border: 1px solid var(--stone-hi);
   border-radius: 2px;
   display: grid; place-items: center;
   image-rendering: pixelated;
 }
-.slot canvas { width: 80%; height: 80%; image-rendering: pixelated; }
+.slot canvas {
+  --size: calc(var(--art, 26) * 1px * var(--hud-scale));
+  /* Un multiple entier du dessin : à ×1,15, les pixels de l'icône seraient de largeurs inégales. */
+  width: round(down, var(--size), calc(var(--art, 26) * 1px));
+  height: round(down, var(--size), calc(var(--art, 26) * 1px));
+  image-rendering: pixelated;
+}
 .slot .lvl {
   position: absolute; right: -2px; bottom: -4px;
   font-size: calc(9px * var(--hud-scale)); font-weight: 700;
@@ -457,13 +463,28 @@ body.cursor-hidden #game { cursor: none; }
 .slot.new { animation: slot-pop .3s ease-out; }
 
 /* Bandeau vertical des reliques, à droite */
+.quest-card {
+  margin-top: 8px; max-width: 15em;
+  padding: .35em .55em .4em;
+  background: rgba(11, 13, 20, .72);
+  border: 1px solid var(--stone-hi);
+  border-radius: 2px;
+}
+.quest-title { color: var(--gold); font-size: .92em; overflow-wrap: anywhere; }
+.quest-goal { color: var(--steel); font-size: .8em; line-height: 1.25; margin-top: 1px; overflow-wrap: anywhere; }
+.quest-meta { color: var(--gold); font-size: .78em; margin-top: 2px; }
 .relic-rail {
   position: absolute; top: 78px; right: 12px;
   display: flex; flex-direction: column; gap: 2px; align-items: flex-end;
   max-height: 62%; flex-wrap: wrap-reverse;
 }
+.relic-chip canvas {
+  width: round(down, calc(26px * var(--hud-scale)), 26px);
+  height: round(down, calc(26px * var(--hud-scale)), 26px);
+  image-rendering: pixelated;
+}
 .relic-chip {
-  width: calc(20px * var(--hud-scale)); height: calc(20px * var(--hud-scale));
+  width: calc(28px * var(--hud-scale)); height: calc(28px * var(--hud-scale));
   border: 1px solid; border-radius: 2px;
   background: rgba(11, 13, 20, .85);
   display: grid; place-items: center;
@@ -591,10 +612,19 @@ body.cursor-hidden #game { cursor: none; }
   box-shadow: 0 0 22px rgba(242, 196, 107, .22), 0 16px 38px rgba(0, 0, 0, .85);
 }
 .card canvas {
-  width: 56px; height: 56px; image-rendering: pixelated;
+  width: 60px; height: 60px; image-rendering: pixelated;
   filter: drop-shadow(0 2px 3px rgba(0, 0, 0, .8));
   margin-bottom: var(--group-gap);
 }
+/* L'objet vivant déborde de sa réserve : ses étincelles passent sur le cadre sans pousser le texte. */
+.card-art {
+  position: relative;
+  width: 78px; height: 78px;
+  margin-bottom: var(--group-gap);
+  display: grid; place-items: center;
+  pointer-events: none;
+}
+.card-art .codex-sprite { position: absolute; left: 50%; top: 50%; translate: -50% -50%; }
 .card .name {
   font-size: 1.9em; line-height: 1; color: var(--gold);
   text-shadow: 0 2px 0 rgba(0, 0, 0, .8);
@@ -653,7 +683,7 @@ body.cursor-hidden #game { cursor: none; }
   box-shadow: 0 0 20px rgba(242, 196, 107, .2), 0 12px 28px rgba(0, 0, 0, .8);
 }
 .pick canvas {
-  width: 48px; height: 54px; image-rendering: pixelated;
+  width: 80px; height: 80px; image-rendering: pixelated;
   filter: drop-shadow(0 2px 3px rgba(0, 0, 0, .9));
   margin-bottom: var(--group-gap);
 }
@@ -1170,6 +1200,7 @@ body.is-touch .card { min-height: 0 }
   .screen h2::after { display: none }
   .card { width: 12em; padding: .7em .8em; font-size: .88em }
   .card canvas { width: 40px; height: 40px }
+  .card-art { width: 52px; height: 52px }
   .card .desc { font-size: .78em; line-height: 1.35 }
   .codex-scroll, .opt-scroll, .sanct-grid { max-height: 52vh }
   .blood-logo { height: clamp(56px, 22vh, 96px) }

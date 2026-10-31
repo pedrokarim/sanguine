@@ -1,7 +1,8 @@
 import './ui/style.css';
 import { Backdrop } from './ui/backdrop';
 import { BloodLogo } from './ui/logo';
-import { makeBody, makeHero, makeRelic, makeCoin, makeGem } from './gfx/sprites';
+import { makeBody, makeHero, makeCoin, makeGem } from './gfx/sprites';
+import { skillIcon } from './gfx/skillicons';
 import { treeSprite, BIOME_BY_ID } from './game/terrain';
 import { ENEMIES, BOSSES } from './data/enemies';
 import { CHARACTERS } from './data/characters';
@@ -113,7 +114,7 @@ const semer = (c: HTMLCanvasElement, x: number, y: number, ech: number): void =>
  * tête du héros et la pièce dans la lune : à cette échelle, deux objets qui se chevauchent
  * se lisent comme un seul objet raté.
  */
-semer(makeRelic('epic').frames[0]!, 132, 118, 3);
+semer(skillIcon('relic', 'fracturedorb'), 132, 118, 2);
 semer(makeCoin().frames[0]!, 866, 96, 3);
 semer(makeGem(3).frames[0]!, 262, 486, 2.4);
 semer(treeSprite('pine', 1, true, BIOME_BY_ID.get('thicket')!), 52, 296, 1.6);

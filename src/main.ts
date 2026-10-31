@@ -1,4 +1,6 @@
 import './ui/fonts.css';
+import { whenIdle } from './gfx/vfxbake';
+import { BIOMES, biomeFringe, FRINGE_SIDES } from './game/terrain';
 import './ui/style.css';
 
 import { applyDocumentLanguage, t } from './i18n';
@@ -11,15 +13,17 @@ import { formatTime } from './core/math';
 import { audio } from './audio/audio';
 import { Renderer } from './gfx/renderer';
 import {
-  spriteSheet, makeProjectile, makeBody, makeRelic, makeHero, makePassiveSprite,
+  spriteSheet, makeBody, makeHero,
   setHeroDetaille, getHeroDetaille,
   makeGem, makeCoin, makeHeart, makeChest, type SpriteSet,
 } from './gfx/sprites';
 import { WEAPONS } from './data/weapons';
+import { RELICS } from './data/relics';
+import { skillIconSet } from './gfx/skillicons';
 import { ENEMIES, BOSSES } from './data/enemies';
 import { PASSIVES } from './data/passives';
-import { POI_DEFS, poiSprite } from './game/terrain';
-import { World, VIEW, BASE_W, BASE_H } from './game/world';
+import { POI_DEFS, poiIcon } from './game/terrain';
+import { World, VIEW, BASE_W, BASE_H, PORTRAIT_W, PORTRAIT_H } from './game/world';
 import { Director } from './game/director';
 import { updateWeapons } from './game/weapons';
 import { rollOffers, openChest, applyChest, type Offer, type ChestResult } from './game/upgrades';
@@ -143,11 +147,11 @@ let runSaveTimer = 0;
  *
  * 1. **Un pixel de jeu doit valoir un nombre entier de pixels physiques.** L'ancienne version
  *    calculait le facteur en pixels CSS et ignorait `devicePixelRatio` : sous Windows à 125 %
- *    ou 150 % d'échelle, la taille physique devenait un multiple non entier de 480, le
+ *    ou 150 % d'échelle, la taille physique devenait un multiple non entier de la base, le
  *    navigateur rééchantillonnait, et tout le jeu apparaissait flou. Le facteur est donc
  *    désormais calculé en **pixels physiques**, et la taille CSS en est déduite.
  *
- * 2. **Le jeu doit remplir l'écran.** Avec une résolution logique figée à 480 × 270, tout
+ * 2. **Le jeu doit remplir l'écran.** Avec une résolution logique figée, tout
  *    écran dont les dimensions n'en sont pas un multiple exact affichait des bandes noires.
  *    La résolution logique s'étend donc jusqu'à couvrir la fenêtre, en conservant le facteur
  *    entier. Le joueur voit simplement un peu plus de terrain.
@@ -163,12 +167,17 @@ function resize(): void {
   display.style.width = `${window.innerWidth}px`;
   display.style.height = `${window.innerHeight}px`;
 
+  // Tenu droit, un téléphone garde son cadrage serré : sa largeur ne porte pas la vue d'un écran.
+  const portrait = physH > physW;
+  const refW = portrait ? PORTRAIT_W : BASE_W;
+  const refH = portrait ? PORTRAIT_H : BASE_H;
+
   // Facteur entier, choisi sur la dimension la plus contraignante.
-  blitScale = Math.max(1, Math.floor(Math.min(physW / BASE_W, physH / BASE_H)));
+  blitScale = Math.max(1, Math.floor(Math.min(physW / refW, physH / refH)));
 
   // Surface visible bornée : un écran très large ne doit pas offrir un avantage de jeu.
-  const maxW = Math.round(BASE_W * 1.5);
-  const maxH = Math.round(BASE_H * 1.5);
+  const maxW = Math.round(refW * 1.5);
+  const maxH = Math.round(refH * 1.5);
   /*
    * Le plafond de surface est une règle de **jeu** : il empêche un grand écran de voir
    * venir de plus loin. Un fond de menu n'a rien à voir avec cela, et le lui appliquer
@@ -178,9 +187,11 @@ function resize(): void {
    * négociée pour autant.
    */
   const horsPartie = world === null;
+  // Jamais plus large que la fenêtre : une vue de 480 dans 390 pixels coupait le HUD des deux côtés.
+  const minW = Math.min(refW, physW);
   const lw = horsPartie
-    ? Math.max(BASE_W, Math.floor(physW / blitScale))
-    : Math.min(maxW, Math.max(BASE_W, Math.floor(physW / blitScale)));
+    ? Math.max(minW, Math.floor(physW / blitScale))
+    : Math.min(maxW, Math.max(minW, Math.floor(physW / blitScale)));
 
   /*
    * En portrait, plafonner la hauteur à 1,5 × la base laissait la moitié de l'écran en
@@ -193,8 +204,8 @@ function resize(): void {
   const budget = maxW * maxH;
   const hautMax = Math.max(maxH, Math.floor(budget / lw));
   const lh = horsPartie
-    ? Math.max(BASE_H, Math.floor(physH / blitScale))
-    : Math.min(hautMax, Math.max(BASE_H, Math.floor(physH / blitScale)));
+    ? Math.max(refH, Math.floor(physH / blitScale))
+    : Math.min(hautMax, Math.max(refH, Math.floor(physH / blitScale)));
 
   VIEW.w = lw;
   VIEW.h = lh;
@@ -961,35 +972,20 @@ Object.defineProperty(window, 'sanguine', {
       const fit = (set: SpriteSet, max: number): number =>
         Math.max(1, Math.min(6, Math.floor(max / Math.max(set.w, set.h))));
 
-      for (const def of WEAPONS) {
-        const set = makeProjectile(def.sprite, def.color);
-        put(`weapon-${def.id}`, set, fit(set, 40));
-      }
+      for (const def of WEAPONS) put(`weapon-${def.id}`, skillIconSet('weapon', def.id), 2);
       for (const def of [...ENEMIES, ...BOSSES]) {
         const set = makeBody(`enemy:${def.id}`, def.art);
         put(`enemy-${def.id}`, set, fit(set, 48));
       }
-      for (const r of ['common', 'rare', 'epic', 'cursed'] as const) {
-        const set = makeRelic(r);
-        put(`relic-${r}`, set, fit(set, 40));
-      }
+      for (const r of RELICS) put(`relic-${r.id}`, skillIconSet('relic', r.id), 2);
       for (const c of CHARACTERS) {
         const set = makeHero(`hero:${c.id}`, c.art, false);
         put(`hero-${c.id}`, set, fit(set, 44));
       }
-      for (const p of PASSIVES) {
-        put(`passive-${p.id}`, makePassiveSprite(p.icon, p.color), 3);
-      }
+      for (const p of PASSIVES) put(`passive-${p.id}`, skillIconSet('passive', p.id), 2);
       for (const t of Object.keys(POI_DEFS) as (keyof typeof POI_DEFS)[]) {
-        const frames = poiSprite(t);
-        const set: SpriteSet = {
-          frames: frames.slice(0, 4),
-          flash: frames,
-          elite: frames,
-          w: frames[0]!.width,
-          h: frames[0]!.height,
-        };
-        put(`poi-${t}`, set, fit(set, 56));
+        const frame = poiIcon(t);
+        put(`poi-${t}`, { frames: [frame], flash: [frame], elite: [frame], w: frame.width, h: frame.height }, 2);
       }
       for (let r = 0; r < 4; r++) put(`gem-${r}`, makeGem(r as 0 | 1 | 2 | 3), 4);
       put('coin', makeCoin(), 4);
@@ -1023,6 +1019,13 @@ loadFxSettings();
 applyOptions();
 goTitle();
 loop.start();
+
+// Fabriquer un corps ou une lisière en pleine partie faisait perdre des images, et l'écran
+// sautait au moment où la créature ou le biome arrivait. Tout est prêt avant.
+whenIdle(
+  ...[...ENEMIES, ...BOSSES].map((def) => () => { makeBody(`enemy:${def.id}`, def.art); }),
+  ...BIOMES.flatMap((biome) => FRINGE_SIDES.map((side) => () => { biomeFringe(biome, side.id); })),
+);
 
 // `?fx` dans l'adresse ouvre directement le laboratoire d'effets, sans passer par les menus.
 if (new URLSearchParams(location.search).has('fx')) {

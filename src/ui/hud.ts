@@ -2,6 +2,7 @@ import { formatTime, abbrev, clamp } from '../core/math';
 import { RELIC_BY_ID } from '../data/relics';
 import { passiveById } from '../data/passives';
 import { iconFor } from '../game/upgrades';
+import { relicChipArt } from '../gfx/skillicons';
 import { iconValue } from './icons';
 import { Minimap } from './minimap';
 import type { World } from '../game/world';
@@ -35,6 +36,11 @@ export class Hud {
 
   private buildSig = '';
   private relicSig = 0;
+  private questSig = '';
+  private questCard!: HTMLDivElement;
+  private questTitle!: HTMLDivElement;
+  private questGoal!: HTMLDivElement;
+  private questMeta!: HTMLDivElement;
   private tooltip: HTMLDivElement | null = null;
   readonly minimap: Minimap;
 
@@ -55,6 +61,11 @@ export class Hud {
         </div>
         <div class="slot-row weapons"></div>
         <div class="slot-row passives"></div>
+        <div class="quest-card" style="display:none">
+          <div class="quest-title"></div>
+          <div class="quest-goal"></div>
+          <div class="quest-meta"></div>
+        </div>
       </div>
       <div class="hud-topright">
         <div class="hud-stat gold-row"></div>
@@ -100,6 +111,10 @@ export class Hud {
     }
 
     this.relicRail = q('.relic-rail');
+    this.questCard = q('.quest-card');
+    this.questTitle = q('.quest-title');
+    this.questGoal = q('.quest-goal');
+    this.questMeta = q('.quest-meta');
     this.bossBar = q('.boss-bar');
     this.bossName = q('.boss-bar .name');
     this.bossFill = q('.boss-bar .fill');
@@ -146,6 +161,7 @@ export class Hud {
     this.syncRelics(w);
     this.syncBoss(w);
     this.syncBanner(w);
+    this.syncQuest(w);
 
     const critical = hpRatio < 0.25 && !pl.dead;
     this.lowHp.style.display = critical ? 'block' : 'none';
@@ -206,6 +222,7 @@ export class Hud {
     el.className = `slot ${cls}${skipAnim ? '' : ' new'}`;
     const c = icon.cloneNode(true) as HTMLCanvasElement;
     c.getContext('2d')!.drawImage(icon, 0, 0);
+    c.style.setProperty('--art', String(c.width));
     el.appendChild(c);
     const lvl = document.createElement('span');
     lvl.className = 'lvl';
@@ -213,6 +230,19 @@ export class Hud {
     el.appendChild(lvl);
     this.attachTip(el, title, desc);
     return el;
+  }
+
+  private syncQuest(w: World): void {
+    const view = w.quests.view(w);
+    const meta = !view ? '' : view.count || (view.metres > 0 ? `${view.metres} m` : t('ici', 'here'));
+    const sig = view ? `${view.title}|${view.goal}|${meta}` : '';
+    if (sig === this.questSig) return;
+    this.questSig = sig;
+    this.questCard.style.display = view ? '' : 'none';
+    if (!view) return;
+    this.questTitle.textContent = view.title;
+    this.questGoal.textContent = view.goal;
+    this.questMeta.textContent = meta;
   }
 
   private syncRelics(w: World): void {
@@ -226,7 +256,7 @@ export class Hud {
       if (!def) continue;
       const chip = document.createElement('div');
       chip.className = `relic-chip ${def.rarity}`;
-      chip.textContent = def.name.charAt(0).toUpperCase();
+      chip.appendChild(relicChipArt(id));
       this.attachTip(chip, def.name, def.desc);
       this.relicRail.appendChild(chip);
     }
