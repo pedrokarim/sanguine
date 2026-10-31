@@ -17,6 +17,7 @@ import {
   setHeroDetaille, getHeroDetaille,
   makeGem, makeCoin, makeHeart, makeChest, type SpriteSet,
 } from './gfx/sprites';
+import { setGridScale } from './gfx/grid';
 import { WEAPONS } from './data/weapons';
 import { RELICS } from './data/relics';
 import { skillIconSet } from './gfx/skillicons';
@@ -76,6 +77,9 @@ const displayCtx = display.getContext('2d', { alpha: false })!;
 
 const scene = document.createElement('canvas');
 const ctx = scene.getContext('2d', { alpha: false, desynchronized: true })!;
+/** Le décor des menus n'a rien qui se déplace vite : il reste en pixels de jeu, agrandi d'un bloc. */
+const menuScene = document.createElement('canvas');
+const menuCtx = menuScene.getContext('2d', { alpha: false })!;
 
 /** Facteur entier et décalage de la recopie `scene` → `display`, en pixels physiques. */
 let blitScale = 1;
@@ -156,6 +160,22 @@ let runSaveTimer = 0;
  *    La résolution logique s'étend donc jusqu'à couvrir la fenêtre, en conservant le facteur
  *    entier. Le joueur voit simplement un peu plus de terrain.
  */
+/** Agrandissement restant après le dessin : 1 quand la scène a déjà la taille de l'écran. */
+let gridBlit = 1;
+
+/**
+ * Finesse des déplacements, en pixels d'écran par pixel de jeu.
+ *
+ * Plus elle est grande, plus le mouvement est doux, mais le coût suit son carré. Un diviseur de
+ * l'échelle garde le pixel net. Quatre suffit sur un 4K ; un téléphone en densité 3 y perdrait
+ * bien plus en cadence qu'il n'y gagnerait en douceur, il s'arrête donc à deux.
+ */
+function gridFor(scale: number): number {
+  const most = matchMedia('(pointer: coarse)').matches ? 2 : 4;
+  for (let g = Math.min(scale, most); g > 1; g--) if (scale % g === 0) return g;
+  return 1;
+}
+
 function resize(): void {
   const dpr = window.devicePixelRatio || 1;
   const physW = Math.max(1, Math.round(window.innerWidth * dpr));
@@ -209,8 +229,13 @@ function resize(): void {
 
   VIEW.w = lw;
   VIEW.h = lh;
-  scene.width = lw;
-  scene.height = lh;
+  const grid = gridFor(blitScale);
+  gridBlit = blitScale / grid;
+  scene.width = lw * grid;
+  scene.height = lh * grid;
+  menuScene.width = lw;
+  menuScene.height = lh;
+  setGridScale(grid);
   if (world) world.cam.resize(lw, lh);
 
   // Centrage de la recopie, en pixels physiques entiers.
@@ -234,9 +259,7 @@ function present(): void {
     displayCtx.fillStyle = '#05060a';
     displayCtx.fillRect(0, 0, display.width, display.height);
   }
-  displayCtx.drawImage(
-    scene, blitX, blitY, scene.width * blitScale, scene.height * blitScale,
-  );
+  displayCtx.drawImage(scene, blitX, blitY, scene.width * gridBlit, scene.height * gridBlit);
 }
 
 window.addEventListener('resize', resize);
@@ -712,7 +735,10 @@ const loop = new Loop({
       if (fxLab.isOpen) fxLab.update(loop);
     } else {
       // Hors partie, le canvas affiche la scène illustrée des menus.
-      backdrop.render(ctx, rdt, scene.width, scene.height);
+      backdrop.render(menuCtx, rdt, menuScene.width, menuScene.height);
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(menuScene, 0, 0, scene.width, scene.height);
     }
     present();
     if (debug) updateDebug();
@@ -818,7 +844,7 @@ function updatePerf(dt: number): void {
     `${loop.fps.toFixed(0)} ${t('images/s', 'fps')} · ${t('écran', 'screen')} ${loop.refreshHz} Hz\n` +
     `${t('calcul', 'update')} ${loop.updateMs.toFixed(1)} ms · ${t('rendu', 'render')} ${loop.renderMs.toFixed(1)} ms\n` +
     `${w.aliveEnemies} ${t('ennemis', 'enemies')} · ${shots} ${t('tirs', 'shots')} · ${w.particles.count} ${t('particules', 'particles')}\n` +
-    `${scene.width}×${scene.height} ×${blitScale}`;
+    `${VIEW.w}×${VIEW.h} ×${blitScale}`;
 }
 
 function updateDebug(): void {
@@ -840,7 +866,7 @@ function updateDebug(): void {
 
   const lines = [
     `${loop.fps.toFixed(0)} fps  upd ${loop.updateMs.toFixed(2)}ms  ren ${loop.renderMs.toFixed(2)}ms`,
-    `scène ${scene.width}×${scene.height}  ·  ×${blitScale}  ·  écran ${display.width}×${display.height}  ·  dpr ${dpr}`,
+    `scène ${VIEW.w}×${VIEW.h}  ·  ×${blitScale}  ·  écran ${display.width}×${display.height}  ·  dpr ${dpr}`,
     `mémoire/écran ${backing.toFixed(4)}  ·  ${exact ? 'NET (aucun rééchantillonnage)' : 'RÉÉCHANTILLONNÉ'}`,
   ];
   if (w) {

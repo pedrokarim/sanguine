@@ -1,3 +1,4 @@
+import { GROUND_GRIP } from './hazards';
 import { clamp, TAU } from '../core/math';
 import { load } from '../core/save';
 import { makeHero, type SpriteSet } from '../gfx/sprites';
@@ -394,7 +395,7 @@ export class Player {
 
   /** `speedMul` porte l'effet passif du biome courant (le marais ralentit). */
   /** Adhérence du sol : 1 répond tout de suite, plus bas l'élan l'emporte. */
-  grip = 1;
+  grip = GROUND_GRIP;
 
   update(dt: number, inputX: number, inputY: number, speedMul = 1): void {
     this.px = this.x;

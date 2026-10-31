@@ -1,5 +1,6 @@
 import { damp, clamp, lerp } from '../core/math';
 import { fxRng } from '../core/rng';
+import { gridScale, snap } from './grid';
 
 /**
  * Caméra : suit le joueur avec un léger retard, et accumule un « traumatisme » qui se traduit
@@ -19,7 +20,7 @@ export class Camera {
   /** Position réellement utilisée par le rendu de l'image courante. Voir `frame`. */
   private viewX = 0;
   private viewY = 0;
-  /** Retard de la caméra sur sa cible, en pixels entiers. */
+  /** Retard de la caméra sur sa cible, aligné sur les pixels de l'écran. */
   private lagX = 0;
   private lagY = 0;
   /** Traumatisme ∈ [0,1]. La secousse vaut `trauma² × maxShake`. */
@@ -127,8 +128,9 @@ export class Camera {
     const cy = lerp(this.prevY, this.y, alpha);
     const lx = targetX - cx;
     const ly = targetY - cy;
-    if (Math.abs(lx - this.lagX) > LAG_HYSTERESIS) this.lagX = Math.round(lx);
-    if (Math.abs(ly - this.lagY) > LAG_HYSTERESIS) this.lagY = Math.round(ly);
+    const margin = LAG_HYSTERESIS / gridScale();
+    if (Math.abs(lx - this.lagX) > margin) this.lagX = snap(lx);
+    if (Math.abs(ly - this.lagY) > margin) this.lagY = snap(ly);
     this.viewX = targetX - this.lagX;
     this.viewY = targetY - this.lagY;
   }
@@ -144,11 +146,11 @@ export class Camera {
    * colonnes alors même que le retard était parfaitement stable.
    */
   get offsetX(): number {
-    return Math.round(-this.viewX + Math.floor(this.viewW / 2)) + Math.round(this.shakeX);
+    return snap(-this.viewX + Math.floor(this.viewW / 2)) + snap(this.shakeX);
   }
 
   get offsetY(): number {
-    return Math.round(-this.viewY + Math.floor(this.viewH / 2)) + Math.round(this.shakeY);
+    return snap(-this.viewY + Math.floor(this.viewH / 2)) + snap(this.shakeY);
   }
 
   /**
@@ -161,12 +163,12 @@ export class Camera {
    */
   get remainderX(): number {
     const exact = -this.viewX + Math.floor(this.viewW / 2);
-    return exact - Math.round(exact);
+    return exact - snap(exact);
   }
 
   get remainderY(): number {
     const exact = -this.viewY + Math.floor(this.viewH / 2);
-    return exact - Math.round(exact);
+    return exact - snap(exact);
   }
 
   /** Test de culling : l'entité est-elle visible (avec une marge) ? */

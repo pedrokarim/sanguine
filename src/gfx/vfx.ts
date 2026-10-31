@@ -1,3 +1,4 @@
+import { snap } from './grid';
 import { clamp01, lerp, TAU } from '../core/math';
 import { fxRng } from '../core/rng';
 import type { ShrineType } from '../game/siteplan';
@@ -238,8 +239,8 @@ export class Vfx {
 
   private loopCell(ctx: CanvasRenderingContext2D, light: CanvasRenderingContext2D, s: Atlas, spec: Spec, x: number, y: number, time: number): void {
     const index = Math.floor(time * spec.fps * spec.speed) % s.frames;
-    const sx = Math.round(x);
-    const sy = Math.round(y);
+    const sx = snap(x);
+    const sy = snap(y);
     if (s.back) this.cell(ctx, s.back, s, index, sx, sy);
     if (s.front) this.cell(ctx, s.front, s, index, sx, sy);
     if (s.light) {
@@ -292,12 +293,12 @@ export class Vfx {
 
   private screenX(a: Instance, ox: number, alpha: number): number {
     const base = a.anchor ? lerp(a.anchor.px, a.anchor.x, alpha) : 0;
-    return Math.round(base + a.x + ox);
+    return snap(base + a.x + ox);
   }
 
   private screenY(a: Instance, oy: number, alpha: number): number {
     const base = a.anchor ? lerp(a.anchor.py, a.anchor.y, alpha) : 0;
-    return Math.round(base + a.y + oy);
+    return snap(base + a.y + oy);
   }
 }
 
