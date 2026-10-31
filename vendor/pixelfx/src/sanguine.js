@@ -22,6 +22,7 @@ import * as judgementBolt from "./fx/sanguine/judgement-bolt.js";
 import * as paintedFlight from "./fx/sanguine/painted-flight.js";
 import * as incenseCloud from "./fx/sanguine/incense-cloud.js";
 import * as graveBurst from "./fx/sanguine/grave-burst.js";
+import * as millSails from "./fx/sanguine/mill-sails.js";
 import * as campfire from "./fx/fire/campfire.js";
 import * as spiritFlame from "./fx/fire/spirit-flame.js";
 
@@ -56,5 +57,5 @@ export const effects = {
   hit, crit, bloodBurst, scytheArc, mirrorBurst, mirrorShard, emberPatch, saltCrust, spinningCross, thrownDagger,
   flailHead, thornSpike, shockRing, shockFront, arrow, fireball, sunburst, holyPillar, arcaneOrb, ghost, waterOrb, whirlpool, splash,
   lightningStrike, zapHit, smite, darkExplosion, smallExplosion, manaBurst, runeCircle, frostBreath, bat,
-  heroAura, trailStep, skillLife, judgementBolt, paintedFlight, incenseCloud, graveBurst, campfire, spiritFlame, bird, eyeball, flyingSkull, frog, jellyfish, slime, snake, wisp,
+  heroAura, trailStep, skillLife, judgementBolt, paintedFlight, incenseCloud, graveBurst, millSails, campfire, spiritFlame, bird, eyeball, flyingSkull, frog, jellyfish, slime, snake, wisp,
 };

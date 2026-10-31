@@ -513,3 +513,168 @@ function skullBadge(b: Brush, cx: number, y: number): void {
   b.rect(cx - 6, y - 2, 4, 5, BONE[0]);
   b.rect(cx + 2, y - 2, 4, 5, BONE[0]);
 }
+
+// -------------------------------------------------- monuments propres aux biomes
+
+/** Le moulin de la lande : les ailes tournent à part, voir `millSails`. */
+export function paintWindmill(b: Brush): void {
+  b.ellipse(10, 2, 104, 18, GROUND_SHADOW);
+  const foot = 0, top = -258, bw = 86, tw = 54;
+  b.poly([[-bw, foot], [-tw, top], [tw, top], [bw, foot]], tone(3));
+  b.layer((f) => {
+    masonry(f, -bw, bw, top, foot, 3);
+    f.cut([[-bw - 2, foot + 2], [-bw - 2, top - 2], [-tw, top - 2], [-bw, foot + 2]]);
+    f.cut([[bw + 2, foot + 2], [bw + 2, top - 2], [tw, top - 2], [bw, foot + 2]]);
+  });
+  b.poly([[-bw, foot], [-tw, top], [-tw + 16, top], [-bw + 26, foot]], tone(4));
+  b.poly([[bw, foot], [tw, top], [tw - 22, top], [bw - 34, foot]], tone(2));
+  b.arch(0, foot, 66, 96, tone(5));
+  b.arch(0, foot, 54, 88, WOOD[1]);
+  b.rect(-1, foot - 86, 3, 86, WOOD[0]);
+  for (const [x, y] of [[-22, -150], [24, -196]] as const) {
+    b.arch(x, y, 26, 40, tone(5));
+    b.arch(x, y, 18, 34, STONE[0]);
+  }
+  // Le chapeau, bois et ardoise, qui suit le vent.
+  b.rect(-tw - 8, top - 8, tw * 2 + 16, 12, WOOD[2]);
+  b.rect(-tw - 8, top - 8, tw * 2 + 16, 3, WOOD[3]);
+  b.poly([[-tw - 6, top - 8], [-tw * 0.4, top - 62], [tw * 0.4, top - 62], [tw + 6, top - 8]], ROOF[2]);
+  b.poly([[-tw - 6, top - 8], [-tw * 0.4, top - 62], [-tw * 0.1, top - 62], [-tw * 0.5, top - 8]], ROOF[4]);
+  b.poly([[tw + 6, top - 8], [tw * 0.4, top - 62], [tw * 0.1, top - 62], [tw * 0.5, top - 8]], ROOF[0]);
+}
+
+/** La cabane de la sorcière, sur ses pilotis : tordue, rapiécée, habitée. */
+export function paintWitchHut(b: Brush, lit: boolean): void {
+  b.ellipse(0, 0, 116, 18, WATER[1]);
+  for (const x of [-92, -52, -6, 40, 88]) {
+    b.rect(x, -74, 11, 76, WOOD[1]);
+    b.rect(x, -74, 4, 76, WOOD[2]);
+    for (let y = -56; y < -4; y += 18) b.rect(x - 1, y, 13, 3, MOSS[1]);
+  }
+  b.rect(-112, -86, 224, 14, WOOD[1]);
+  b.rect(-112, -86, 224, 4, WOOD[3]);
+  const wall = -196;
+  b.poly([[-96, -84], [-90, wall], [92, wall + 8], [100, -84]], WOOD[2]);
+  for (let x = -92; x < 98; x += 17) b.poly([[x, -84], [x + 2, wall + (x + 92) * 0.04], [x + 4, wall + (x + 92) * 0.04], [x + 2, -84]], WOOD[1]);
+  b.rect(40, -176, 34, 44, WOOD[0]);
+  b.rect(44, -172, 26, 36, lit ? '#3cd8a0' : '#141014');
+  b.rect(56, -172, 2, 36, WOOD[1]);
+  b.rect(44, -156, 26, 2, WOOD[1]);
+  b.rect(-52, -164, 50, 80, WOOD[1]);
+  b.rect(-46, -158, 38, 74, WOOD[0]);
+  b.ellipse(-16, -120, 3, 3, GOLD);
+  // Le chaume, affaissé d'un côté, et un crâne au faîte.
+  b.poly([[-128, -176], [-8, -292], [128, -164], [96, -150], [-104, -160]], '#3a3020');
+  b.poly([[-128, -176], [-8, -292], [-14, -158], [-104, -160]], '#5a4a2c');
+  for (let k = 0; k < 16; k++) {
+    const x = -116 + k * 15, y = -166 + (stoneHash(k, 2) - 0.5) * 8;
+    b.rect(x, y - 16, 3, 20, '#2a2216');
+  }
+  b.rect(38, -262, 26, 62, tone(2));
+  b.rect(38, -262, 8, 62, tone(4));
+  b.rect(34, -268, 34, 8, tone(5));
+  b.ellipse(-8, -296, 12, 11, BONE[2]);
+  b.rect(-13, -298, 5, 5, BONE[0]);
+  b.rect(-3, -298, 5, 5, BONE[0]);
+  // L'escalier de planches, et le chaudron au pied.
+  for (let k = 0; k < 5; k++) b.rect(-70 + k * 3, -68 + k * 15, 58, 6, k % 2 ? WOOD[2] : WOOD[3]);
+  b.ellipse(84, 26, 30, 10, IRON[0]);
+  b.rect(58, 2, 52, 24, IRON[1]);
+  b.rect(58, 2, 14, 24, IRON[2]);
+  b.ellipse(84, 2, 27, 8, IRON[2]);
+  b.ellipse(84, 3, 22, 6, lit ? '#3cd8a0' : STONE[0]);
+}
+
+/** L'arbre aux pendus : une masse noire plus haute qu'une tour, et ce qui pend à ses branches. */
+export function paintHangingTree(b: Brush, lit: boolean): void {
+  const dark = BARK2[0], mid = BARK2[1], hi = BARK2[2];
+  b.ellipse(12, 4, 150, 26, GROUND_SHADOW);
+  for (const [x, w] of [[-112, 56], [-64, 44], [62, 46], [108, 58]] as const) {
+    b.poly([[x, 6], [x + (x < 0 ? w : -w), -30], [x + (x < 0 ? w + 22 : -w - 22), -4]], mid);
+  }
+  b.poly([[-58, 2], [-44, -180], [-74, -274], [-30, -214], [0, -300], [34, -216], [70, -262], [44, -176], [62, 2]], mid);
+  b.poly([[-58, 2], [-44, -180], [-74, -274], [-30, -214], [-14, -250], [-16, 2]], hi);
+  b.poly([[26, 2], [34, -160], [62, 2]], dark);
+  const limbs = [[-30, -210, -190, -292, 14], [34, -214, 196, -304, 14], [-10, -266, -96, -392, 11], [12, -270, 110, -398, 11], [0, -290, 10, -420, 10]] as const;
+  for (const [x0, y0, x1, y1, r] of limbs) {
+    b.poly([[x0 - r, y0], [x0 + r, y0 + r], [x1, y1]], mid);
+    b.poly([[x0 - r, y0], [x0, y0 - 2], [x1, y1]], hi);
+  }
+  for (const [x, y, dx, dy] of [[-120, -262, -60, -40], [-150, -272, 10, -56], [120, -262, 70, -36], [150, -278, -6, -62], [-62, -340, -44, -44], [66, -340, 46, -46]] as const) {
+    b.poly([[x - 3, y], [x + 4, y], [x + dx, y + dy]], mid);
+  }
+  // Trois pendus : la corde, le sac de toile, deux pieds qui ne touchent rien.
+  for (const [x, y, len] of [[-150, -272, 62], [146, -280, 84], [-74, -350, 92]] as const) {
+    b.rect(x, y, 2, len, BONE[1]);
+    const t = y + len;
+    b.ellipse(x + 1, t + 6, 8, 8, lit ? BONE[2] : BONE[1]);
+    b.poly([[x - 11, t + 12], [x + 13, t + 12], [x + 10, t + 58], [x - 8, t + 58]], CLOTH[0]);
+    b.poly([[x - 11, t + 12], [x + 1, t + 12], [x - 2, t + 58], [x - 8, t + 58]], CLOTH[1]);
+    b.rect(x - 6, t + 58, 4, 14, BONE[1]);
+    b.rect(x + 3, t + 58, 4, 14, BONE[1]);
+  }
+}
+
+/** La forge de lave : un four adossé à la coulée, qui n'a jamais refroidi. */
+export function paintLavaForge(b: Brush, lit: boolean): void {
+  b.ellipse(8, 4, 150, 22, GROUND_SHADOW);
+  block(b, -138, 0, 276, 26, 14);
+  masonry(b, -112, 112, -196, -26, 2);
+  b.rect(-112, -196, 14, 170, tone(4));
+  b.rect(98, -196, 14, 170, tone(1));
+  b.poly([[-124, -196], [0, -252], [124, -196]], tone(3));
+  b.poly([[-124, -196], [0, -252], [0, -196]], tone(4));
+  b.rect(-30, -386, 60, 150, tone(3));
+  b.rect(-30, -386, 18, 150, tone(4));
+  b.rect(14, -386, 16, 150, tone(1));
+  b.rect(-38, -398, 76, 14, tone(5));
+  for (let y = -372; y < -250; y += 34) b.rect(-30, y, 60, 3, tone(1));
+  // La gueule, et ce qu'elle laisse couler.
+  b.arch(0, -26, 150, 132, tone(5));
+  b.arch(0, -26, 132, 120, STONE[0]);
+  const hot = lit ? ['#c22e12', '#ff8a1e', '#ffe28a'] as const : [STONE[1], STONE[0], STONE[1]] as const;
+  b.arch(0, -26, 104, 92, hot[0]);
+  b.arch(0, -26, 72, 62, hot[1]);
+  b.arch(0, -26, 36, 34, hot[2]);
+  b.poly([[-30, -26], [30, -26], [48, 2], [-44, 2]], hot[0]);
+  b.poly([[-12, -26], [14, -26], [20, 2], [-16, 2]], hot[1]);
+  // L'enclume, au pied.
+  const ax = -96, ay = 34;
+  b.rect(ax - 12, ay - 26, 26, 26, IRON[1]);
+  b.rect(ax - 30, ay - 40, 62, 14, IRON[2]);
+  b.poly([[ax + 32, ay - 40], [ax + 54, ay - 34], [ax + 32, ay - 30]], IRON[2]);
+  b.rect(ax - 30, ay - 40, 62, 3, IRON[3]);
+}
+
+/** Le colosse gelé : un géant pris debout dans la glace, le bras encore levé. */
+export function paintFrozenColossus(b: Brush, lit: boolean): void {
+  b.ellipse(8, 4, 140, 24, GROUND_SHADOW);
+  b.ellipse(0, 0, 134, 24, SNOWS[0]);
+  b.ellipse(-8, -4, 118, 18, SNOWS[1]);
+  const top = -348;
+  b.poly([[-118, -4], [-132, -160], [-84, -300], [-20, top], [58, -316], [116, -210], [124, -4]], ICES[1]);
+  b.poly([[-118, -4], [-132, -160], [-84, -300], [-20, top], [-30, -4]], ICES[2]);
+  b.poly([[-104, -30], [-112, -160], [-74, -280], [-34, -320], [-48, -200], [-62, -30]], ICES[3]);
+  // La silhouette, sombre, vue à travers la glace.
+  const body = lit ? '#1c3a54' : '#16304a', face = '#0e2436';
+  b.ellipse(0, -254, 30, 34, body);
+  b.poly([[-72, -214], [72, -214], [58, -92], [-54, -92]], body);
+  b.poly([[-54, -92], [-8, -92], [-16, -8], [-52, -8]], body);
+  b.poly([[8, -92], [54, -92], [52, -8], [16, -8]], body);
+  b.poly([[62, -214], [88, -204], [104, -300], [78, -312]], body);
+  b.poly([[-72, -214], [-92, -208], [-104, -96], [-76, -94]], body);
+  b.rect(-12, -262, 8, 6, face);
+  b.rect(8, -262, 8, 6, face);
+  b.rect(-8, -240, 20, 4, face);
+  for (const [x0, y0, x1, y1] of [[-96, -300, -20, -150], [-30, -210, 44, -96], [60, -300, 12, -170], [-70, -120, 8, -40]] as const) {
+    b.poly([[x0, y0], [x0 + 3, y0], [x1 + 3, y1], [x1, y1]], ICES[4]);
+  }
+  for (const [x, h, w] of [[-146, 84, 22], [142, 70, 20], [-104, 52, 16], [108, 46, 14]] as const) {
+    b.poly([[x - w, 4], [x + 2, -h], [x + w, 4]], ICES[1]);
+    b.poly([[x - w, 4], [x + 2, -h], [x - 2, 4]], ICES[3]);
+  }
+}
+
+const BARK2 = ['#0a0810', '#16121c', '#2a2430'] as const;
+const SNOWS = ['#8ca8c0', '#c4dbe8'] as const;
+const ICES = ['#16304a', '#2c5a7c', '#5a9cc0', '#a8e0f0', '#eefbff'] as const;

@@ -393,6 +393,9 @@ export class Player {
   }
 
   /** `speedMul` porte l'effet passif du biome courant (le marais ralentit). */
+  /** Adhérence du sol : 1 répond tout de suite, plus bas l'élan l'emporte. */
+  grip = 1;
+
   update(dt: number, inputX: number, inputY: number, speedMul = 1): void {
     this.px = this.x;
     this.py = this.y;
@@ -407,8 +410,10 @@ export class Player {
     }
 
     const sp = this.stats.moveSpeed * speedMul * (1 + this.buffSpeed);
-    this.vx = inputX * sp;
-    this.vy = inputY * sp;
+    // Sur la glace, la commande ne donne plus qu'une poussée : l'élan reste, et il faut l'anticiper.
+    const hold = this.grip >= 1 ? 0 : Math.pow(1 - this.grip, dt * 60);
+    this.vx = this.vx * hold + inputX * sp * (1 - hold);
+    this.vy = this.vy * hold + inputY * sp * (1 - hold);
     this.x += this.vx * dt;
     this.y += this.vy * dt;
 

@@ -152,10 +152,12 @@ export const EN_COSMETICS: Record<string, Record<string, string>> = {
 
 export const EN_BIOMES: Record<string, Record<string, string>> = {
   moor: { name: 'The Moor', flavor: 'nothing but dead heather' },
-  graveyard: { name: 'The Graveyard', flavor: 'too many were buried here' },
-  mire: { name: 'The Mire', flavor: 'the mud holds you back' },
-  ashes: { name: 'The Ashes', flavor: 'something burned here for a long time' },
-  thicket: { name: 'The Dead Woods', flavor: 'the trees died standing' },
+  graveyard: { name: 'The Field of the Dead', flavor: 'too many were buried here: +15% experience' },
+  mire: { name: 'The Mire', flavor: 'the bog holds you back, and them too' },
+  ashes: { name: 'The Ashes', flavor: 'the heat stokes your weapons: +8% damage' },
+  thicket: { name: 'The Dead Woods', flavor: 'it is night here, and the brambles bite' },
+  frost: { name: 'The Frozen Lake', flavor: 'on the ice, you do not stop when you want to' },
+  lava: { name: 'The Flows', flavor: 'lava burns all that walks: +15% damage' },
 };
 
 export const EN_POIS: Record<string, Record<string, string>> = {
@@ -163,6 +165,11 @@ export const EN_POIS: Record<string, Record<string, string>> = {
   obelisk: { name: 'Obelisk', hint: 'the stone lends you its strength' }, well: { name: 'Well', hint: 'coins were cast into it' },
   ossuary: { name: 'Ossuary', hint: 'something sleeps within' }, chapel: { name: 'Drowned Chapel', hint: 'a moment of respite' },
   cairn: { name: 'Cairn', hint: 'offerings' },
+  windmill: { name: 'The Windmill', hint: 'the wind turns' },
+  hut: { name: 'Witch’s Hut', hint: 'a potion, a poison' },
+  hangtree: { name: 'The Hanging Tree', hint: 'they fall' },
+  forge: { name: 'Lava Forge', hint: 'a weapon is tempered here' },
+  colossus: { name: 'The Frozen Colossus', hint: 'the cold spreads' },
 };
 
 export const EN_CYCLES = [

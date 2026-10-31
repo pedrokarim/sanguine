@@ -21,7 +21,8 @@ export function updateGarrisons(w: World, dt: number): void {
   if (sites.entered) w.announce(sites.entered.name, sites.entered.subtitle);
   const site = sites.active;
   if (!site) return;
-  if (site.risers) wakeTheDead(w, site, dt);
+  // Tableau vide : ce cimetière s'est déjà réveillé, à cette partie-ci ou avant une reprise.
+  if (site.risers?.length) wakeTheDead(w, site, dt);
 
   const pl = w.player;
   for (const g of site.garrison) {
@@ -55,7 +56,7 @@ function wakeTheDead(w: World, site: Site, dt: number): void {
     if (pl.x < b.x || pl.y < b.y || pl.x > b.x + b.w || pl.y > b.y + b.h) return;
     site.riseClock = 0;
     w.terrain.sites.risen.add(site.id);
-    w.announce(cemeteryWarning(), site.name, 3.5);
+    w.announce(cemeteryWarning(), site.name, 3.5, true);
     audio.play('boss');
     w.cam.shake(0.2);
   }

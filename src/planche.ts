@@ -194,9 +194,10 @@ section('Pièces de collection', 'Les quatre supports de l’Archive.',
 
 const BIOME_ARBRE: Record<TreeKind, string> = {
   pine: 'thicket', oak: 'graveyard', willow: 'mire', burnt: 'ashes',
+  cypress: 'graveyard', mangrove: 'mire', mushroom: 'mire', obsidian: 'lava', frostpine: 'frost', crystal: 'frost',
 };
 section('Végétation', 'Quatre essences, quatre silhouettes par essence, deux tailles. Semées en bosquets plutôt qu’en semis régulier.',
-  (['pine', 'oak', 'willow', 'burnt'] as TreeKind[]).flatMap((k) =>
+  (['pine', 'oak', 'willow', 'burnt', 'cypress', 'mangrove', 'mushroom', 'obsidian', 'frostpine', 'crystal'] as TreeKind[]).flatMap((k) =>
     Array.from({ length: TREE_VARIANTS }, (_, v) => {
       const b = BIOME_BY_ID.get(BIOME_ARBRE[k])!;
       const c = treeSprite(k, v, true, b);
@@ -216,7 +217,7 @@ section('Ruines', 'Les six maisons d’un bourg. Les murs sont peints à leur pr
   }), 2);
 
 section('Structures', 'Bâties comme le château, à l’échelle des arbres. Atteindre leur pied les déclenche.',
-  (['altar', 'pyre', 'obelisk', 'well', 'ossuary', 'chapel', 'cairn'] as PoiType[]).map((t) => {
+  (['altar', 'pyre', 'obelisk', 'well', 'ossuary', 'chapel', 'cairn', 'windmill', 'hut', 'hangtree', 'forge', 'colossus'] as PoiType[]).map((t) => {
     const c = shrineSheet(t);
     return { nom: t, frames: [c], w: c.width, h: c.height };
   }), 1);

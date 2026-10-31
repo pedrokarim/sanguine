@@ -287,6 +287,11 @@ const SHRINE_FOCUS: Readonly<Record<ShrineType, () => Spec>> = {
   ossuary: () => specOf(effects.spiritFlame, { palette: SPECTRE }, { zoom: 0.5, fps: 12, loop: true }),
   chapel: () => specOf(effects.spiritFlame, { palette: GOLD }, { zoom: 0.4, fps: 12, loop: true }),
   cairn: () => specOf(effects.spiritFlame, {}, { zoom: 0.62, fps: 12, loop: true }),
+  windmill: () => specOf(effects.millSails, {}, { loop: true, fps: 12 }),
+  hut: () => specOf(effects.spiritFlame, { palette: SPECTRE }, { zoom: 0.4, fps: 12, loop: true }),
+  hangtree: () => specOf(effects.spiritFlame, { palette: BLOOD }, { zoom: 0.4, fps: 12, loop: true }),
+  forge: () => specOf(effects.campfire, { height: 60 }, { fps: 12, loop: true }),
+  colossus: () => specOf(effects.spiritFlame, { palette: ICE_RAMP }, { zoom: 0.6, fps: 12, loop: true }),
 };
 
 export function shrineFocusSpec(type: ShrineType): Spec {

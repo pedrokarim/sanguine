@@ -3,6 +3,8 @@ import { valueNoise2, TAU, dist2 } from '../core/math';
 import { P, shade, hexToRgb, mix, rgba } from '../gfx/palette';
 import { skillIcon } from '../gfx/skillicons';
 import { sculptProp, sculptTree } from '../gfx/worldart';
+import { floraProp, floraTree, isFloraProp, isFloraTree, type FloraProp, type FloraTree } from '../gfx/flora';
+import { HazardField } from './hazards';
 import { extinguish } from './shrines';
 import type { ShrineType, Site } from './siteplan';
 import { language, localiseById } from '../i18n';
@@ -37,8 +39,14 @@ export interface Biome {
   mightMul: number;
   /** Densité de décor, 0..1. */
   props: number;
-  /** Type de décor dominant. */
-  propKind: PropKind;
+  /** Ce qui pousse et traîne au sol ici : une plante n'existe que dans son biome. */
+  flora: PropKind[];
+  /** Monuments propres au biome : on ne les croise nulle part ailleurs. */
+  monuments: ShrineType[];
+  /** Gemmes plus généreuses. Absent = 1. */
+  xpMul?: number;
+  /** Assombrit l'écran : on voit moins loin. Absent = 0. */
+  gloom?: number;
   /** Essences qui poussent ici. Vide = aucun arbre. */
   trees: TreeKind[];
   /** Densité d'arbres hors bosquet, 0..1. */
@@ -49,7 +57,7 @@ export interface Biome {
   flavor: string;
 }
 
-export type PropKind = 'rock' | 'grave' | 'reed' | 'stump' | 'bone';
+export type PropKind = 'rock' | 'grave' | 'reed' | 'stump' | 'bone' | FloraProp;
 
 /**
  * Familles d'arbres.
@@ -59,7 +67,7 @@ export type PropKind = 'rock' | 'grave' | 'reed' | 'stump' | 'bone';
  * silhouette. Quatre familles, déclinées en variantes et en deux tailles, suffisent à ce
  * qu'on cesse de reconnaître le motif.
  */
-export type TreeKind = 'pine' | 'oak' | 'willow' | 'burnt';
+export type TreeKind = 'pine' | 'oak' | 'willow' | 'burnt' | FloraTree;
 
 /**
  * Motifs de sol.
@@ -90,26 +98,29 @@ export const BIOMES: Biome[] = [
     weights: {},
     moveMul: 1,
     mightMul: 1,
-    props: 0.35,
-    propKind: 'rock',
+    props: 0.5,
+    flora: ['heather', 'heather', 'gorse', 'rock'],
+    monuments: ['windmill', 'well', 'cairn'],
     trees: ['oak'],
-    treeDensity: 0.42,
+    treeDensity: 0.3,
     motifs: ['labour', 'dallage'],
     flavor: 'rien que de la bruyère morte',
   },
   {
     id: 'graveyard',
-    name: 'Le Cimetière',
+    name: 'Le Champ des Morts',
     ground: ['#191d2a', '#0e1119', '#242a3c', '#3a4152'],
     weights: { skeleton: 3.2, ghoul: 1.8, wraith: 2.4, damned: 1.6, bat: 0.5 },
     moveMul: 1,
     mightMul: 1,
     props: 0.7,
-    propKind: 'grave',
-    trees: ['oak', 'pine'],
+    flora: ['grave', 'blackrose', 'blackrose', 'rock'],
+    monuments: ['ossuary', 'altar'],
+    xpMul: 1.15,
+    trees: ['cypress', 'cypress', 'oak'],
     treeDensity: 0.55,
     motifs: ['fouille', 'dallage'],
-    flavor: 'on y a enterré trop de monde',
+    flavor: 'on y a enterré trop de monde : +15 % d’expérience',
   },
   {
     id: 'mire',
@@ -119,12 +130,13 @@ export const BIOMES: Biome[] = [
     // Le marais ralentit : c'est le seul biome réellement dangereux à traverser.
     moveMul: 0.86,
     mightMul: 1,
-    props: 0.6,
-    propKind: 'reed',
-    trees: ['willow'],
+    props: 0.75,
+    flora: ['cattail', 'cattail', 'lily', 'reed'],
+    monuments: ['hut', 'chapel'],
+    trees: ['mangrove', 'mangrove', 'willow', 'mushroom'],
     treeDensity: 0.6,
     motifs: ['vase'],
-    flavor: 'la boue vous retient',
+    flavor: 'la tourbière vous retient, et eux aussi',
   },
   {
     id: 'ashes',
@@ -134,12 +146,13 @@ export const BIOMES: Biome[] = [
     moveMul: 1,
     // Compense le danger : la chaleur attise les armes.
     mightMul: 1.08,
-    props: 0.45,
-    propKind: 'bone',
+    props: 0.55,
+    flora: ['cinder', 'cinder', 'emberflower', 'bone'],
+    monuments: ['pyre', 'obelisk'],
     trees: ['burnt'],
-    treeDensity: 0.48,
+    treeDensity: 0.4,
     motifs: ['cendre', 'pave'],
-    flavor: 'quelque chose a brûlé ici, longtemps',
+    flavor: 'la chaleur attise vos armes : +8 % de dégâts',
   },
   {
     id: 'thicket',
@@ -148,12 +161,45 @@ export const BIOMES: Biome[] = [
     weights: { wolf: 3.0, spider: 2.4, crow: 2.2, bat: 1.6, skeleton: 0.6 },
     moveMul: 0.96,
     mightMul: 1,
-    props: 0.85,
-    propKind: 'stump',
-    trees: ['pine', 'burnt'],
+    props: 0.9,
+    flora: ['thornbush', 'fern', 'fern', 'stump'],
+    monuments: ['hangtree', 'cairn'],
+    gloom: 0.42,
+    trees: ['pine', 'pine', 'burnt', 'mushroom'],
     treeDensity: 0.92,
     motifs: ['labour'],
-    flavor: 'les arbres sont morts debout',
+    flavor: 'il fait nuit ici, et les ronces mordent',
+  },
+  {
+    id: 'frost',
+    name: 'Le Lac Gelé',
+    ground: ['#1c2c3e', '#121e2c', '#2a4058', '#a8cce0'],
+    weights: {},
+    moveMul: 1,
+    mightMul: 1,
+    props: 0.55,
+    flora: ['snowbush', 'snowbush', 'icecluster', 'rock'],
+    monuments: ['colossus', 'obelisk'],
+    trees: ['frostpine', 'frostpine', 'crystal'],
+    treeDensity: 0.5,
+    motifs: ['dallage'],
+    flavor: 'sur la glace, on ne s’arrête pas quand on veut',
+  },
+  {
+    id: 'lava',
+    name: 'Les Coulées',
+    ground: ['#1a1014', '#0e090c', '#2a161a', '#7e1a10'],
+    weights: {},
+    moveMul: 1,
+    // La lave brûle tout ce qui marche : le héros, et la horde qu'il y attire.
+    mightMul: 1.15,
+    props: 0.6,
+    flora: ['lavarock', 'lavarock', 'emberflower', 'cinder'],
+    monuments: ['forge', 'pyre'],
+    trees: ['obsidian', 'obsidian', 'burnt'],
+    treeDensity: 0.42,
+    motifs: ['cendre', 'pave'],
+    flavor: 'la lave brûle tout ce qui marche : +15 % de dégâts',
   },
 ];
 
@@ -161,24 +207,102 @@ localiseById(BIOMES, EN_BIOMES);
 
 export const BIOME_BY_ID = new Map(BIOMES.map((b) => [b.id, b]));
 
-/** Échelle des biomes en pixels : ~1400 px de large, soit environ trois écrans. */
-const BIOME_SCALE = 1400;
+/**
+ * Taille d'une région : assez large pour qu'on y entre, qu'on y reste, et qu'on en sorte. À 100 px/s,
+ * il faut une bonne vingtaine de secondes pour traverser un biome.
+ */
+const REGION = 2600;
+/** Déformation des frontières : sans elle, les régions seraient des polygones à bords droits. */
+const WARP = 620;
+const WARP_SCALE = 760;
 
 /**
- * Biome à une position du monde. Deux octaves de bruit : la première découpe de grandes
- * régions, la seconde brise les frontières pour qu'elles ne soient pas des cercles nets.
+ * Un paquet par bloc de 4×4 régions, battu à la graine : les parts sont tenues dans chaque coin de la
+ * carte, là où un simple tirage laissait des parties presque sans lave.
  */
-export function biomeAt(x: number, y: number): Biome {
-  const a = valueNoise2(x / BIOME_SCALE, y / BIOME_SCALE, 1337);
-  const b = valueNoise2(x / (BIOME_SCALE * 0.43) + 31.7, y / (BIOME_SCALE * 0.43) + 17.3, 991);
-  const v = a * 0.72 + b * 0.28;
+const CHUNK = 4;
+const REGION_DECK: readonly string[] = [
+  'moor', 'moor', 'moor', 'moor', 'graveyard', 'graveyard', 'thicket', 'thicket',
+  'mire', 'mire', 'frost', 'frost', 'ashes', 'ashes', 'lava', 'lava',
+];
+/** Autour du départ, un de chaque : tout se découvre dès la première partie. */
+const FIRST_RING: readonly string[] = ['graveyard', 'thicket', 'mire', 'frost', 'ashes', 'lava', 'moor', 'moor'];
 
-  // La Lande domine : les biomes marqués doivent rester des événements, pas la norme.
-  if (v < 0.40) return BIOMES[0]!;
-  if (v < 0.55) return BIOMES[1]!;
-  if (v < 0.68) return BIOMES[4]!;
-  if (v < 0.80) return BIOMES[2]!;
-  return BIOMES[3]!;
+function shuffled(deck: readonly string[], seed: number): string[] {
+  const out = [...deck];
+  let h = seed;
+  for (let i = out.length - 1; i > 0; i--) {
+    h = cellSeed(h, i, 0x2f6e2b1);
+    const j = h % (i + 1);
+    [out[i], out[j]] = [out[j]!, out[i]!];
+  }
+  return out;
+}
+
+/** Le biome d'une case de région. */
+function regionBiome(cx: number, cy: number): string {
+  if (cx === 0 && cy === 0) return 'moor';
+  if (Math.abs(cx) <= 1 && Math.abs(cy) <= 1) {
+    const order = [[1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0], [-1, -1], [0, -1], [1, -1]];
+    const at = order.findIndex(([x, y]) => x === cx && y === cy);
+    return shuffled(FIRST_RING, biomeSeed ^ 0x51a3)[at]!;
+  }
+  const bx = Math.floor(cx / CHUNK), by = Math.floor(cy / CHUNK);
+  const deck = shuffled(REGION_DECK, cellSeed(bx, by, biomeSeed ^ 0x1d872b41));
+  return deck[(cy - by * CHUNK) * CHUNK + (cx - bx * CHUNK)]!;
+}
+
+interface Region {
+  x: number;
+  y: number;
+  biome: Biome;
+}
+
+let biomeSeed = 0;
+const regions = new Map<number, Region>();
+
+/** Une région par case, jamais centrée : c'est ce décalage qui casse la grille. */
+function regionOf(cx: number, cy: number): Region {
+  const key = (cx + 0x4000) * 0x8000 + (cy + 0x4000);
+  let r = regions.get(key);
+  if (r) return r;
+  const h = cellSeed(cx, cy, biomeSeed ^ 0x6c8e9cf5);
+  const jx = ((h & 0xff) / 255 - 0.5) * 0.7, jy = (((h >>> 8) & 0xff) / 255 - 0.5) * 0.7;
+  // Le départ est toujours en Lande : ni nuit, ni lave, ni glace avant la première arme digne de ce nom.
+  const start = cx === 0 && cy === 0;
+  r = {
+    x: (cx + 0.5 + (start ? 0 : jx)) * REGION - REGION / 2,
+    y: (cy + 0.5 + (start ? 0 : jy)) * REGION - REGION / 2,
+    biome: BIOME_BY_ID.get(regionBiome(cx, cy))!,
+  };
+  regions.set(key, r);
+  return r;
+}
+
+/** Tire une géographie pour cette graine : une partie ne se déroule jamais sur la même carte. */
+export function seatBiomes(seed: number): void {
+  biomeSeed = seed;
+  regions.clear();
+}
+
+/** Le biome d'un point : celui de la région la plus proche, sur des coordonnées déformées. */
+export function biomeAt(x: number, y: number): Biome {
+  const wx = x + (valueNoise2(x / WARP_SCALE, y / WARP_SCALE, 1337) - 0.5) * WARP * 2;
+  const wy = y + (valueNoise2(x / WARP_SCALE + 41.3, y / WARP_SCALE - 17.9, 991) - 0.5) * WARP * 2;
+  const cx = Math.round(wx / REGION), cy = Math.round(wy / REGION);
+  let best: Region | null = null;
+  let bestD = Infinity;
+  for (let j = cy - 1; j <= cy + 1; j++) {
+    for (let i = cx - 1; i <= cx + 1; i++) {
+      const r = regionOf(i, j);
+      const d = (r.x - wx) ** 2 + (r.y - wy) ** 2;
+      if (d < bestD) {
+        bestD = d;
+        best = r;
+      }
+    }
+  }
+  return best!.biome;
 }
 
 // ---------------------------------------------------------------------------
@@ -204,14 +328,17 @@ export const POI_DEFS: Record<PoiType, PoiDef> = {
   well: { type: 'well', name: 'Puits', hint: 'on y a jeté des pièces', weight: 18, radius: 42, color: P.gold },
   ossuary: { type: 'ossuary', name: 'Ossuaire', hint: 'quelque chose y dort', weight: 12, radius: 42, color: P.bone },
   chapel: { type: 'chapel', name: 'Chapelle Noyée', hint: 'un répit', weight: 7, radius: 44, color: P.linen },
+  windmill: { type: 'windmill', name: 'Le Moulin', hint: 'le vent tourne', weight: 16, radius: 44, color: P.linen },
+  hut: { type: 'hut', name: 'Cabane de la Sorcière', hint: 'une potion, un poison', weight: 14, radius: 44, color: P.poison },
+  hangtree: { type: 'hangtree', name: 'L’Arbre aux Pendus', hint: 'ils tombent', weight: 16, radius: 44, color: P.bloodHi },
+  forge: { type: 'forge', name: 'Forge de Lave', hint: 'une arme s’y retrempe', weight: 14, radius: 44, color: P.fire },
+  colossus: { type: 'colossus', name: 'Le Colosse Gelé', hint: 'le froid se répand', weight: 16, radius: 44, color: P.ice },
   cairn: { type: 'cairn', name: 'Cairn', hint: 'des offrandes', weight: 20, radius: 42, color: P.steel },
 };
 
 if (language() === 'en') {
   for (const [id, def] of Object.entries(POI_DEFS)) Object.assign(def, EN_POIS[id]);
 }
-
-const POI_LIST = Object.values(POI_DEFS);
 
 export interface Poi {
   key: string;
@@ -721,11 +848,12 @@ export const TREE_VARIANTS = 4;
 export function treeSprite(
   kind: TreeKind, variant: number, grand: boolean, biome: Biome,
 ): HTMLCanvasElement {
+  if (isFloraTree(kind)) return floraTree(kind, variant, grand);
   const key = `${kind}:${variant}:${grand ? 'g' : 'p'}:${biome.id}`;
   const hit = treeCache.get(key);
   if (hit) return hit;
 
-  const VERT: Record<TreeKind, string> = {
+  const VERT: Record<Exclude<TreeKind, FloraTree>, string> = {
     pine: '#2f4a35', oak: '#3d4f2c', willow: '#385238', burnt: '#3a3230',
   };
   // Le feuillage se mêle au détail du sol : prendre `ground[3]` seul donnait un houppier gris
@@ -740,6 +868,7 @@ export function treeSprite(
 }
 
 export function propSprite(kind: PropKind, variant: number, biome: Biome): HTMLCanvasElement {
+  if (isFloraProp(kind)) return floraProp(kind, variant);
   const key = `${kind}:${variant}:${biome.id}`;
   const hit = propCache.get(key);
   if (hit) return hit;
@@ -758,18 +887,14 @@ export function poiIcon(type: PoiType): HTMLCanvasElement {
 // Gestionnaire de terrain
 // ---------------------------------------------------------------------------
 
-/** Le biome infléchit le type : un ossuaire au cimetière, un bûcher dans les cendres. */
-function pickShrine(rng: Rng, x: number, y: number): PoiType {
+/** Chaque biome a ses monuments : on ne les voit pas tous sur la carte, il faut aller les chercher. */
+function pickShrine(rng: Rng, x: number, y: number): PoiType | null {
   const biome = biomeAt(x, y);
-  const weights = POI_LIST.map((d) => {
-    let w = d.weight;
-    if (biome.id === 'graveyard' && (d.type === 'ossuary' || d.type === 'chapel')) w *= 2.4;
-    if (biome.id === 'ashes' && d.type === 'pyre') w *= 2.6;
-    if (biome.id === 'mire' && (d.type === 'well' || d.type === 'chapel')) w *= 2.2;
-    if (biome.id === 'thicket' && d.type === 'cairn') w *= 2.2;
-    return w;
-  });
-  return (POI_LIST[rng.weighted(weights)] ?? POI_LIST[0]!).type;
+  // Sur une frontière, le monument n'appartiendrait à personne : autant le garder pour le cœur du biome.
+  const M = 130;
+  if ([[M, 0], [-M, 0], [0, M], [0, -M]].some(([dx, dy]) => biomeAt(x + dx!, y + dy!) !== biome)) return null;
+  const list = biome.monuments;
+  return list[rng.weighted(list.map((t) => POI_DEFS[t].weight))] ?? list[0]!;
 }
 
 export class Terrain {
@@ -786,9 +911,13 @@ export class Terrain {
 
   /** Château, villages et vestiges de cette partie : `sites.list()` en donne la liste. */
   readonly sites: SiteField;
+  /** Lave, glace, tourbière, ronces : ce que le sol fait à ceux qui le foulent. */
+  readonly hazards: HazardField;
 
   constructor(private readonly seed: number) {
+    seatBiomes(seed);
     this.sites = new SiteField(seed, pickShrine);
+    this.hazards = new HazardField(seed, (x, y) => biomeAt(x, y).id, (x, y) => this.sites.isClear(x, y));
   }
 
   /** POI d'une cellule, généré paresseusement et mémorisé. */
@@ -864,7 +993,7 @@ export class Terrain {
         const variant = rng.int(0, TREE_VARIANTS - 1);
         const grand = rng.next() < 0.55;
         // Les tirages restent faits avant le filtre : le reste du semis ne bouge pas.
-        if (!this.sites.isClear(x, y)) out.push({ x, y, kind, variant, grand });
+        if (!this.sites.isClear(x, y) && !this.hazards.at(x, y)) out.push({ x, y, kind, variant, grand });
       }
     }
     this.trees.set(key, out);
@@ -963,7 +1092,8 @@ export class Terrain {
       const x = cx * PROP_CELL + rng.range(0, PROP_CELL);
       const y = cy * PROP_CELL + rng.range(0, PROP_CELL);
       const variant = rng.int(0, 3);
-      if (!this.sites.isClear(x, y)) out.push({ x, y, kind: biome.propKind, variant });
+      const kind = biome.flora[rng.int(0, biome.flora.length - 1)]!;
+      if (!this.sites.isClear(x, y) && !this.hazards.at(x, y)) out.push({ x, y, kind, variant });
     }
     this.props.set(key, out);
     return out;

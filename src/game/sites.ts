@@ -83,7 +83,7 @@ export class SiteField {
   /** Lieu dans lequel le héros vient de pénétrer pour la première fois. */
   entered: Site | null = null;
 
-  constructor(private readonly seed: number, private readonly pickShrine: (rng: Rng, x: number, y: number) => ShrineType) {
+  constructor(private readonly seed: number, private readonly pickShrine: (rng: Rng, x: number, y: number) => ShrineType | null) {
     const rng = new Rng(cellHash(1, 2, seed ^ 0x5a17c0de));
     // Le premier château attend au nord du départ, sa façade tournée vers le joueur.
     this.castleCell = rng.int(-1, 1);
@@ -172,8 +172,10 @@ export class SiteField {
     const y = (cy + 0.5) * SHRINE_CELL + rng.range(-130, 130);
     // Le départ reste dégagé, et une structure ne pousse ni dans un lieu ni contre un vestige.
     if (Math.hypot(x, y) < 700 || this.inMajorSite(x, y, 520) || this.nearVestige(x, y)) return null;
+    const type = this.pickShrine(rng, x, y);
+    if (!type) return null;
     const s = emptySite(`shrine:${cx}:${cy}`, 'shrine', '', '', x, y);
-    buildShrine(s, this.pickShrine(rng, x, y));
+    buildShrine(s, type);
     this.shrines.set(key, s);
     return s;
   }
