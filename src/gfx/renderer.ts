@@ -1,18 +1,18 @@
-import { clamp, lerp, easeOutCubic, TAU } from '../core/math';
+import { skillIcon } from './skillicons';
+import { clamp, lerp, TAU } from '../core/math';
 import * as font from './font';
 import { P, rgba } from './palette';
-import { shadowSprite, type SpriteSet } from './sprites';
+import { RISE_TIME } from '../game/garrison';
+import { shadowSprite, surgeAt, type SpriteSet } from './sprites';
 import {
-  biomeAt, biomeAtTile, groundTile, groundVariantAt, motifAt, propSprite, poiSprite, treeSprite,
-  ruineSprite,
+  biomeAt, BIOMES, biomeAtTile, biomeFringe, FRINGE_SIDES, groundTile, groundVariantAt, motifAt, propSprite, poiIcon, treeSprite,
   GROUND_TILE,
 } from '../game/terrain';
 import { areaOf } from '../game/weapons';
-import { drawAura } from './cosmeticfx';
-import {
-  FxLayer, fxSettings, drawGlow, drawSpin, drawSlash, drawBolt,
-  sigilTexture, starTexture, swirlTexture, ringTexture, flareTexture,
-} from './fx';
+import { flightOf, headingOf, zoneKindOf } from './vfx';
+import { FxLayer, fxSettings, drawGlow } from './fx';
+import { SiteLayer } from './sitelayer';
+import { siteBeacon } from './castle';
 import type { World } from '../game/world';
 import type { Enemy, Projectile } from '../game/types';
 
@@ -27,14 +27,14 @@ import type { Enemy, Projectile } from '../game/types';
  *      coûterait plus cher que tout le reste du rendu réuni.
  */
 
+/** Hauteur réservée au chronomètre en haut de l'écran, en pixels de monde. */
+const TIMER_CLEARANCE = 22;
 const BUCKET_H = 24;
 const BUCKETS = 32;
 
 const TILE = GROUND_TILE;
 
 /** Écrasement vertical des zones au sol : la vue est plongeante, un cercle s'y lit en ellipse. */
-const ZONE_SQUASH = 0.72;
-const AURA_SQUASH = 0.85;
 
 /** Teinte de la lueur d'une gemme, par rang. */
 const GEM_GLOW = [P.xp1, P.xp2, P.xp3, P.xp4] as const;
@@ -43,6 +43,8 @@ export class Renderer {
   private buckets: Enemy[][] = [];
   /** Couche de lumière additive et son halo – voir `fx.ts`. */
   readonly fx = new FxLayer();
+  /** Châteaux et villages, triés avec les créatures : voir `sitelayer.ts`. */
+  private readonly sites = new SiteLayer();
 
   constructor(private readonly ctx: CanvasRenderingContext2D) {
     for (let i = 0; i < BUCKETS; i++) this.buckets.push([]);
@@ -63,8 +65,9 @@ export class Renderer {
     this.fx.begin(VW, VH);
 
     this.drawGround(ox, oy, VW, VH);
+    this.sites.begin(w, ox, oy, VW, VH);
+    this.sites.drawFloors(ctx, VW, VH);
     this.drawSplats(w, ox, oy);
-    this.drawRuines(w, ox, oy);
     this.drawProps(w, ox, oy);
     this.drawTrees(w, ox, oy);
     this.drawPois(w, ox, oy);
@@ -72,10 +75,15 @@ export class Renderer {
     this.drawZones(w, ox, oy);
     this.drawAuras(w, ox, oy, alpha);
     this.drawPickups(w, ox, oy, alpha);
+    w.vfx.renderBack(ctx, cam, alpha);
     this.drawEnemies(w, ox, oy, alpha);
     this.drawProjectiles(w, ox, oy, alpha);
     this.drawPlayer(w, ox, oy, alpha);
+    this.sites.coverHero(ctx, lerp(w.player.px, w.player.x, alpha) + ox, lerp(w.player.py, w.player.y, alpha) + oy, w.player.y);
+    this.sites.drawLights(this.fx.ctx, VW, VH, w.time);
     w.particles.render(ctx, cam, this.fx.ctx);
+    this.drawShrineFoci(w, ox, oy);
+    w.vfx.renderFront(ctx, this.fx.ctx, cam, alpha, this.fx.comfort);
     this.drawOverlays(w, VW, VH);
   }
 
@@ -95,15 +103,38 @@ export class Renderer {
     const startWY = Math.floor(-oy / TILE) * TILE;
     const cols = Math.ceil(VW / TILE) + 1;
     const rows = Math.ceil(VH / TILE) + 1;
+    const tx0 = Math.floor(startWX / TILE);
+    const ty0 = Math.floor(startWY / TILE);
 
     for (let r = 0; r < rows; r++) {
       const wy = startWY + r * TILE;
-      const ty = Math.floor(wy / TILE);
       for (let c = 0; c < cols; c++) {
         const wx = startWX + c * TILE;
-        const tx = Math.floor(wx / TILE);
-        const biome = biomeAtTile(tx, ty);
-        ctx.drawImage(groundTile(biome, groundVariantAt(tx, ty), motifAt(tx, ty)), wx + ox, wy + oy);
+        const tx = tx0 + c;
+        const ty = ty0 + r;
+        ctx.drawImage(groundTile(biomeAtTile(tx, ty), groundVariantAt(tx, ty), motifAt(tx, ty)), wx + ox, wy + oy);
+      }
+    }
+
+    /*
+     * Une tuile est un carré de 128 px : deux biomes voisins s'y rencontraient sur une ligne
+     * droite, et la carte se lisait comme un damier. Le biome de rang le plus élevé déborde
+     * donc sur son voisin en frange irrégulière. Une seule des deux tuiles dessine chaque
+     * raccord, et la frange se raccorde d'une tuile à l'autre : la limite ne se voit plus.
+     */
+    for (let r = 0; r < rows; r++) {
+      const wy = startWY + r * TILE;
+      for (let c = 0; c < cols; c++) {
+        const wx = startWX + c * TILE;
+        const tx = tx0 + c;
+        const ty = ty0 + r;
+        const here = biomeAtTile(tx, ty);
+        for (const side of FRINGE_SIDES) {
+          const next = biomeAtTile(tx + side.dx, ty + side.dy);
+          if (next.id !== here.id && BIOMES.indexOf(next) > BIOMES.indexOf(here)) {
+            ctx.drawImage(biomeFringe(next, side.id), wx + ox, wy + oy);
+          }
+        }
       }
     }
   }
@@ -132,24 +163,6 @@ export class Renderer {
    * Le tri par ordonnée vient du terrain : sans lui, un arbre du fond se dessinerait
    * par-dessus un arbre du premier plan, et la profondeur s'effondrerait.
    */
-  /**
-   * Ruines.
-   *
-   * Dessinées juste après le sol et avant tout le reste : ce sont des masses posées au sol,
-   * et le joueur comme les ennemis passent devant. Les dessiner par-dessus donnerait
-   * l'impression qu'on marche sous les murs.
-   */
-  private drawRuines(w: World, ox: number, oy: number): void {
-    const ctx = this.ctx;
-    const cam = w.cam;
-    for (const r of w.terrain.ruinesNear(cam.x, cam.y, 460)) {
-      const x = Math.round(r.x + ox);
-      const y = Math.round(r.y + oy);
-      if (!this.onScreen(x + r.def.w / 2, y + r.def.h / 2, r.def.w, w)) continue;
-      ctx.drawImage(ruineSprite(r.def, biomeAt(r.x, r.y)), x, y);
-    }
-  }
-
   private drawTrees(w: World, ox: number, oy: number): void {
     const ctx = this.ctx;
     const cam = w.cam;
@@ -157,6 +170,7 @@ export class Renderer {
       const x = t.x + ox;
       const y = t.y + oy;
       if (!this.onScreen(x, y, 90, w)) continue;
+      if (this.sites.takeTree(t)) continue;
       const s = treeSprite(t.kind, t.variant, t.grand, biomeAt(t.x, t.y));
       ctx.drawImage(s, Math.round(x - s.width / 2), Math.round(y - s.height + 3));
     }
@@ -171,19 +185,15 @@ export class Renderer {
       const y = poi.y + oy;
       if (!this.onScreen(x, y, 60, w)) continue;
 
-      const frames = poiSprite(poi.type);
-      const f = poi.used ? frames[4]! : frames[Math.floor(poi.anim * 4) % 4]!;
 
       if (!poi.used) {
         // Halo au sol : rend la structure repérable même noyée dans la horde.
         const pulse = 0.18 + Math.sin(poi.anim * 2.2) * 0.07;
-        ctx.globalAlpha = pulse;
-        ctx.fillStyle = poi.def.color;
-        ctx.beginPath();
-        ctx.ellipse(Math.round(x), Math.round(y), poi.def.radius * 1.5, poi.def.radius * 0.85, 0, 0, TAU);
-        ctx.fill();
-        ctx.globalAlpha = 1;
+        drawGlow(this.fx.ctx, x, y, poi.def.radius * 1.6, poi.def.radius, poi.def.color, pulse);
       }
+
+      // Un cercle de runes se pose au sol : il passe sous tout ce qui se tient dessus.
+      if (!poi.used && poi.type === 'obelisk') w.vfx.drawShrineFocus(ctx, this.fx.ctx, poi.type, x, y - 26, poi.anim);
 
       // Onde d'activation, brève.
       if (poi.flash > 0) {
@@ -195,13 +205,17 @@ export class Renderer {
         ctx.stroke();
         ctx.globalAlpha = 1;
       }
+    }
+  }
 
-      const sh = shadowSprite();
-      ctx.globalAlpha = 0.45;
-      ctx.drawImage(sh, Math.round(x - f.width * 0.45), Math.round(y - 3), Math.round(f.width * 0.9), 7);
-      ctx.globalAlpha = 1;
-
-      ctx.drawImage(f, Math.round(x - f.width / 2), Math.round(y - f.height + 4));
+  /** Ce qui brûle sur les structures passe devant leurs pierres, donc après elles. */
+  private drawShrineFoci(w: World, ox: number, oy: number): void {
+    const cam = w.cam;
+    for (const poi of w.terrain.poisNear(cam.x, cam.y, 520)) {
+      const shrine = poi.site.shrine;
+      if (poi.used || !shrine || poi.type === 'obelisk') continue;
+      if (shrine.group >= 0 && (poi.site.groups[shrine.group]?.open ?? 0) < 0.5) continue;
+      w.vfx.drawShrineFocus(this.ctx, this.fx.ctx, poi.type, shrine.focusX + ox, shrine.focusY + oy, poi.anim);
     }
   }
 
@@ -254,38 +268,7 @@ export class Renderer {
       // Apparition et extinction en fondu : une zone qui surgit d'un bloc se lit comme un bug.
       const born = clamp((z.maxLife - z.life) / 0.18, 0, 1);
       const fade = Math.min(born, clamp(z.life / 0.45, 0, 1));
-
-      // Sur la scène : un fond teinté, qui garde la zone lisible même sans la lumière.
-      ctx.globalAlpha = 0.16 * fade;
-      ctx.fillStyle = z.color;
-      ctx.beginPath();
-      ctx.ellipse(Math.round(x), Math.round(y), z.radius, z.radius * ZONE_SQUASH, 0, 0, TAU);
-      ctx.fill();
-      ctx.globalAlpha = 1;
-
-      this.drawSigil(x, y, z.radius, z.color, z.anim, fade);
-    }
-  }
-
-  /**
-   * Cercle magique au sol : lueur, anneau gradué, étoile inscrite et tourbillon, chacun à
-   * sa vitesse et l'étoile à contresens.
-   *
-   * C'est la rotation qui fait le travail. Une flaque immobile est un décor ; des anneaux
-   * qui tournent l'un contre l'autre disent qu'un sort est **en cours**, et le joueur n'a
-   * plus à se demander si la zone blesse encore.
-   */
-  private drawSigil(x: number, y: number, radius: number, color: string, anim: number, fade: number): void {
-    const f = this.fx.ctx;
-    const k = fade * fxSettings.sigils;
-    const pulse = 1 + Math.sin(anim * 5) * 0.03;
-
-    drawGlow(f, x, y, radius * 1.4, radius * 1.4 * ZONE_SQUASH, color, 0.16 * k);
-    drawSpin(f, sigilTexture(color), x, y, radius * pulse, ZONE_SQUASH, anim * 0.7, 0.62 * k);
-    // En dessous d'une certaine taille, le détail ne serait qu'un pâté : l'anneau suffit.
-    if (radius >= 13) {
-      drawSpin(f, starTexture(color), x, y, radius * 0.62, ZONE_SQUASH, -anim * 0.9, 0.36 * k);
-      drawSpin(f, swirlTexture(color), x, y, radius * 0.95, ZONE_SQUASH, anim * 2.6, 0.14 * k);
+      w.vfx.drawZone(ctx, this.fx.ctx, zoneKindOf(z.color), x, y, z.radius, z.anim, fade);
     }
   }
 
@@ -297,28 +280,13 @@ export class Renderer {
    * montant de niveau. Une arme invisible est une arme qu'on croit en panne.
    */
   private drawAuras(w: World, ox: number, oy: number, alpha: number): void {
-    const ctx = this.ctx;
-    const f = this.fx.ctx;
     const pl = w.player;
     const x = lerp(pl.px, pl.x, alpha) + ox;
     const y = lerp(pl.py, pl.y, alpha) + oy;
 
     for (const inst of pl.weapons) {
       if (inst.def.behavior !== 'aura') continue;
-      const r = areaOf(inst, pl);
-      const color = inst.def.color;
-      const breathe = 1 + Math.sin(w.time * 3) * 0.04;
-
-      ctx.globalAlpha = 0.08;
-      ctx.fillStyle = color;
-      ctx.beginPath();
-      ctx.ellipse(Math.round(x), Math.round(y), r, r * AURA_SQUASH, 0, 0, TAU);
-      ctx.fill();
-      ctx.globalAlpha = 1;
-
-      drawGlow(f, x, y, r * 1.25, r * 1.25 * AURA_SQUASH, color, 0.08);
-      drawSpin(f, ringTexture(color), x, y, r * breathe, AURA_SQUASH, 0, 0.4);
-      drawSpin(f, swirlTexture(color), x, y, r * 0.92, AURA_SQUASH, w.time * 1.4, 0.2);
+      w.vfx.drawAura(this.ctx, this.fx.ctx, x, y + 7, areaOf(inst, pl), w.time);
     }
   }
 
@@ -343,12 +311,6 @@ export class Renderer {
         const colors = ['#ffffff', '#5b9df5', '#a855f7', '#dc2626'];
         const glow = p.kind === 'chest' ? P.gold : colors[clamp(p.rank, 0, 3)]!;
         const pulse = 0.35 + Math.sin(p.anim * 2) * 0.15;
-        ctx.globalAlpha = pulse;
-        ctx.fillStyle = glow;
-        ctx.beginPath();
-        ctx.ellipse(Math.round(x), Math.round(y), 12, 8, 0, 0, TAU);
-        ctx.fill();
-        ctx.globalAlpha = 1;
         drawGlow(this.fx.ctx, x, y, 22, 16, glow, pulse);
       } else if (p.kind === 'gem') {
         // Une gemme luit faiblement : un tapis d'XP doit se lire comme un trésor, pas du gravier.
@@ -365,6 +327,8 @@ export class Renderer {
   private drawEnemies(w: World, ox: number, oy: number, alpha: number): void {
     const ctx = this.ctx;
     const cam = w.cam;
+    const subX = cam.remainderX;
+    const subY = cam.remainderY;
 
     for (const b of this.buckets) b.length = 0;
 
@@ -378,17 +342,30 @@ export class Renderer {
       this.buckets[idx]!.push(e);
     }
 
-    for (const bucket of this.buckets) {
-      for (const e of bucket) {
-        const wx = lerp(e.px, e.x, alpha);
-        const wy = lerp(e.py, e.y, alpha);
-        const x = wx + ox;
-        const y = wy + oy;
+    for (let b = 0; b < this.buckets.length; b++) {
+      // Les bâtiments s'intercalent ici : ce qui est derrière un mur passe avant lui.
+      this.sites.drawBucket(ctx, b);
+      for (const e of this.buckets[b]!) {
+        const set: SpriteSet = e.sprite;
+        const gait = set.gait;
+        // L'à-coup du pas ne se lit qu'en marche : il suit la direction du déplacement.
+        const surge = gait && e.dying <= 0 ? surgeAt(gait, e.walk) / Math.max(Math.hypot(e.vx, e.vy), e.speed, 1) : 0;
+        /*
+         * La position s'arrondit une seule fois, reste de la caméra compris, et tout le reste en
+         * découle : ombre, halo, sprite et barre de vie restent solidaires au pixel près. Un
+         * `Math.round(x - largeur / 2)` par élément les faisait glisser les uns sur les autres
+         * selon la parité de leur largeur.
+         */
+        const x = Math.round(lerp(e.px, e.x, alpha) + ox + subX + e.vx * surge);
+        const y = Math.round(lerp(e.py, e.y, alpha) + oy + subY + e.vy * surge);
 
-        // Ombre portée : ancre le sprite au sol, sans quoi tout paraît flotter.
+        // Ombre portée : ancre le sprite au sol, sans quoi tout paraît flotter. Sous les pieds
+        // d'un corps qui marche, et à sa largeur : sous un boss, elle disparaissait derrière lui.
         const sh = shadowSprite();
+        const shadowW = gait?.shadow ?? 16;
+        const shadowH = Math.max(8, shadowW >> 2);
         ctx.globalAlpha = 0.5;
-        ctx.drawImage(sh, Math.round(x - 8), Math.round(y + e.radius - 4), 16, 8);
+        ctx.drawImage(sh, x - (shadowW >> 1), y + (gait?.feet ?? e.radius) - (shadowH >> 1), shadowW, shadowH);
         ctx.globalAlpha = 1;
 
         /*
@@ -407,7 +384,7 @@ export class Renderer {
           const rr = e.radius * 1.8;
           ctx.fillStyle = `rgba(${cr},${cg},${cb},${(pulse * 0.7).toFixed(3)})`;
           ctx.beginPath();
-          ctx.ellipse(Math.round(x), Math.round(y + e.radius - 1), rr, rr * 0.42, 0, 0, TAU);
+          ctx.ellipse(x, Math.round(y + e.radius - 1), rr, rr * 0.42, 0, 0, TAU);
           ctx.fill();
         }
 
@@ -416,23 +393,23 @@ export class Renderer {
           continue;
         }
 
-        const set: SpriteSet = e.sprite;
         const frames = e.flash > 0 ? set.flash : e.elite ? set.elite : set.frames;
-        const f = frames[Math.floor(e.anim) % frames.length]!;
-        const dx = Math.round(x - f.width / 2);
-        const dy = Math.round(y - f.height / 2);
+        const f = frames[Math.floor(e.walk * frames.length) % frames.length]!;
+        const dx = x - (f.width >> 1);
+        const dy = y - (f.height >> 1);
+        const margin = gait?.margin ?? 0;
 
-        if (e.stun > 0 || e.slow > 0) {
-          ctx.globalAlpha = 0.75;
-          ctx.drawImage(f, dx, dy);
-          ctx.globalAlpha = 1;
-        } else if (e.facing < 0 && this.flippable(e)) {
+        if (e.stun > 0 || e.slow > 0) ctx.globalAlpha = 0.75;
+        if (e.facing < 0 && this.flippable(e)) {
           ctx.setTransform(-1, 0, 0, 1, 0, 0);
           ctx.drawImage(f, -dx - f.width, dy);
           ctx.setTransform(1, 0, 0, 1, 0, 0);
         } else {
-          ctx.drawImage(f, dx, dy);
+          // Sortie de terre : seul ce qui a dépassé du sol se voit, pieds toujours au même endroit.
+          const shown = e.rise > 0 ? Math.ceil(f.height * (1 - e.rise / RISE_TIME)) : f.height;
+          ctx.drawImage(f, 0, 0, f.width, shown, dx, dy + f.height - shown, f.width, shown);
         }
+        ctx.globalAlpha = 1;
 
 
         /*
@@ -445,7 +422,7 @@ export class Renderer {
           ctx.strokeStyle = `rgba(${cr},${cg},${cb},${pulse.toFixed(3)})`;
           ctx.lineWidth = 1;
           ctx.beginPath();
-          ctx.ellipse(Math.round(x), Math.round(y), f.width * 0.5 + 1.5, f.height * 0.52 + 1.5, 0, 0, TAU);
+          ctx.ellipse(x, y, f.width * 0.5 - margin + 1.5, (f.height - margin * 2) * 0.52 + 1.5, 0, 0, TAU);
           ctx.stroke();
         }
 
@@ -459,9 +436,9 @@ export class Renderer {
           const bw = e.rang && e.rang.id === 'colosse' ? 20 : 14;
           const ratio = clamp(e.hp / e.maxHp, 0, 1);
           ctx.fillStyle = '#000000';
-          ctx.fillRect(Math.round(x - bw / 2), Math.round(y - f.height / 2 - 4), bw, 3);
+          ctx.fillRect(x - (bw >> 1), dy + margin - 4, bw, 3);
           ctx.fillStyle = e.rang ? `rgb(${e.rang.teinte[0]},${e.rang.teinte[1]},${e.rang.teinte[2]})` : P.bloodHi;
-          ctx.fillRect(Math.round(x - bw / 2), Math.round(y - f.height / 2 - 4), Math.round(bw * ratio), 3);
+          ctx.fillRect(x - (bw >> 1), dy + margin - 4, Math.round(bw * ratio), 3);
         }
       }
     }
@@ -474,15 +451,17 @@ export class Renderer {
     const t = 1 - clamp(e.dying / 0.28, 0, 1);
     const frames = set.flash;
     const f = frames[Math.min(frames.length - 1, Math.floor(t * frames.length))]!;
-    ctx.globalAlpha = 1 - t * 0.7;
-    ctx.drawImage(f, Math.round(x - f.width / 2), Math.round(y - f.height / 2 + t * 2));
+    // Le sang dit déjà la mort : la silhouette blanche ne doit plus que disparaître dessous.
+    ctx.globalAlpha = (1 - t) * 0.45;
+    ctx.drawImage(f, x - (f.width >> 1), y - (f.height >> 1) + Math.round(t * 2));
     ctx.globalAlpha = 1;
   }
 
   /** Les plans orientés (bêtes, cavaliers) se retournent ; les plans symétriques non. */
   private flippable(e: Enemy): boolean {
-    const plan = e.def.art.plan;
-    return plan === 'beast' || plan === 'rider';
+    const { plan, critter } = e.def.art;
+    return plan === 'beast' || plan === 'rider' || plan === 'worm' ||
+      critter?.id === 'snake' || critter?.id === 'frog' || critter?.id === 'bird';
   }
 
   // -------------------------------------------------------------- projectiles
@@ -502,12 +481,19 @@ export class Renderer {
       // La marge couvre l'éclair, qui tombe de bien plus haut que son point d'impact.
       if (!this.onScreen(x, y, p.behavior === 'strike' ? 190 : 60, w)) continue;
 
-      this.drawProjectileLight(p, x, y, plx, ply);
+      // Une compétence n'a plus de sprite : son visuel entier vient de `Vfx`.
+      if (p.behavior === 'melee' || p.behavior === 'strike' || p.behavior === 'spike') continue;
+      const flight = flightOf(p.weaponId, p.behavior);
+      if (flight) {
+        if (p.behavior === 'flail') this.drawChain(plx, ply, x, y);
+        const heading = headingOf(wx, wy, p.px, p.py, Math.atan2(p.vy, p.vx));
+        w.vfx.drawFlight(ctx, this.fx.ctx, flight, x, y, heading, p.maxLife - p.life);
+        continue;
+      }
 
-      // Un coup, une onde ou un éclair **sont** leur effet : y reposer la petite icône de
-      // l'arme reviendrait à coller une étiquette sur le sort. Le sprite ne reste que pour
-      // ce qui est un objet en vol – pieu, orbe, fiole, masse, pieu de ronce.
-      if (p.behavior === 'melee' || p.behavior === 'wave' || p.behavior === 'strike') continue;
+      this.drawProjectileLight(p, x, y);
+
+      if (p.behavior === 'wave') continue;
 
       const frames = p.sprite.frames;
       const f = frames[Math.floor(p.anim) % frames.length]!;
@@ -528,102 +514,14 @@ export class Renderer {
     }
   }
 
-  /**
-   * Lumière d'un projectile, selon son comportement.
-   *
-   * Le sprite dit **ce que c'est** ; la lumière dit **ce que ça fait** : une traînée pour ce
-   * qui file, un croissant pour ce qui tranche, un éclair pour ce qui tombe. Chaque forme
-   * est une texture précalculée (voir `fx.ts`), simplement recopiée.
-   */
-  private drawProjectileLight(p: Projectile, x: number, y: number, plx: number, ply: number): void {
-    const f = this.fx.ctx;
-    const S = fxSettings;
-    const fade = clamp(p.life / Math.max(0.001, p.maxLife), 0, 1);
-    const t = 1 - fade;
-    const color = p.hostile ? P.bloodHi : p.color;
-
-    switch (p.behavior) {
-      case 'melee': {
-        if (p.tags.includes('full360')) {
-          const r = p.radius * (0.45 + 0.6 * easeOutCubic(t)) * S.scale;
-          drawSpin(f, ringTexture(color), x, y, r, 0.8, 0, fade);
-          drawSpin(f, swirlTexture(color), x, y, r * 0.9, 0.8, t * 5, fade * 0.7);
-        } else {
-          // Le croissant pivote autour du joueur et balaie l'arc pendant la durée du coup.
-          const reach = p.radius * 1.75 * S.scale;
-          const sweep = (easeOutCubic(t) - 0.5) * 1.5;
-          drawSlash(f, color, plx, ply, reach * 0.94, p.angle + sweep - 0.35, fade * 0.35);
-          drawSlash(f, color, plx, ply, reach, p.angle + sweep, Math.min(1, fade * 2.2));
-        }
-        drawGlow(f, x, y, p.radius * 1.3, p.radius, color, 0.14 * fade);
-        break;
-      }
-
-      case 'wave': {
-        const a = Math.atan2(p.vy, p.vx);
-        const reach = p.radius * 1.5 * S.scale;
-        drawSlash(
-          f, color, x - Math.cos(a) * reach * 0.75, y - Math.sin(a) * reach * 0.75,
-          reach, a, Math.min(1, fade * 1.8) * 0.9,
-        );
-        drawGlow(f, x, y, p.radius * 1.4, p.radius * 1.1, color, 0.14 * fade);
-        break;
-      }
-
-      case 'strike': {
-        const r = p.radius * S.scale;
-        drawBolt(f, color, p.pid + Math.floor(p.anim * 1.6), x, y, 120 * S.scale, Math.min(1, fade * 1.6) * 0.85);
-        drawGlow(f, x, y, r * 1.5, r * 1.1, color, 0.3 * fade);
-        drawSpin(f, flareTexture(color), x, y, r * (0.5 + fade * 0.5), 0.75, p.anim * 0.2, fade * 0.7);
-        drawSpin(f, ringTexture(color), x, y, r * (0.3 + t), ZONE_SQUASH, 0, fade * 0.6);
-        break;
-      }
-
-      case 'orbit':
-      case 'flail': {
-        // Traînée le long de l'orbite : c'est elle qui donne le sens et la vitesse de rotation.
-        const squash = p.behavior === 'orbit' ? 0.8 : 0.7;
-        const dir = p.b >= 0 ? 1 : -1;
-        const len = 1.1 * S.trails;
-        if (len > 0.05 && p.a > 0) {
-          f.lineCap = 'round';
-          f.strokeStyle = color;
-          f.lineWidth = 4;
-          f.globalAlpha = Math.min(1, 0.22 * S.light);
-          f.beginPath();
-          f.ellipse(plx, ply, p.a, p.a * squash, 0, p.c - dir * len, p.c, dir < 0);
-          f.stroke();
-          f.lineWidth = 2;
-          f.globalAlpha = Math.min(1, 0.55 * S.light);
-          f.beginPath();
-          f.ellipse(plx, ply, p.a, p.a * squash, 0, p.c - dir * len * 0.4, p.c, dir < 0);
-          f.stroke();
-          f.globalAlpha = 1;
-        }
-        const g = p.radius * 1.6 + 5;
-        drawGlow(f, x, y, g, g, color, 0.38);
-        drawGlow(f, x, y, g * 0.4, g * 0.4, '#ffffff', 0.25);
-        break;
-      }
-
-      case 'spike':
-        drawGlow(f, x, y + 2, p.radius * 1.8, p.radius * 1.1, color, 0.55 * fade);
-        break;
-
-      default: {
-        const g = p.radius * 1.5 + 5;
-        const flies = p.behavior === 'linear' || p.behavior === 'bounce' ||
-          p.behavior === 'pet' || p.behavior === 'enemyShot';
-        if (flies && S.trails > 0) {
-          for (let k = 1; k <= 4; k++) {
-            const d = k * 0.016 * S.trails;
-            const r = g * (1 - k * 0.16);
-            drawGlow(f, x - p.vx * d, y - p.vy * d, r, r, color, 0.2 * (1 - k / 5));
-          }
-        }
-        drawGlow(f, x, y, g, g, color, 0.38);
-        drawGlow(f, x, y, g * 0.4, g * 0.4, '#ffffff', 0.28);
-      }
+  /** Chaîne du fléau : des maillons sur la grille, du héros à sa masse. */
+  private drawChain(x0: number, y0: number, x1: number, y1: number): void {
+    const ctx = this.ctx;
+    const links = Math.max(2, Math.floor(Math.hypot(x1 - x0, y1 - y0) / 4));
+    for (let i = 1; i < links; i++) {
+      const u = i / links;
+      ctx.fillStyle = i % 2 ? P.stoneHi : P.mist;
+      ctx.fillRect(Math.round(lerp(x0, x1, u)), Math.round(lerp(y0, y1, u)), 2, 2);
     }
   }
 
@@ -642,9 +540,21 @@ export class Renderer {
     const x = wx + ox;
     const y = wy + oy;
 
+    /*
+     * Le héros s'arrondit **avant** tout décalage.
+     *
+     * La caméra suit sa position arrondie : `x` vaut donc un entier plus la partie
+     * fractionnaire de sa position. `Math.round(x - largeur / 2)` tombait pile sur la frontière
+     * d'arrondi pour toute largeur impaire : le sprite sautait d'un pixel en arrière et en
+     * avant selon le signe de cette fraction, mesuré à 130 allers-retours par seconde, sur un
+     * personnage que l'œil suit en permanence. Arrondi d'abord, il ne bouge plus d'un pixel.
+     */
+    const sx = Math.round(x);
+    const sy = Math.round(y);
+
     const sh = shadowSprite();
     ctx.globalAlpha = 0.55;
-    ctx.drawImage(sh, Math.round(x - 8), Math.round(y + 5), 16, 8);
+    ctx.drawImage(sh, sx - 8, sy + 5, 16, 8);
     ctx.globalAlpha = 1;
 
     // Repère d'accessibilité : un anneau permanent au sol. Dans une horde de trois cents
@@ -654,12 +564,12 @@ export class Renderer {
       ctx.lineWidth = 1;
       ctx.globalAlpha = 0.85;
       ctx.beginPath();
-      ctx.ellipse(Math.round(x), Math.round(y + 7), 10, 5, 0, 0, TAU);
+      ctx.ellipse(sx, sy + 7, 10, 5, 0, 0, TAU);
       ctx.stroke();
       ctx.globalAlpha = 1;
     }
 
-    if (pl.aura) drawAura(this.fx.ctx, pl.aura, x, y + 7, w.time);
+    if (pl.aura) w.vfx.drawHeroAura(ctx, this.fx.ctx, pl.aura, sx, sy + 7, w.time);
 
     // Clignotement d'invulnérabilité : un créneau, pas un fondu – bien plus lisible.
     if (pl.iframes > 0 && Math.floor(pl.iframes * 14) % 2 === 0) return;
@@ -667,8 +577,8 @@ export class Renderer {
     const set = pl.sprite;
     const frames = pl.hurtFlash > 0 ? set.flash : set.frames;
     const f = frames[pl.frameIndex % frames.length]!;
-    const dx = Math.round(x - f.width / 2);
-    const dy = Math.round(y - f.height / 2 - 2);
+    const dx = sx - (f.width >> 1);
+    const dy = sy + 10 - f.height;
 
     if (pl.facingX < 0) {
       ctx.setTransform(-1, 0, 0, 1, 0, 0);
@@ -677,6 +587,23 @@ export class Renderer {
     } else {
       ctx.drawImage(f, dx, dy);
     }
+  }
+
+  /** Tirs ennemis : seuls projectiles restés hors de `Vfx`, ils doivent se détacher de tout. */
+  private drawProjectileLight(p: Projectile, x: number, y: number): void {
+    const f = this.fx.ctx;
+    const S = fxSettings;
+    const g = p.radius * 1.5 + 5;
+    const color = p.hostile ? P.bloodHi : p.color;
+    if (S.trails > 0) {
+      for (let k = 1; k <= 4; k++) {
+        const d = k * 0.016 * S.trails;
+        const r = g * (1 - k * 0.16);
+        drawGlow(f, x - p.vx * d, y - p.vy * d, r, r, color, 0.2 * (1 - k / 5));
+      }
+    }
+    drawGlow(f, x, y, g, g, color, 0.38);
+    drawGlow(f, x, y, g * 0.4, g * 0.4, '#ffffff', 0.28);
   }
 
   // -------------------------------------------------------------- surcouches
@@ -779,8 +706,15 @@ export class Renderer {
     // Structures encore actives : plus discrètes, et seulement à courte portée. Elles
     // portent leur propre sprite comme le reste — une pastille avec un simple point paraît
     // vide et ne dit pas ce qui attend là-bas.
-    for (const poi of w.terrain.poisNear(cam.x, cam.y, 620)) {
-      if (!poi.used) add(poi.x, poi.y, poi.def.color, poiSprite(poi.type)[0] ?? null, 5, 620);
+    for (const poi of w.terrain.poisNear(cam.x, cam.y, 900)) {
+      if (!poi.used) add(poi.x, poi.y, poi.def.color, poiIcon(poi.type), 5, 900);
+    }
+    // Le but de la quête passe avant tout le reste, à n'importe quelle distance.
+    const quest = w.quests.target;
+    if (quest) add(quest.x, quest.y, P.gold, skillIcon('relic', 'huntermark'), 0, Infinity);
+    // Un château se signale de très loin : c'est lui qui donne une direction à la partie.
+    for (const s of w.terrain.sites.beacons(cam.x, cam.y)) {
+      add(s.entrance.x, s.entrance.y, s.kind === 'castle' ? P.bloodHi : P.bone, siteBeacon(s.kind), s.kind === 'castle' ? 1 : 5, 7000);
     }
 
     if (marks.length === 0) return;
@@ -798,7 +732,8 @@ export class Renderer {
       // Projection sur le **rectangle** de l'écran, pas sur un cercle : une pastille posée
       // sur un cercle flotte au milieu des bords longs au lieu de les épouser.
       const sx = Math.abs(dx) > 0.001 ? hw / Math.abs(dx) : Infinity;
-      const sy = Math.abs(dy) > 0.001 ? hh / Math.abs(dy) : Infinity;
+      // En haut, la pastille s'arrête sous le chronomètre, qu'elle masquait quand le but est au nord.
+      const sy = Math.abs(dy) > 0.001 ? (dy < 0 ? hh - TIMER_CLEARANCE : hh) / Math.abs(dy) : Infinity;
       const k = Math.min(sx, sy);
       const px = Math.round(VW / 2 + dx * k);
       const py = Math.round(VH / 2 + dy * k);

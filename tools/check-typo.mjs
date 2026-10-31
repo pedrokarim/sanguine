@@ -23,8 +23,9 @@
 import { readFileSync } from 'node:fs';
 import { readdirSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const RACINE = new URL('..', import.meta.url).pathname;
+const RACINE = fileURLToPath(new URL('..', import.meta.url));
 
 // --- Ce qui distingue une phrase française d'un identifiant ------------------
 

@@ -1,20 +1,21 @@
 import './ui/style.css';
 import {
-  makeBody, makeHero, makeGem, makeCoin, makeHeart, makeChest,
-  makeRelic, makeItem, makeProjectile, makePassiveSprite, makeFragment, makeHeroClassique,
+  makeBody, makeHero, makeGem, makeCoin, makeHeroClassique,
   makeGroundTile, makeSplat, CORPS_ECHELLE,
-  type SpriteSet, type ProjKind, type PassiveIcon,
+  type SpriteSet,
 } from './gfx/sprites';
 import { ENEMIES, BOSSES } from './data/enemies';
 import { CHARACTERS } from './data/characters';
 import { WEAPONS } from './data/weapons';
 import { PASSIVES } from './data/passives';
 import { RELICS } from './data/relics';
+import { livingSkillSet } from './gfx/skillicons';
 import {
-  poiSprite, treeSprite, ruineSprite, TREE_VARIANTS, BIOME_BY_ID, RUINE_DEFS,
+  treeSprite, TREE_VARIANTS, BIOME_BY_ID,
   type PoiType, type TreeKind,
 } from './game/terrain';
 import { installDecor } from './ui/decor';
+import { castleSheet, houseSheet, HOUSE_KINDS, holyGroundSheet, shrineSheet } from './gfx/sitesheet';
 
 /**
  * Planche de tous les sprites du jeu.
@@ -49,7 +50,12 @@ function teintes(c: HTMLCanvasElement): number {
   return vues.size;
 }
 
+/** La cadence du héros en jeu : à une autre vitesse, la planche montrerait un mouvement faux. */
+const HERO_FRAME_MS = 1000 / 12;
+
 interface Vignette {
+  /** Durée d'une image, pour un sprite qui n'a pas la cadence commune. */
+  frameMs?: number;
   nom: string;
   frames: HTMLCanvasElement[];
   w: number;
@@ -78,7 +84,7 @@ function vignette(v: Vignette, zoom: number): HTMLElement {
     i++;
   };
   jouer();
-  if (v.frames.length > 1) setInterval(jouer, 140);
+  if (v.frames.length > 1) setInterval(jouer, v.frameMs ?? 140);
   scene.appendChild(cv);
   el.appendChild(scene);
 
@@ -120,6 +126,13 @@ function section(titre: string, sous: string, items: Vignette[], zoom = 4): void
 const deSet = (nom: string, s: SpriteSet, note?: string): Vignette =>
   ({ nom, frames: s.frames, w: s.w, h: s.h, note });
 
+/** Une créature à la cadence qu'elle a en jeu : sa foulée rapportée à sa vitesse de marche. */
+const enSet = (nom: string, s: SpriteSet, speed: number): Vignette => {
+  const gait = s.gait;
+  const loop = gait && gait.stride > 0 && speed > 0 ? gait.stride / speed : gait?.period ?? 1;
+  return { ...deSet(nom, s), frameMs: (loop * 1000) / s.frames.length };
+};
+
 // ---------------------------------------------------------------------------
 // En-tête
 // ---------------------------------------------------------------------------
@@ -144,40 +157,40 @@ racine.appendChild(entete);
 section('Héros', 'Six personnages, au repos et en marche. Le dernier est l’ancien style, laissé pour comparaison.',
   [
     ...CHARACTERS.flatMap((c) => [
-      deSet(`${c.name} — repos`, makeHero(`pl:${c.id}`, c.art, false)),
-      deSet(`${c.name} — marche`, makeHero(`pl:${c.id}:w`, c.art, true)),
+      { ...deSet(`${c.name} — repos`, makeHero(`pl:${c.id}`, c.art, false)), frameMs: HERO_FRAME_MS },
+      { ...deSet(`${c.name} — marche`, makeHero(`pl:${c.id}:w`, c.art, true)), frameMs: HERO_FRAME_MS },
     ]),
     deSet('Ysolde — ancien style', makeHeroClassique('pl:cmp', CHARACTERS[0]!.art, false), 'pour comparaison'),
   ], 5);
 
 section('Ennemis', 'Chaque créature dans son animation de déplacement.',
-  ENEMIES.map((e) => deSet(e.name, makeBody(`pl:e:${e.id}`, e.art))), 4);
+  ENEMIES.map((e) => enSet(e.name, makeBody(`pl:e:${e.id}`, e.art), e.speed)), 4);
 
-section('Boss', 'Cinq, dont la Faucheuse – invulnérable, elle met fin à la partie.',
-  BOSSES.map((b) => deSet(b.name, makeBody(`pl:b:${b.id}`, b.art))), 3);
+section('Boss', 'Neuf, dont la Faucheuse – invulnérable, elle met fin à la partie.',
+  BOSSES.map((b) => enSet(b.name, makeBody(`pl:b:${b.id}`, b.art), b.speed)), 3);
 
-const projKinds = [...new Set(WEAPONS.map((w) => w.sprite))] as ProjKind[];
-section('Projectiles', 'Un par forme d’arme. La couleur est appliquée par l’arme qui les tire.',
-  projKinds.map((k) => deSet(k, makeProjectile(k))), 5);
+section('Passifs', 'Même série que les armes : 24 colonnes, peints à la main.',
+  PASSIVES.map((p) => deSet(p.name, livingSkillSet('passive', p.id))), 3);
 
-section('Passifs', 'Icônes dessinées à la main, une forme reconnaissable par passif.',
-  PASSIVES.map((p) => deSet(p.name, makePassiveSprite(p.icon as PassiveIcon, p.color ?? '#f2c46b'))), 5);
+section('Armes', 'Trente-trois objets peints à la main, sur 24 colonnes. Sur les cartes, pixelfx les anime.',
+  WEAPONS.map((w) => deSet(w.name, livingSkillSet('weapon', w.id))), 3);
 
-section('Reliques', 'Une planche par rareté ; le dessin ne change pas, seule la teinte le fait.',
-  [...new Set(RELICS.map((r) => r.rarity))].map((r) => deSet(r, makeRelic(r))), 5);
+section('Reliques', 'Une par objet : la rareté se lit à l’aura, le dessin dit de quoi il s’agit.',
+  RELICS.map((r) => deSet(r.name, livingSkillSet('relic', r.id, r.rarity))), 3);
 
-section('Butin', 'Ce qui tombe au sol et se ramasse.',
+section('Butin', 'Ce qui tombe au sol et se ramasse : petit pour ce qui fait tapis, grand pour ce qui compte.',
   [
-    deSet('Gemme', makeGem(0)), deSet('Gemme verte', makeGem(1)),
+    deSet('Gemme bleue', makeGem(0)), deSet('Gemme verte', makeGem(1)),
     deSet('Gemme rouge', makeGem(2)), deSet('Gemme violette', makeGem(3)),
-    deSet('Or', makeCoin()), deSet('Cœur', makeHeart()), deSet('Coffre', makeChest()),
-  ], 5);
+    deSet('Or', makeCoin()),
+    deSet('Cœur', livingSkillSet('loot', 'heart')), deSet('Coffre', livingSkillSet('loot', 'chest')),
+  ], 3);
 
 section('Objets', 'Ramassages à effet immédiat.',
-  (['magnet', 'bomb', 'hourglass', 'scroll', 'censer'] as const).map((k) => deSet(k, makeItem(k))), 5);
+  (['magnet', 'bomb', 'hourglass', 'scroll', 'censer'] as const).map((k) => deSet(k, livingSkillSet('loot', k))), 3);
 
 section('Pièces de collection', 'Les quatre supports de l’Archive.',
-  (['parchemin', 'sceau', 'hieroglyphe', 'pierre'] as const).map((k) => deSet(k, makeFragment(k))), 5);
+  (['parchemin', 'sceau', 'hieroglyphe', 'pierre'] as const).map((k) => deSet(k, livingSkillSet('loot', k))), 3);
 
 const BIOME_ARBRE: Record<TreeKind, string> = {
   pine: 'thicket', oak: 'graveyard', willow: 'mire', burnt: 'ashes',
@@ -190,17 +203,32 @@ section('Végétation', 'Quatre essences, quatre silhouettes par essence, deux t
       return { nom: `${k} ${v + 1}`, frames: [c], w: c.width, h: c.height };
     })), 3);
 
-section('Ruines', 'Six bâtiments de 84 à 216 pixels. Les blocs sont dessinés à l’aplomb exact de leur rectangle de collision : ce qu’on voit est ce qui arrête.',
-  RUINE_DEFS.map((d) => {
-    const c = ruineSprite(d, BIOME_BY_ID.get('graveyard')!);
-    return { nom: `${d.type} · ${d.murs.length} murs`, frames: [c], w: c.width, h: c.height };
+section('Château', 'Le plan complet du premier château, vu du dehors puis avec ses toits levés. Trois écrans et demi de large, à l’échelle des arbres : une courtine dépasse le plus haut d’entre eux d’une fois et demie.',
+  [
+    { nom: 'Enveloppe', frames: [castleSheet(false)], w: 660, h: 640 },
+    { nom: 'Intérieurs', frames: [castleSheet(true)], w: 660, h: 640 },
+  ], 1);
+
+section('Ruines', 'Les six maisons d’un bourg. Les murs sont peints à leur profil exact et leurs rectangles de collision à l’aplomb : ce qu’on voit est ce qui arrête.',
+  HOUSE_KINDS.map((k) => {
+    const c = houseSheet(k);
+    return { nom: k, frames: [c], w: c.width, h: c.height };
   }), 2);
 
-section('Structures', 'Points d’intérêt posés dans le monde. Générés par le terrain, pas par la fabrique de sprites.',
+section('Structures', 'Bâties comme le château, à l’échelle des arbres. Atteindre leur pied les déclenche.',
   (['altar', 'pyre', 'obelisk', 'well', 'ossuary', 'chapel', 'cairn'] as PoiType[]).map((t) => {
-    const f = poiSprite(t);
-    return { nom: t, frames: f, w: f[0]!.width, h: f[0]!.height };
-  }), 3);
+    const c = shrineSheet(t);
+    return { nom: t, frames: [c], w: c.width, h: c.height };
+  }), 1);
+
+section('Lieux consacrés', 'Le cimetière, dont les morts se lèvent à la première entrée, et le prieuré.',
+  [
+    { nom: 'cimetière', kind: 'cemetery', inside: false }, { nom: 'prieuré', kind: 'priory', inside: false },
+    { nom: 'prieuré, intérieur', kind: 'priory', inside: true },
+  ].map(({ nom, kind, inside }) => {
+    const c = holyGroundSheet(kind as 'cemetery' | 'priory', inside);
+    return { nom, frames: [c], w: c.width, h: c.height };
+  }), 1);
 
 section('Tuiles de sol', 'Quatre variantes, tirées de la même graine que le biome.',
   [0, 1, 2, 3].map((i) => {

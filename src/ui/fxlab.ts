@@ -6,6 +6,7 @@ import {
   fxSettings, fxStats, FX_DEFAULTS, FX_TEXTURES, textureOf,
   type FxSettings, type FxView,
 } from '../gfx/fx';
+import { vfxStats } from '../gfx/vfxbake';
 import { WEAPONS, weaponById } from '../data/weapons';
 import { ENEMIES } from '../data/enemies';
 import { iconFor } from '../game/upgrades';
@@ -131,7 +132,11 @@ export class FxLab {
       `${loop.fps.toFixed(0)} fps · ${t('rendu', 'render')} ${loop.renderMs.toFixed(1)} ms\n` +
       `${t('particules', 'particles')} ${w.particles.count} · ${t('lueurs', 'glows')} ${fxStats.glows} · ` +
       `${t('textures', 'textures')} ${fxStats.sprites}\n` +
-      `${t('ennemis', 'enemies')} ${w.aliveEnemies}`;
+      `${t('ennemis', 'enemies')} ${w.aliveEnemies}
+` +
+      `${t('effets', 'effects')} ${w.vfx.count} · ${t('atlas', 'atlases')} ${vfxStats.atlases} · ${(vfxStats.bytes / 1048576).toFixed(1)} ${t('Mo', 'MB')}
+` +
+      `${t('pré-rendu', 'baking')} ${vfxStats.bakeMs.toFixed(0)} ms · ${t('pire', 'worst')} ${vfxStats.longestBakeMs.toFixed(1)} ms`;
   }
 
   // ------------------------------------------------------------- construction

@@ -30,7 +30,7 @@ Une partie dure **30 minutes**. Le temps est le seul véritable adversaire.
 > Sprites, animations, décor, biomes, effets, ornements d’interface, logo, curseur et sons
 > sont **générés par le code** au démarrage. Deux exceptions, assumées et stockées elles aussi
 > dans le code : l’illustration de l’écran-titre, composée à la main, et trois polices libres
-> (Jacquard 24, Pixelify Sans, Jersey 10 – licences dans `licenses/`). Le jeu entier tient en 182 ko compressés et fonctionne hors ligne.
+> (Jacquard 24, Pixelify Sans, Jersey 10 – licences dans `licenses/`). Les effets s’appuient sur une copie adaptée de pixelfx, sous licence MIT (`vendor/pixelfx`). Le jeu entier tient en 270 ko compressés et fonctionne hors ligne.
 
 ![Une partie à la quinzième minute](docs/screenshots/03-jeu.png)
 

@@ -62,7 +62,7 @@ export const ENEMIES: EnemyDef[] = [
   {
     id: 'bat', name: 'Chauve-souris',
     hp: 8, damage: 5, speed: 62, radius: 5, gemRank: 0, ai: 'wave', kbResist: 0,
-    art: { plan: 'flying', w: 14, h: 11, cols: [P.fleshDead, P.flesh, P.fleshHi], eye: P.bloodHi, horns: true, frames: 4 },
+    art: { plan: 'critter', flies: true, critter: { id: 'bat', zoom: 0.46, options: { floor: false } }, w: 14, h: 11, cols: [P.fleshDead, P.flesh, P.fleshHi], eye: P.bloodHi, frames: 6 },
     from: 0, weight: 100,
   },
   {
@@ -74,7 +74,7 @@ export const ENEMIES: EnemyDef[] = [
   {
     id: 'crow', name: 'Corbeau',
     hp: 10, damage: 6, speed: 74, radius: 5, gemRank: 0, ai: 'erratic', kbResist: 0,
-    art: { plan: 'flying', w: 15, h: 12, cols: ['#1a1a24', '#2b2b3a', '#3d3d52'], eye: P.gold, frames: 4 },
+    art: { plan: 'critter', flies: true, critter: { id: 'bird', zoom: 0.5, options: { palette: ['#0c0c14', '#1a1a24', '#2b2b3a', '#3d3d52', '#5a5a72', '#8a8aa0'] } }, w: 15, h: 12, cols: ['#1a1a24', '#2b2b3a', '#3d3d52'], eye: P.gold, frames: 6 },
     from: 2, weight: 70,
   },
   {
@@ -86,7 +86,7 @@ export const ENEMIES: EnemyDef[] = [
   {
     id: 'skeleton', name: 'Squelette',
     hp: 40, damage: 12, speed: 40, radius: 6, gemRank: 1, ai: 'chase', kbResist: 0.6,
-    art: { plan: 'humanoid', w: 12, h: 14, cols: ['#4a4a52', '#7c7c88', '#b0b0bc'], eye: P.bloodHi, frames: 4 },
+    art: { plan: 'skeleton', w: 12, h: 14, cols: ['#4a4a52', '#8c8478', '#c8c0b0'], eye: P.bloodHi, frames: 4 },
     from: 5, weight: 60,
   },
   {
@@ -98,19 +98,19 @@ export const ENEMIES: EnemyDef[] = [
   {
     id: 'zombie', name: 'Zombie',
     hp: 90, damage: 16, speed: 26, radius: 7, gemRank: 1, ai: 'chase', kbResist: 0.5,
-    art: { plan: 'humanoid', w: 13, h: 15, cols: ['#26331f', '#3a4d2e', '#4f6640'], eye: P.poison, frames: 4 },
+    art: { plan: 'zombie', w: 13, h: 15, cols: ['#26331f', '#3a4d2e', '#5f7a4c'], eye: P.poison, frames: 4 },
     from: 8, weight: 45,
   },
   {
     id: 'wraith', name: 'Spectre',
     hp: 30, damage: 14, speed: 96, radius: 6, gemRank: 1, ai: 'phase', kbResist: 0.8,
-    art: { plan: 'ghost', w: 14, h: 15, cols: ['#1d2b3a', '#2e4459', '#436079'], eye: P.ice, accent: P.ice, frames: 6 },
+    art: { plan: 'critter', critter: { id: 'ghost', zoom: 0.42, options: { hover: 2, floor: false } }, w: 14, h: 15, cols: ['#1d2b3a', '#2e4459', '#436079'], eye: P.ice, accent: P.ice, frames: 6 },
     from: 10, weight: 50,
   },
   {
     id: 'spitter', name: 'Nécrophage',
     hp: 55, damage: 10, speed: 34, radius: 6.5, gemRank: 2, ai: 'ranged', kbResist: 0.3,
-    art: { plan: 'blob', w: 15, h: 14, cols: ['#2d3320', '#465238', '#5e6b4a'], eye: P.poison, frames: 4 },
+    art: { plan: 'critter', critter: { id: 'slime', zoom: 0.46, options: { hop: 8, palette: ['#0c1208', '#1a2410', '#2d3320', '#465238', '#6b7a3a', '#a8c060', '#e4f4a8'] } }, w: 15, h: 14, cols: ['#2d3320', '#465238', '#5e6b4a'], eye: P.poison, frames: 6 },
     // Avancé de la douzième à la huitième minute : seule menace à distance avant le seizième,
     // c'est elle qui oblige à aller au contact plutôt qu'à reculer indéfiniment.
     from: 8, weight: 40, goldChance: 0.2,
@@ -118,7 +118,7 @@ export const ENEMIES: EnemyDef[] = [
   {
     id: 'leech', name: 'Sangsue',
     hp: 45, damage: 18, speed: 52, radius: 6, gemRank: 2, ai: 'leech', kbResist: 0.2,
-    art: beast(['#3d1520', '#5c2030', '#7a2c42'], P.bloodHi, { tail: true }),
+    art: { plan: 'critter', critter: { id: 'snake', zoom: 0.5, options: { palette: ['#14040a', '#3d1520', '#5c2030', '#7a2c42', '#a83a50', '#e06878'] } }, w: 18, h: 10, cols: ['#3d1520', '#5c2030', '#7a2c42'], eye: P.bloodHi, frames: 6 },
     from: 14, weight: 40, goldChance: 0.2,
   },
   {
@@ -138,6 +138,37 @@ export const ENEMIES: EnemyDef[] = [
     hp: 130, damage: 24, speed: 60, radius: 7, gemRank: 2, ai: 'split', kbResist: 0.4,
     art: { plan: 'armored', w: 14, h: 16, cols: ['#2c1f33', '#43304d', '#5a4166'], eye: P.bloodHi, accent: P.fire, frames: 4 },
     from: 22, weight: 30, goldChance: 0.3,
+  },
+  // Créatures de la bibliothèque pixelfx, retexturées aux teintes du domaine.
+  {
+    id: 'mirefrog', name: 'Crapaud des Fosses',
+    hp: 26, damage: 10, speed: 66, radius: 5.5, gemRank: 1, ai: 'charger', kbResist: 0.1,
+    art: { plan: 'critter', critter: { id: 'frog', zoom: 0.46, options: { floor: false, palette: ['#0c120c', '#1a2a1c', '#2c4a2c', '#4a6a34', '#7a8a3a', '#c0c060'] } }, w: 15, h: 12, cols: ['#2c4a2c', '#4a6a34', '#7a8a3a'], eye: P.gold, frames: 6 },
+    from: 6, weight: 42, cluster: 3,
+  },
+  {
+    id: 'wisp', name: 'Feu Follet',
+    hp: 20, damage: 11, speed: 84, radius: 5, gemRank: 1, ai: 'wave', kbResist: 0.5,
+    art: { plan: 'critter', flies: true, critter: { id: 'wisp', zoom: 0.36, options: { hover: 2, floor: false } }, w: 12, h: 13, cols: ['#0f3d52', '#1fa8a8', '#4fe0c8'], eye: P.ice, frames: 6 },
+    from: 9, weight: 36,
+  },
+  {
+    id: 'skullfly', name: 'Crâne Errant',
+    hp: 48, damage: 15, speed: 78, radius: 6, gemRank: 1, ai: 'erratic', kbResist: 0.4,
+    art: { plan: 'critter', flies: true, critter: { id: 'flyingSkull', zoom: 0.4, options: { hover: 2, floor: false } }, w: 14, h: 14, cols: ['#4a4a52', '#8c8478', '#c8c0b0'], eye: P.fire, frames: 6 },
+    from: 12, weight: 38,
+  },
+  {
+    id: 'watcher', name: 'Œil du Caveau',
+    hp: 70, damage: 12, speed: 30, radius: 6.5, gemRank: 2, ai: 'ranged', kbResist: 0.5,
+    art: { plan: 'critter', critter: { id: 'eyeball', zoom: 0.36, options: { hover: 2, floor: false } }, w: 14, h: 14, cols: ['#3d1520', '#a89c8a', '#d8cfbc'], eye: P.bloodHi, frames: 6 },
+    from: 15, weight: 30, goldChance: 0.2,
+  },
+  {
+    id: 'drowned', name: 'Noyée',
+    hp: 110, damage: 20, speed: 46, radius: 7, gemRank: 2, ai: 'phase', kbResist: 0.6,
+    art: { plan: 'critter', critter: { id: 'jellyfish', zoom: 0.42, options: { hover: 2, floor: false, palette: ['#1a0a2c', '#3a1a52', '#6a2c82', '#a84aa8', '#e088c8', '#ffd0e8'] } }, w: 14, h: 17, cols: ['#3a1a52', '#6a2c82', '#a84aa8'], eye: P.ice, frames: 6 },
+    from: 18, weight: 26, goldChance: 0.25,
   },
 ];
 
@@ -165,6 +196,8 @@ export interface BossDef extends EnemyDef {
   title: string;
   /** Invulnérable et impossible à tuer – réservé à la Faucheuse. */
   invincible?: boolean;
+  /** Ce qu'il fait lever avec la mécanique `summon`. La Matrone pond des araignées. */
+  minion?: string;
 }
 
 /**
@@ -218,26 +251,50 @@ export const BOSSES: BossDef[] = [
   {
     id: 'exsanguine', name: 'Le Chevalier Exsangue', title: 'qui ne saigne plus',
     hp: 9000, damage: 36, speed: 46, radius: 20, gemRank: 3, ai: 'charger', kbResist: 1,
-    art: { plan: 'armored', w: 40, h: 46, cols: ['#22262f', '#394050', '#525b72'], eye: P.bloodHi, accent: P.steel, crown: true, frames: 4 },
+    art: { plan: 'knight', w: 40, h: 46, cols: ['#22262f', '#465064', '#8c98ac'], eye: P.bloodHi, accent: P.steel, frames: 4 },
     from: 18, weight: 0, boss: true, mechanic: 'charge', minute: 18, goldChance: 1,
   },
   {
     id: 'ashchoir', name: 'Chœur de Cendres', title: 'trois voix, un seul corps',
     hp: 14000, damage: 40, speed: 40, radius: 17, gemRank: 3, ai: 'phase', kbResist: 1,
-    art: { plan: 'ghost', w: 38, h: 44, cols: ['#2b2620', '#453d33', '#605547'], eye: P.fire, accent: P.spark, crown: true, frames: 6 },
+    art: { plan: 'choir', w: 38, h: 44, cols: ['#2b2620', '#453d33', '#6b5f50'], eye: P.fire, accent: P.spark, frames: 6 },
     from: 24, weight: 0, boss: true, mechanic: 'triad', minute: 24, goldChance: 1,
   },
   {
     id: 'sanguine', name: 'Le Sanguinaire', title: 'celui qui a donné son nom au domaine',
     hp: 40000, damage: 55, speed: 42, radius: 26, gemRank: 3, ai: 'chase', kbResist: 1,
-    art: { plan: 'humanoid', w: 56, h: 60, cols: ['#3d0a16', '#6b1122', '#9c1c33'], eye: P.spark, accent: P.gold, horns: true, crown: true, frames: 4 },
+    art: { plan: 'lord', w: 56, h: 60, cols: ['#3d0a16', '#6b1122', '#b02840'], eye: P.spark, accent: P.gold, frames: 4 },
     from: 30, weight: 0, boss: true, mechanic: 'phases', minute: 30, goldChance: 1,
   },
   {
     id: 'reaper', name: 'La Faucheuse', title: 'le rideau',
     hp: 999999, damage: 9999, speed: 105, radius: 20, gemRank: 3, ai: 'chase', kbResist: 1,
-    art: { plan: 'ghost', w: 40, h: 48, cols: ['#08080c', '#141420', '#20202e'], eye: P.bloodHi, accent: P.bloodHi, frames: 6 },
+    art: { plan: 'reaper', w: 40, h: 48, cols: ['#08080c', '#1a1a28', '#2e2e40'], eye: P.bloodHi, accent: P.bloodHi, frames: 6 },
     from: 31, weight: 0, boss: true, mechanic: 'reaper', minute: 31, invincible: true,
+  },
+  {
+    id: 'colossus', name: 'Le Colosse d’Os', title: 'mille morts, une seule marche',
+    hp: 1400, damage: 20, speed: 30, radius: 16, gemRank: 3, ai: 'chase', kbResist: 1,
+    art: { plan: 'colossus', w: 40, h: 42, cols: ['#4a4438', '#8c8478', '#d0c8b4'], eye: P.bloodHi, frames: 4 },
+    from: 5, weight: 0, boss: true, mechanic: 'summon', minute: 5, goldChance: 1, minion: 'skeleton',
+  },
+  {
+    id: 'gazer', name: 'L’Œil du Caveau', title: 'il n’a jamais cligné',
+    hp: 6000, damage: 30, speed: 34, radius: 19, gemRank: 3, ai: 'chase', kbResist: 1,
+    art: { plan: 'critter', critter: { id: 'eyeball', zoom: 0.86, options: { hover: 2, floor: false } }, w: 44, h: 48, cols: ['#3d1520', '#a89c8a', '#d8cfbc'], eye: P.bloodHi, frames: 6 },
+    from: 12, weight: 0, boss: true, mechanic: 'triad', minute: 12, goldChance: 1,
+  },
+  {
+    id: 'bogmother', name: 'La Mère-Sangsue', title: 'elle a bu le marais',
+    hp: 12000, damage: 38, speed: 44, radius: 20, gemRank: 3, ai: 'charger', kbResist: 1,
+    art: { plan: 'worm', w: 56, h: 40, cols: ['#3d1520', '#6b2436', '#a84458'], eye: P.gold, frames: 6 },
+    from: 20, weight: 0, boss: true, mechanic: 'charge', minute: 20, goldChance: 1,
+  },
+  {
+    id: 'bellman', name: 'Le Sonneur', title: 'chaque glas appelle les siens',
+    hp: 20000, damage: 44, speed: 32, radius: 20, gemRank: 3, ai: 'chase', kbResist: 1,
+    art: { plan: 'bellman', w: 44, h: 54, cols: ['#1c1a24', '#322e40', '#4e4860'], eye: P.ice, frames: 4 },
+    from: 26, weight: 0, boss: true, mechanic: 'summon', minute: 26, goldChance: 1, minion: 'ghoul',
   },
 ];
 

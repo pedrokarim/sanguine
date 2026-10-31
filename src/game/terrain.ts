@@ -1,9 +1,13 @@
 import { Rng } from '../core/rng';
 import { valueNoise2, TAU, dist2 } from '../core/math';
 import { P, shade, hexToRgb, mix, rgba } from '../gfx/palette';
-import { Pix, toCanvas } from '../gfx/pix';
+import { skillIcon } from '../gfx/skillicons';
+import { sculptProp, sculptTree } from '../gfx/worldart';
+import { extinguish } from './shrines';
+import type { ShrineType, Site } from './siteplan';
 import { language, localiseById } from '../i18n';
 import { EN_BIOMES, EN_POIS } from '../data/en';
+import { SHRINE_CELL, SiteField } from './sites';
 
 /**
  * Terrain : biomes procéduraux, décor et points d'intérêt.
@@ -67,70 +71,6 @@ export type TreeKind = 'pine' | 'oak' | 'willow' | 'burnt';
  * `nu` est le sol de bruit d'origine, et reste majoritaire : un motif partout n'est plus un
  * motif.
  */
-/**
- * Ruines : des bâtiments, pas des bornes.
- *
- * De 80 à 220 pixels, elles arrêtent le joueur et les ennemis terrestres. Elles
- * transforment le terrain en géographie : on contourne, on s'y adosse, on s'y fait piéger.
- *
- * La collision est décrite par une **liste de rectangles alignés sur les axes**, jamais par
- * la silhouette du sprite. Trois à six par ruine suffisent, le test reste trivial, et
- * surtout on garde la main sur les ouvertures.
- *
- * Règle absolue : **toute ruine a au moins deux ouvertures**. Un joueur ne doit jamais
- * pouvoir être coincé entre un mur et la horde sans issue — ce serait une mort qu'il n'a pas
- * commise.
- */
-export type RuineType = 'mur' | 'angle' | 'nef' | 'tour' | 'ferme' | 'pontons';
-
-export interface RuineDef {
-  type: RuineType;
-  w: number;
-  h: number;
-  /** Rectangles bloquants, en coordonnées locales depuis le coin haut-gauche. */
-  murs: [number, number, number, number][];
-  /** Biomes où elle peut paraître. Vide = partout. */
-  biomes: string[];
-}
-
-export const RUINE_DEFS: RuineDef[] = [
-  {
-    type: 'mur', w: 120, h: 44, biomes: [],
-    // Une brèche au milieu : le mur se traverse, mais il faut viser.
-    murs: [[0, 26, 46, 14], [74, 26, 46, 14]],
-  },
-  {
-    type: 'angle', w: 92, h: 92, biomes: ['moor', 'graveyard'],
-    // Deux murs en L, chacun percé — les deux ouvertures sont sur des côtés différents.
-    murs: [[0, 70, 34, 18], [56, 70, 36, 18], [0, 0, 16, 40], [0, 58, 16, 30]],
-  },
-  {
-    type: 'nef', w: 216, h: 120, biomes: ['graveyard'],
-    // Deux rangées de colonnes : on circule entre elles, jamais à travers.
-    murs: [
-      [14, 40, 18, 18], [64, 40, 18, 18], [134, 40, 18, 18], [184, 40, 18, 18],
-      [14, 92, 18, 18], [64, 92, 18, 18], [134, 92, 18, 18], [184, 92, 18, 18],
-    ],
-  },
-  {
-    type: 'tour', w: 84, h: 112, biomes: ['thicket', 'graveyard'],
-    // Cylindre éventré : la face avant est ouverte, on peut entrer.
-    murs: [[6, 40, 20, 66], [58, 40, 20, 66], [6, 40, 72, 14]],
-  },
-  {
-    type: 'ferme', w: 160, h: 104, biomes: ['ashes', 'moor'],
-    // Quatre murs bas, deux portes.
-    murs: [[0, 30, 58, 16], [98, 30, 62, 16], [0, 46, 16, 58], [144, 46, 16, 58], [0, 88, 62, 16], [104, 88, 56, 16]],
-  },
-  {
-    type: 'pontons', w: 176, h: 72, biomes: ['mire'],
-    // Pilotis épars : ils gênent sans enfermer, ce qui convient à un marais.
-    murs: [[10, 20, 12, 12], [56, 34, 12, 12], [104, 18, 12, 12], [148, 40, 12, 12], [30, 52, 12, 12]],
-  },
-];
-
-export const RUINE_BY_TYPE = new Map(RUINE_DEFS.map((r) => [r.type, r]));
-
 export type SolMotif = 'nu' | 'dallage' | 'pave' | 'labour' | 'vase' | 'cendre' | 'fouille';
 
 export interface Tree {
@@ -245,28 +185,26 @@ export function biomeAt(x: number, y: number): Biome {
 // Points d'intérêt
 // ---------------------------------------------------------------------------
 
-export type PoiType = 'altar' | 'pyre' | 'obelisk' | 'well' | 'ossuary' | 'chapel' | 'cairn';
+export type PoiType = ShrineType;
 
 export interface PoiDef {
   type: PoiType;
   name: string;
   hint: string;
   weight: number;
-  /** Rayon d'activation. */
+  /** Rayon d'activation : plus large que le socle de la structure, qui arrête le héros. */
   radius: number;
   color: string;
-  w: number;
-  h: number;
 }
 
 export const POI_DEFS: Record<PoiType, PoiDef> = {
-  altar: { type: 'altar', name: 'Autel de Sang', hint: 'une relique vous attend', weight: 8, radius: 18, color: '#a855f7', w: 26, h: 26 },
-  pyre: { type: 'pyre', name: 'Bûcher', hint: 'la flamme purifie', weight: 16, radius: 18, color: P.fire, w: 22, h: 26 },
-  obelisk: { type: 'obelisk', name: 'Obélisque', hint: 'la pierre vous prête sa force', weight: 14, radius: 16, color: P.ice, w: 18, h: 34 },
-  well: { type: 'well', name: 'Puits', hint: 'on y a jeté des pièces', weight: 18, radius: 16, color: P.gold, w: 24, h: 22 },
-  ossuary: { type: 'ossuary', name: 'Ossuaire', hint: 'quelque chose y dort', weight: 12, radius: 18, color: P.bone, w: 28, h: 24 },
-  chapel: { type: 'chapel', name: 'Chapelle Noyée', hint: 'un répit', weight: 7, radius: 22, color: P.linen, w: 40, h: 38 },
-  cairn: { type: 'cairn', name: 'Cairn', hint: 'des offrandes', weight: 20, radius: 15, color: P.steel, w: 20, h: 24 },
+  altar: { type: 'altar', name: 'Autel de Sang', hint: 'une relique vous attend', weight: 8, radius: 42, color: '#a855f7' },
+  pyre: { type: 'pyre', name: 'Bûcher', hint: 'la flamme purifie', weight: 16, radius: 44, color: P.fire },
+  obelisk: { type: 'obelisk', name: 'Obélisque', hint: 'la pierre vous prête sa force', weight: 14, radius: 44, color: P.ice },
+  well: { type: 'well', name: 'Puits', hint: 'on y a jeté des pièces', weight: 18, radius: 42, color: P.gold },
+  ossuary: { type: 'ossuary', name: 'Ossuaire', hint: 'quelque chose y dort', weight: 12, radius: 42, color: P.bone },
+  chapel: { type: 'chapel', name: 'Chapelle Noyée', hint: 'un répit', weight: 7, radius: 44, color: P.linen },
+  cairn: { type: 'cairn', name: 'Cairn', hint: 'des offrandes', weight: 20, radius: 42, color: P.steel },
 };
 
 if (language() === 'en') {
@@ -286,10 +224,9 @@ export interface Poi {
   anim: number;
   /** Progression de l'effet d'activation, 1 → 0. */
   flash: number;
+  site: Site;
 }
 
-/** Taille de la cellule de placement. Un POI tous les ~600 px, soit un toutes les ~8 s. */
-const POI_CELL = 600;
 
 /** Hachage entier stable : la même cellule donne toujours la même graine. */
 function cellSeed(cx: number, cy: number, salt: number): number {
@@ -303,10 +240,17 @@ function cellSeed(cx: number, cy: number, salt: number): number {
 // Décor
 // ---------------------------------------------------------------------------
 
+/**
+ * Murs proches, tels que le monde les consomme.
+ *
+ * Les ruines d'autrefois étaient des sprites isolés portant leurs rectangles. Tout ce qui bloque
+ * le passage vient désormais des lieux, mais le format reste celui-ci : le monde n'a pas à savoir
+ * d'où viennent ses murs.
+ */
 export interface Ruine {
   x: number;
   y: number;
-  def: RuineDef;
+  def: { murs: [number, number, number, number][] };
 }
 
 export interface Prop {
@@ -344,62 +288,12 @@ const GROVE_RADIUS = 250;
 /** Cellule du décor destructible. Large : ces objets doivent se croiser rarement. */
 const DESTR_CELL = 260;
 
-/**
- * Cellule des ruines.
- *
- * Très large : une ruine est un événement de terrain, pas un meuble. À 1 100 pixels et une
- * chance sur trois, on en croise une toutes les deux ou trois minutes de marche.
- */
-const RUINE_CELL = 1100;
-
-/**
- * Villages abandonnés.
- *
- * Une grappe de ruines le long d'une voie pavée, avec un point d'eau au centre. Un village
- * doit être **désirable et dangereux** : s'il n'offrait qu'un décor, on le contournerait ;
- * s'il n'offrait que du danger, on le fuirait. D'où la densité d'ennemis majorée et le
- * coffre garanti.
- */
-const VILLAGE_CELL = 2400;
-const VILLAGE_RAYON = 400;
-
-/**
- * Emprise des villages, accessible sans instance de terrain.
- *
- * `motifAt` et le semis des arbres sont des fonctions libres, appelées avant qu'un terrain
- * existe. La graine du monde est donc posée une fois au démarrage de la partie.
- */
-let villageSeed = 0;
-export function setVillageSeed(v: number): void {
-  villageSeed = v;
-}
-
-export function villageForceGlobal(x: number, y: number): number {
-  const c0x = Math.floor((x - VILLAGE_RAYON) / VILLAGE_CELL);
-  const c1x = Math.floor((x + VILLAGE_RAYON) / VILLAGE_CELL);
-  const c0y = Math.floor((y - VILLAGE_RAYON) / VILLAGE_CELL);
-  const c1y = Math.floor((y + VILLAGE_RAYON) / VILLAGE_CELL);
-  let f = 0;
-  for (let cy = c0y; cy <= c1y; cy++) {
-    for (let cx = c0x; cx <= c1x; cx++) {
-      const rng = new Rng(cellSeed(cx, cy, villageSeed ^ 0x7a3e11c5));
-      if (rng.next() >= 0.28) continue;
-      const vx = cx * VILLAGE_CELL + rng.range(VILLAGE_RAYON, VILLAGE_CELL - VILLAGE_RAYON);
-      const vy = cy * VILLAGE_CELL + rng.range(VILLAGE_RAYON, VILLAGE_CELL - VILLAGE_RAYON);
-      const d = Math.hypot(x - vx, y - vy);
-      if (d < VILLAGE_RAYON) f = Math.max(f, 1 - d / VILLAGE_RAYON);
-    }
-  }
-  return f;
-}
-
 // ---------------------------------------------------------------------------
 // Sprites du terrain
 // ---------------------------------------------------------------------------
 
 const groundCache = new Map<string, HTMLCanvasElement>();
 const propCache = new Map<string, HTMLCanvasElement>();
-const poiCache = new Map<string, HTMLCanvasElement[]>();
 
 /** Nombre de variantes par biome. Quatre suffisent à casser la grille pour l'œil. */
 export const GROUND_VARIANTS = 4;
@@ -429,6 +323,46 @@ export const GROUND_TILE = 128;
  * traversées existent, et les plus anciennes sortent.
  */
 const GROUND_CACHE_MAX = 40;
+
+export const FRINGE_SIDES = [
+  { id: 0, dx: 1, dy: 0 }, { id: 1, dx: -1, dy: 0 }, { id: 2, dx: 0, dy: 1 }, { id: 3, dx: 0, dy: -1 },
+] as const;
+
+/** Profondeur maximale de la frange, en pixels. */
+const FRINGE_DEPTH = 58;
+const fringeCache = new Map<string, HTMLCanvasElement>();
+
+/**
+ * Sol d'un biome, découpé en frange irrégulière le long d'un bord de tuile.
+ *
+ * Le bruit ne dépend que de la position **le long** du bord, et il est périodique : deux
+ * franges voisines se raccordent, et un coin reste continu.
+ */
+export function biomeFringe(biome: Biome, side: number): HTMLCanvasElement {
+  const key = `${biome.id}:${side}`;
+  const hit = fringeCache.get(key);
+  if (hit) return hit;
+  const S = GROUND_TILE;
+  const c = document.createElement('canvas');
+  c.width = S;
+  c.height = S;
+  const ctx = c.getContext('2d')!;
+  ctx.drawImage(groundTile(biome), 0, 0);
+  const img = ctx.getImageData(0, 0, S, S);
+  for (let y = 0; y < S; y++) {
+    for (let x = 0; x < S; x++) {
+      const along = side < 2 ? y : x;
+      const depth = side === 0 ? S - 1 - x : side === 1 ? x : side === 2 ? S - 1 - y : y;
+      const reach = FRINGE_DEPTH * (0.2 +
+        periodicNoise(along / 32, 0.5, S / 32, 311) * 0.55 +
+        periodicNoise(along / 8, 0.5, S / 8, 733) * 0.45);
+      if (depth > reach) img.data[(y * S + x) * 4 + 3] = 0;
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+  fringeCache.set(key, c);
+  return c;
+}
 
 export function groundTile(biome: Biome, variant = 0, motif: SolMotif = 'nu'): HTMLCanvasElement {
   const key = `${biome.id}:${variant}:${motif}`;
@@ -474,6 +408,11 @@ export function groundTile(biome: Biome, variant = 0, motif: SolMotif = 'nu'): H
       // le sol n'atteint jamais ses extrêmes. Sans cette compression, la texture rivalise
       // d'intensité avec les ennemis, ce qui contredit toute la règle de lisibilité du jeu :
       // le décor doit rester une texture, jamais un signal.
+      /*
+       * Jamais de trame ici. Le sol couvre tout l'écran et défile par pas de un ou deux pixels :
+       * un damier s'inverse à chaque pas impair, et l'écran entier clignote. On croit alors que
+       * la caméra tremble, alors qu'elle n'a pas bougé.
+       */
       const step = Math.min(LEVELS - 1, Math.floor(n * LEVELS));
       const raw = step / (LEVELS - 1);
       const t = 0.5 + (raw - 0.5) * 0.55;
@@ -590,9 +529,6 @@ export function routeAt(tx: number, ty: number): number {
 export function motifAt(tx: number, ty: number): SolMotif {
   // Une route prime sur le motif du biome : c'est elle qu'on doit voir.
   if (routeAt(tx, ty) > 0.35) return 'pave';
-  // Un village est dallé. Le changement sous les pieds annonce qu'on entre quelque part,
-  // avant même qu'on distingue la première maison.
-  if (villageForceGlobal(tx * GROUND_TILE, ty * GROUND_TILE) > 0.25) return 'dallage';
   const biome = biomeAtTile(tx, ty);
   if (biome.motifs.length === 0) return 'nu';
   const n = valueNoise2(tx / 9, ty / 9, 0x3a1f);
@@ -789,219 +725,17 @@ export function treeSprite(
   const hit = treeCache.get(key);
   if (hit) return hit;
 
-  const rng = new Rng(cellSeed(variant * 31 + (grand ? 7 : 0), kind.length * 13, 91));
-  const bois = kind === 'burnt' ? '#241d1c' : '#3a2a20';
-  /*
-   * Le feuillage tire sa couleur d'une teinte propre à l'essence, mêlée au détail du sol.
-   * Prendre `ground[3]` seul donnait un houppier gris dans le Cimetière : on y lisait un
-   * rocher posé sur un tronc, pas un arbre.
-   */
   const VERT: Record<TreeKind, string> = {
     pine: '#2f4a35', oak: '#3d4f2c', willow: '#385238', burnt: '#3a3230',
   };
+  // Le feuillage se mêle au détail du sol : prendre `ground[3]` seul donnait un houppier gris
+  // dans le Cimetière, où l'on lisait un rocher posé sur un tronc.
   const feuille = mix(VERT[kind], biome.ground[3], 0.28);
-
-  const cols = [
-    shade(bois, -0.65),      // 0 contour
-    shade(bois, -0.2),       // 1 tronc, ombre
-    bois,                    // 2 tronc
-    shade(feuille, -0.42),   // 3 houppier, ombre
-    feuille,                 // 4 houppier
-    shade(feuille, 0.3),     // 5 houppier, lumière
-    mix(shade(feuille, 0.4), P.ice, 0.45),  // 6 rasante froide
-  ];
-
   const ech = grand ? 1 : 0.68;
   const W = Math.round((kind === 'oak' ? 52 : kind === 'willow' ? 46 : 34) * ech);
   const H = Math.round((kind === 'oak' ? 62 : kind === 'willow' ? 58 : 70) * ech);
-  const p = new Pix(W, H);
-  const cx = W / 2 - 0.5;
-  const pied = H - 1;
-
-  /** Tronc courbe, de la base vers la cime. `pente` incline, `ep` donne l'épaisseur au pied. */
-  const tronc = (haut: number, pente: number, ep: number): [number, number] => {
-    for (let k = 0; k <= haut; k++) {
-      const t = k / haut;
-      const x = cx + pente * t * t * W * 0.3;
-      const e = Math.max(1, ep * (1 - t * 0.55));
-      for (let i = -e; i <= e; i++) p.set(x + i, pied - k, i > e * 0.2 ? 1 : 2);
-    }
-    return [cx + pente * W * 0.3, pied - haut];
-  };
-
-  switch (kind) {
-    case 'pine': {
-      // Étages triangulaires décroissants. Les largeurs sont tirées au sort : un sapin
-      // parfaitement régulier se lit comme un pictogramme, pas comme un arbre.
-      const [tx, ty] = tronc(H * 0.9, rng.spread(0.12), 2.2 * ech);
-      const etages = 5;
-      for (let e = 0; e < etages; e++) {
-        const t = e / (etages - 1);
-        const y = ty + H * 0.08 + t * H * 0.7;
-        const demi = W * 0.46 * (0.35 + t * 0.65) * (0.82 + rng.range(0, 0.36));
-        const ep = Math.max(2, H * 0.1);
-        for (let j = 0; j <= ep; j++) {
-          const d = demi * (0.3 + (j / ep) * 0.7);
-          for (let x = -d; x <= d; x++) {
-            if (rng.next() < 0.07) continue;         // trouées dans le feuillage
-            p.set(tx + x, y + j, x < -d * 0.3 ? 5 : x > d * 0.35 ? 3 : 4);
-          }
-        }
-      }
-      break;
-    }
-
-    case 'oak': {
-      // Houppier large et bas, fait de trois masses qui se chevauchent : une seule ellipse
-      // donnerait un champignon.
-      const [tx, ty] = tronc(H * 0.52, rng.spread(0.16), 3.2 * ech);
-      // Branches maîtresses, visibles sous le feuillage.
-      for (const dir of [-1, 1]) {
-        p.limb(tx, ty + H * 0.06, tx + dir * W * 0.26, ty - H * 0.06, 2 * ech, 2);
-      }
-      /*
-       * Le houppier est fait de grappes qui se chevauchent, et son bord est rongé au hasard.
-       * Trois ellipses pleines donnaient une masse lisse qu'on lisait comme un rocher : à
-       * cette distance, c'est l'irrégularité du contour qui dit « feuillage ».
-       */
-      for (const [dx, dy, r] of [[-0.24, 0.02, 0.34], [0.26, 0.05, 0.32], [0, -0.1, 0.4]]) {
-        p.ellipse(tx + dx * W, ty + dy * H, W * r, H * r * 0.55, 4);
-      }
-      for (let k = 0; k < 22; k++) {
-        const a = rng.range(0, TAU);
-        const rr = 0.72 + rng.range(0, 0.34);
-        p.ellipse(tx + Math.cos(a) * W * 0.34 * rr, ty + Math.sin(a) * H * 0.2 * rr,
-          W * 0.1, H * 0.06, rng.next() < 0.45 ? 5 : 4);
-      }
-      // Trouées : quelques creux sombres qui laissent deviner les branches.
-      for (let k = 0; k < 7; k++) {
-        p.ellipse(tx + rng.spread(W * 0.3), ty + rng.range(0, H * 0.16),
-          W * 0.06, H * 0.04, 3);
-      }
-      p.ellipse(tx - W * 0.22, ty - H * 0.15, W * 0.16, H * 0.1, 5);
-      break;
-    }
-
-    case 'willow': {
-      // Tronc franchement penché, ramure qui retombe en rideau jusqu'au sol.
-      const pente = rng.next() < 0.5 ? -0.5 : 0.5;
-      const [tx, ty] = tronc(H * 0.5, pente, 2.8 * ech);
-      p.ellipse(tx, ty, W * 0.34, H * 0.16, 4);
-      // Les rideaux : des traits verticaux de longueurs inégales. C'est leur irrégularité
-      // qui fait le saule ; alignés, ils font une frange de rideau de douche.
-      const n = Math.round(9 * ech) + 3;
-      for (let i = 0; i < n; i++) {
-        const x = tx + (i / (n - 1) - 0.5) * W * 0.78;
-        const l = H * (0.2 + rng.range(0, 0.3));
-        for (let k = 0; k < l; k++) {
-          const xx = x + Math.sin(k * 0.22 + i) * 1.2;
-          p.set(xx, ty + H * 0.08 + k, k < l * 0.3 ? 4 : 3);
-        }
-      }
-      p.ellipse(tx - W * 0.16, ty - H * 0.04, W * 0.14, H * 0.07, 5);
-      break;
-    }
-
-    case 'burnt': {
-      // Fût nu, fendu, aux branches cassées. Aucun feuillage : c'est l'absence qui raconte.
-      const [tx] = tronc(H * 0.86, rng.spread(0.2), 2.6 * ech);
-      for (let k = 0; k < 4; k++) {
-        const t = 0.3 + k * 0.17;
-        const y = pied - H * 0.86 * t;
-        const dir = k % 2 === 0 ? -1 : 1;
-        const l = W * (0.16 + rng.range(0, 0.2));
-        p.limb(tx, y, tx + dir * l, y - H * 0.1, 1.4 * ech, 2);
-      }
-      // Fente verticale, plus claire : le bois éclaté sous l'écorce.
-      for (let k = 0; k < H * 0.4; k++) p.set(cx + rng.spread(0.6), pied - k, 1);
-      p.ellipse(cx, pied - H * 0.88, 2 * ech, 1.4 * ech, 1);
-      break;
-    }
-  }
-
-  // Ombre au pied : sans elle, l'arbre flotte au-dessus du sol.
-  p.ellipse(cx, pied, W * 0.24, 1.6 * ech, 0);
-
-  /*
-   * La rasante n'est appliquée qu'aux essences à masse pleine.
-   *
-   * Sur le saule, chaque rideau fait un pixel de large et a donc du vide des deux côtés :
-   * tous les brins s'éclairaient, et l'arbre sortait strié de cyan comme une guirlande. Une
-   * lumière de bord n'a de sens que s'il y a un volume à border.
-   */
-  if (kind === 'oak' || kind === 'pine') p.rimLight(1, 0, 6);
-  p.outline(0);
-
-  const c = toCanvas(p, cols);
+  const c = sculptTree(kind, W, H, feuille, cellSeed(variant * 31 + (grand ? 7 : 0), kind.length * 13, 91), ech);
   treeCache.set(key, c);
-  return c;
-}
-
-const ruineCache = new Map<string, HTMLCanvasElement>();
-
-/**
- * Sprite d'une ruine.
- *
- * Dessiné directement sur un canvas plutôt qu'avec `Pix` : à 216 × 120, une grille indexée
- * coûterait 26 000 entrées par ruine pour un résultat identique. La pierre est un aplat
- * texturé, pas un sprite à palette.
- *
- * Les blocs bloquants sont dessinés **à l'aplomb de leur rectangle de collision** : ce que
- * le joueur voit est exactement ce qui l'arrête. Un décor qui ment sur sa collision est pire
- * que pas de collision du tout.
- */
-export function ruineSprite(def: RuineDef, biome: Biome): HTMLCanvasElement {
-  const key = `${def.type}:${biome.id}`;
-  const hit = ruineCache.get(key);
-  if (hit) return hit;
-
-  const c = document.createElement('canvas');
-  c.width = def.w;
-  c.height = def.h;
-  const ctx = c.getContext('2d')!;
-  const rng = new Rng(cellSeed(def.type.length * 17, 3, 0x2b91));
-
-  const pierre = mix(biome.ground[1], '#5a5f6e', 0.5);
-  const clair = shade(pierre, 0.28);
-  const sombre = shade(pierre, -0.42);
-  const noir = shade(pierre, -0.72);
-
-  for (const [x, y, w, h] of def.murs) {
-    // Base sombre, face éclairée en haut, arête froide à droite — même convention que les
-    // créatures, sinon les ruines paraissent venir d'un autre jeu.
-    ctx.fillStyle = sombre;
-    ctx.fillRect(x, y, w, h);
-    ctx.fillStyle = pierre;
-    ctx.fillRect(x, y, w, Math.max(2, h - 4));
-    ctx.fillStyle = clair;
-    ctx.fillRect(x, y, w, 2);
-
-    // Appareil de pierre : des joints, décalés d'un rang à l'autre.
-    ctx.fillStyle = noir;
-    for (let ry = y + 5; ry < y + h; ry += 6) {
-      ctx.fillRect(x, ry, w, 1);
-      const dec = ((ry - y) / 6) % 2 === 0 ? 0 : 7;
-      for (let rx = x + dec; rx < x + w; rx += 14) ctx.fillRect(rx, ry, 1, 5);
-    }
-
-    // Arêtes rongées : quelques pierres manquantes sur le dessus.
-    ctx.clearRect(x, y, w, 1);
-    ctx.fillStyle = clair;
-    for (let rx = x; rx < x + w; rx += 3) {
-      if (rng.next() < 0.72) ctx.fillRect(rx, y + 1, 3, 1);
-    }
-    for (let k = 0; k < w / 12; k++) {
-      if (rng.next() < 0.5) ctx.clearRect(x + rng.int(0, w - 4), y, rng.int(2, 5), rng.int(1, 3));
-    }
-  }
-
-  // Gravats au pied : ils lient la ruine au sol et masquent la coupe franche du rectangle.
-  ctx.fillStyle = rgba(noir, 0.55);
-  for (let k = 0; k < def.w / 5; k++) {
-    ctx.fillRect(rng.int(0, def.w), def.h - rng.int(1, 7), rng.int(2, 6), rng.int(1, 3));
-  }
-
-  ruineCache.set(key, c);
   return c;
 }
 
@@ -1010,197 +744,33 @@ export function propSprite(kind: PropKind, variant: number, biome: Biome): HTMLC
   const hit = propCache.get(key);
   if (hit) return hit;
 
-  const detail = biome.ground[3];
-  const cols = [
-    shade(detail, -0.6),
-    shade(detail, -0.25),
-    detail,
-    shade(detail, 0.3),
-    P.boneHi,
-  ];
-  const p = new Pix(16, 18);
-  const rng = new Rng(cellSeed(variant, kind.length, 5));
-
-  switch (kind) {
-    case 'rock':
-      p.ellipse(8, 13, 4 + rng.range(0, 2), 3 + rng.range(0, 1.5), 2);
-      p.ellipse(6, 11, 2, 1.6, 3);
-      p.ellipse(11, 14, 2.2, 1.4, 1);
-      break;
-    case 'grave': {
-      // Stèle inclinée : l'inclinaison aléatoire évite l'alignement mécanique.
-      const tilt = rng.spread(1.4);
-      p.limb(8, 17, 8 + tilt, 8, 4.4, 2);
-      p.ellipse(8 + tilt, 8, 2.6, 2.2, 2);
-      p.rect(7 + tilt, 10, 3, 1, 1);
-      p.rect(6.4 + tilt, 11.6, 4, 1, 1);
-      p.shadeVertical(2, 3, 1);
-      break;
-    }
-    case 'reed':
-      for (let i = 0; i < 6; i++) {
-        const bx = 4 + rng.range(0, 8);
-        const hgt = 6 + rng.range(0, 6);
-        p.line(bx, 17, bx + rng.spread(2), 17 - hgt, 2);
-        p.set(bx + rng.spread(2), 17 - hgt - 1, 3);
-      }
-      break;
-    case 'stump':
-      p.limb(8, 17, 8, 9, 5, 1);
-      p.ellipse(8, 9, 3.2, 1.8, 2);
-      p.ellipse(8, 9, 1.6, 0.9, 3);
-      // Branche morte : silhouette bien plus reconnaissable qu'un simple cylindre.
-      p.line(8, 11, 13, 5, 1);
-      p.line(11, 8, 13, 7, 1);
-      p.line(8, 12, 3, 7, 1);
-      break;
-    case 'bone':
-      p.rect(4, 14, 8, 1, 4);
-      p.rect(4, 13, 1, 1, 4);
-      p.rect(11, 15, 1, 1, 4);
-      p.ellipse(6, 11, 2.4, 2, 4);
-      p.set(5, 11, 0);
-      p.set(7, 11, 0);
-      break;
-  }
-  p.outline(0);
-  const c = toCanvas(p, cols);
+  const c = sculptProp(kind, biome.ground[3], cellSeed(variant, kind.length, 5));
   propCache.set(key, c);
   return c;
 }
 
-/** Structure : 4 frames d'animation (lueur pulsée), plus une frame « épuisée ». */
-export function poiSprite(type: PoiType): HTMLCanvasElement[] {
-  const hit = poiCache.get(type);
-  if (hit) return hit;
-
-  const def = POI_DEFS[type];
-  const cols = [
-    '#05060a',
-    P.stone,
-    P.stoneHi,
-    P.mist,
-    def.color,
-    shade(def.color, 0.5),
-  ];
-
-  const frames: HTMLCanvasElement[] = [];
-  for (let f = 0; f < 5; f++) {
-    const spent = f === 4;
-    const t = f / 4;
-    const glow = spent ? -1 : 4; // -1 = transparent : la structure épuisée perd sa lueur
-    const p = new Pix(def.w, def.h);
-    const cx = def.w / 2 - 0.5;
-    const bot = def.h - 1;
-
-    switch (type) {
-      case 'altar':
-        p.rect(cx - 8, bot - 5, 17, 5, 1);
-        p.rect(cx - 6, bot - 8, 13, 3, 2);
-        p.rect(cx - 4, bot - 11, 9, 3, 1);
-        p.ellipse(cx, bot - 13 - Math.sin(t * TAU) * 1.2, 3.4, 3, glow);
-        p.ellipse(cx, bot - 13, 1.6, 1.4, spent ? 1 : 5);
-        break;
-
-      case 'pyre':
-        p.rect(cx - 7, bot - 3, 15, 3, 1);
-        p.line(cx - 5, bot - 3, cx + 3, bot - 9, 1);
-        p.line(cx + 5, bot - 3, cx - 3, bot - 9, 1);
-        p.line(cx, bot - 3, cx, bot - 10, 2);
-        if (!spent) {
-          const flick = Math.sin(t * TAU);
-          p.ellipse(cx, bot - 13 + flick, 4 - flick * 0.5, 5.5, 4);
-          p.ellipse(cx, bot - 14 + flick, 2.2, 3.4, 5);
-          p.set(cx, bot - 18 + flick * 2, 5);
-        }
-        break;
-
-      case 'obelisk':
-        // Monolithe effilé : la silhouette verticale se repère de loin.
-        p.rect(cx - 5, bot - 3, 11, 3, 1);
-        for (let y = 0; y < def.h - 4; y++) {
-          const hw = 4 - (y / (def.h - 4)) * 2.2;
-          p.rect(cx - hw, bot - 4 - y, hw * 2 + 1, 1, 2);
-        }
-        p.shadeVertical(2, 3, 1);
-        if (!spent) {
-          for (let k = 0; k < 3; k++) p.rect(cx - 1, 8 + k * 6 + Math.sin(t * TAU + k) * 0.6, 3, 1, 4);
-          p.set(cx, 4, 5);
-        }
-        break;
-
-      case 'well':
-        p.ellipse(cx, bot - 4, 9, 5, 1);
-        p.ellipse(cx, bot - 5, 7, 3.6, 0);
-        p.ring(cx, bot - 5, 8, 4.6, 2);
-        p.limb(cx - 7, bot - 7, cx - 7, bot - 16, 1.8, 3);
-        p.limb(cx + 7, bot - 7, cx + 7, bot - 16, 1.8, 3);
-        p.rect(cx - 8, bot - 17, 17, 2, 3);
-        if (!spent) {
-          p.line(cx, bot - 15, cx, bot - 9 - Math.sin(t * TAU), 2);
-          p.ellipse(cx, bot - 6, 4, 2, 4);
-        }
-        break;
-
-      case 'ossuary':
-        p.rect(cx - 10, bot - 8, 21, 8, 1);
-        p.shadeVertical(1, 2, 0);
-        for (let k = 0; k < 5; k++) {
-          const bx = cx - 8 + k * 4;
-          p.ellipse(bx, bot - 10, 2, 1.8, 3);
-          p.set(bx - 1, bot - 10, 0);
-          p.set(bx + 1, bot - 10, 0);
-        }
-        if (!spent) {
-          p.rect(cx - 3, bot - 6, 7, 5, 4);
-          p.rect(cx - 2, bot - 5, 5, 4, 0);
-        }
-        break;
-
-      case 'chapel':
-        // Ruine : mur arrière, arche béante, clocher penché.
-        p.rect(cx - 13, bot - 16, 27, 16, 1);
-        p.shadeVertical(1, 2, 0);
-        p.rect(cx - 5, bot - 12, 11, 12, 0);
-        p.ellipse(cx, bot - 12, 5.4, 4.4, 0);
-        for (let k = 0; k < 12; k++) {
-          p.set(cx - 13 + k * 2.4, bot - 17 - (k % 3), 2);
-        }
-        p.rect(cx + 6, bot - 26, 7, 11, 1);
-        p.line(cx + 9.5, bot - 27, cx + 9.5, bot - 32, 2);
-        p.rect(cx + 8, bot - 30, 4, 1, 2);
-        if (!spent) {
-          p.ellipse(cx, bot - 8 - Math.sin(t * TAU) * 0.8, 3, 3.4, 4);
-          p.set(cx, bot - 9, 5);
-        }
-        break;
-
-      case 'cairn': {
-        // Empilement de pierres : chaque niveau plus petit que le précédent.
-        let y = bot;
-        let rw = 6.5;
-        while (rw > 1.6) {
-          p.ellipse(cx, y - 1.5, rw, 2, 2);
-          y -= 3.4;
-          rw -= 1.3;
-        }
-        p.shadeVertical(2, 3, 1);
-        if (!spent) p.ellipse(cx, y, 2, 1.8, 4);
-        break;
-      }
-    }
-
-    p.outline(0);
-    frames.push(toCanvas(p, cols));
-  }
-
-  poiCache.set(type, frames);
-  return frames;
+/** La pastille d'une structure, au bord de l'écran et sur la planche. */
+export function poiIcon(type: PoiType): HTMLCanvasElement {
+  return skillIcon('loot', `shrine${type[0]!.toUpperCase()}${type.slice(1)}`);
 }
 
 // ---------------------------------------------------------------------------
 // Gestionnaire de terrain
 // ---------------------------------------------------------------------------
+
+/** Le biome infléchit le type : un ossuaire au cimetière, un bûcher dans les cendres. */
+function pickShrine(rng: Rng, x: number, y: number): PoiType {
+  const biome = biomeAt(x, y);
+  const weights = POI_LIST.map((d) => {
+    let w = d.weight;
+    if (biome.id === 'graveyard' && (d.type === 'ossuary' || d.type === 'chapel')) w *= 2.4;
+    if (biome.id === 'ashes' && d.type === 'pyre') w *= 2.6;
+    if (biome.id === 'mire' && (d.type === 'well' || d.type === 'chapel')) w *= 2.2;
+    if (biome.id === 'thicket' && d.type === 'cairn') w *= 2.2;
+    return w;
+  });
+  return (POI_LIST[rng.weighted(weights)] ?? POI_LIST[0]!).type;
+}
 
 export class Terrain {
   /** POI générés, indexés par clé de cellule. Ne contient que les cellules déjà visitées. */
@@ -1214,10 +784,11 @@ export class Terrain {
   /** POI découverts et activés, seulement pour les statistiques de fin. */
   activated = 0;
 
+  /** Château, villages et vestiges de cette partie : `sites.list()` en donne la liste. */
+  readonly sites: SiteField;
+
   constructor(private readonly seed: number) {
-    // Les fonctions libres — motif du sol, densité d'arbres — interrogent les villages sans
-    // avoir accès au terrain. La graine leur est donnée ici, une fois par partie.
-    setVillageSeed(seed);
+    this.sites = new SiteField(seed, pickShrine);
   }
 
   /** POI d'une cellule, généré paresseusement et mémorisé. */
@@ -1226,31 +797,15 @@ export class Terrain {
     const hit = this.pois.get(key);
     if (hit !== undefined) return hit;
 
-    const rng = new Rng(cellSeed(cx, cy, this.seed));
-    // La cellule d'origine reste vide : le joueur ne doit pas démarrer sur une structure.
-    if ((cx === 0 && cy === 0) || !rng.chance(0.62)) {
+    const site = this.sites.shrineAt(cx, cy);
+    if (!site?.shrine) {
       this.pois.set(key, null);
       return null;
     }
-
-    const x = cx * POI_CELL + rng.range(POI_CELL * 0.2, POI_CELL * 0.8);
-    const y = cy * POI_CELL + rng.range(POI_CELL * 0.2, POI_CELL * 0.8);
-    const biome = biomeAt(x, y);
-
-    // Le biome infléchit le type : un ossuaire au cimetière, un bûcher dans les cendres.
-    const weights = POI_LIST.map((d) => {
-      let w = d.weight;
-      if (biome.id === 'graveyard' && (d.type === 'ossuary' || d.type === 'chapel')) w *= 2.4;
-      if (biome.id === 'ashes' && d.type === 'pyre') w *= 2.6;
-      if (biome.id === 'mire' && d.type === 'well') w *= 2.2;
-      if (biome.id === 'thicket' && d.type === 'cairn') w *= 2.2;
-      return w;
-    });
-    const def = POI_LIST[rng.weighted(weights)] ?? POI_LIST[0]!;
-
+    const def = POI_DEFS[site.shrine.type];
     const poi: Poi = {
-      key, type: def.type, def, x, y, used: false,
-      anim: rng.range(0, 4), flash: 0,
+      key, type: def.type, def, x: site.shrine.x, y: site.shrine.y, used: false, site,
+      anim: new Rng(cellSeed(cx, cy, this.seed)).range(0, 4), flash: 0,
     };
     this.pois.set(key, poi);
     return poi;
@@ -1305,12 +860,11 @@ export class Terrain {
       for (let i = 0; i < n; i++) {
         const x = cx * TREE_CELL + rng.range(0, TREE_CELL);
         const y = cy * TREE_CELL + rng.range(0, TREE_CELL);
-        out.push({
-          x, y,
-          kind: biome.trees[rng.int(0, biome.trees.length - 1)]!,
-          variant: rng.int(0, TREE_VARIANTS - 1),
-          grand: rng.next() < 0.55,
-        });
+        const kind = biome.trees[rng.int(0, biome.trees.length - 1)]!;
+        const variant = rng.int(0, TREE_VARIANTS - 1);
+        const grand = rng.next() < 0.55;
+        // Les tirages restent faits avant le filtre : le reste du semis ne bouge pas.
+        if (!this.sites.isClear(x, y)) out.push({ x, y, kind, variant, grand });
       }
     }
     this.trees.set(key, out);
@@ -1358,6 +912,7 @@ export class Terrain {
         if (rng.next() > 0.34) continue;
         const px = cx * DESTR_CELL + rng.range(0, DESTR_CELL);
         const py = cy * DESTR_CELL + rng.range(0, DESTR_CELL);
+        if (this.sites.isClear(px, py)) continue;
         const biome = biomeAt(px, py);
         // Le sarcophage n'appartient qu'au Cimetière : c'est ce qui donne à ce biome une
         // récompense propre, et une raison d'y rester malgré le danger.
@@ -1372,137 +927,24 @@ export class Terrain {
     return out;
   }
 
-  private villages = new Map<string, { x: number; y: number } | null>();
-
-  /** Centre du village de cette cellule, s'il y en a un. */
-  private villageAt(cx: number, cy: number): { x: number; y: number } | null {
-    const key = `${cx},${cy}`;
-    const hit = this.villages.get(key);
-    if (hit !== undefined) return hit;
-    const rng = new Rng(cellSeed(cx, cy, this.seed ^ 0x7a3e11c5));
-    const out = rng.next() < 0.28
-      ? {
-        x: cx * VILLAGE_CELL + rng.range(VILLAGE_RAYON, VILLAGE_CELL - VILLAGE_RAYON),
-        y: cy * VILLAGE_CELL + rng.range(VILLAGE_RAYON, VILLAGE_CELL - VILLAGE_RAYON),
-      }
-      : null;
-    this.villages.set(key, out);
-    return out;
+  /** Emprise du village en un point, de 0 (dehors) à 1 (sur la place). */
+  villageForce(x: number, y: number): number {
+    return this.sites.villageForce(x, y);
   }
+
+  private readonly wallBuf: [number, number, number, number][] = [];
+  private readonly wallRuine: Ruine[] = [{ x: 0, y: 0, def: { murs: this.wallBuf } }];
 
   /**
-   * Emprise du village en un point, de 0 (dehors) à 1 (au centre).
+   * Murs proches. Tampon réutilisé, ne pas conserver.
    *
-   * On interroge les neuf cellules voisines : un village dont le centre tombe à côté doit
-   * déborder ici, sinon les bourgs s'arrêtent net sur une frontière invisible — le même
-   * piège que pour les bosquets.
+   * La marge couvre l'anneau d'apparition de la horde : un ennemi né à six cents pixels doit déjà
+   * rencontrer les murs, sinon il traverse une enceinte avant que le monde ne l'en informe.
    */
-  villageForce(x: number, y: number): number {
-    const c0x = Math.floor((x - VILLAGE_RAYON) / VILLAGE_CELL);
-    const c1x = Math.floor((x + VILLAGE_RAYON) / VILLAGE_CELL);
-    const c0y = Math.floor((y - VILLAGE_RAYON) / VILLAGE_CELL);
-    const c1y = Math.floor((y + VILLAGE_RAYON) / VILLAGE_CELL);
-    let f = 0;
-    for (let cy = c0y; cy <= c1y; cy++) {
-      for (let cx = c0x; cx <= c1x; cx++) {
-        const v = this.villageAt(cx, cy);
-        if (!v) continue;
-        const d = Math.hypot(x - v.x, y - v.y);
-        if (d < VILLAGE_RAYON) f = Math.max(f, 1 - d / VILLAGE_RAYON);
-      }
-    }
-    return f;
-  }
-
-  private villageRuines = new Map<string, Ruine[]>();
-
-  /** Les maisons d'un village, alignées le long d'une rue. */
-  private ruinesDuVillage(cx: number, cy: number): Ruine[] {
-    const key = `${cx},${cy}`;
-    const hit = this.villageRuines.get(key);
-    if (hit) return hit;
-
-    const out: Ruine[] = [];
-    const v = this.villageAt(cx, cy);
-    if (v) {
-      const rng = new Rng(cellSeed(cx, cy, this.seed ^ 0x11f7c209));
-      const n = rng.int(4, 9);
-      // Une rue : les maisons se rangent de part et d'autre d'un axe, pas au hasard. C'est
-      // l'alignement qui distingue un village d'un champ de ruines.
-      const a = rng.range(0, TAU);
-      const ux = Math.cos(a);
-      const uy = Math.sin(a);
-      const maisons = RUINE_DEFS.filter((d) => d.type === 'angle' || d.type === 'ferme' || d.type === 'mur');
-      for (let i = 0; i < n; i++) {
-        const t = (i / Math.max(1, n - 1) - 0.5) * VILLAGE_RAYON * 1.5;
-        const cote = i % 2 === 0 ? 1 : -1;
-        const ecart = 70 + rng.range(0, 50);
-        const def = maisons[rng.int(0, maisons.length - 1)]!;
-        out.push({
-          x: v.x + ux * t - uy * ecart * cote - def.w / 2,
-          y: v.y + uy * t + ux * ecart * cote - def.h / 2,
-          def,
-        });
-      }
-    }
-    this.villageRuines.set(key, out);
-    return out;
-  }
-
-  private ruines = new Map<string, Ruine | null>();
-
-  private ruineAt(cx: number, cy: number): Ruine | null {
-    const key = `${cx},${cy}`;
-    const hit = this.ruines.get(key);
-    if (hit !== undefined) return hit;
-
-    const rng = new Rng(cellSeed(cx, cy, this.seed ^ 0x4e2b8d17));
-    let out: Ruine | null = null;
-    if (rng.next() < 0.34) {
-      const x = cx * RUINE_CELL + rng.range(120, RUINE_CELL - 320);
-      const y = cy * RUINE_CELL + rng.range(120, RUINE_CELL - 320);
-      const biome = biomeAt(x, y);
-      const possibles = RUINE_DEFS.filter(
-        (d) => d.biomes.length === 0 || d.biomes.includes(biome.id),
-      );
-      if (possibles.length > 0) {
-        const def = possibles[rng.int(0, possibles.length - 1)]!;
-        out = { x, y, def };
-      }
-    }
-    this.ruines.set(key, out);
-    return out;
-  }
-
-  private ruineBuf: Ruine[] = [];
-  /** Ruines proches. Tampon réutilisé, ne pas conserver. */
   ruinesNear(x: number, y: number, radius: number): Ruine[] {
-    this.ruineBuf.length = 0;
-    const c0x = Math.floor((x - radius) / RUINE_CELL);
-    const c1x = Math.floor((x + radius) / RUINE_CELL);
-    const c0y = Math.floor((y - radius) / RUINE_CELL);
-    const c1y = Math.floor((y + radius) / RUINE_CELL);
-    for (let cy = c0y; cy <= c1y; cy++) {
-      for (let cx = c0x; cx <= c1x; cx++) {
-        const r = this.ruineAt(cx, cy);
-        if (r) this.ruineBuf.push(r);
-      }
-    }
-    // Les maisons de village s'ajoutent aux ruines isolées.
-    const v0x = Math.floor((x - radius - VILLAGE_RAYON) / VILLAGE_CELL);
-    const v1x = Math.floor((x + radius + VILLAGE_RAYON) / VILLAGE_CELL);
-    const v0y = Math.floor((y - radius - VILLAGE_RAYON) / VILLAGE_CELL);
-    const v1y = Math.floor((y + radius + VILLAGE_RAYON) / VILLAGE_CELL);
-    for (let cy = v0y; cy <= v1y; cy++) {
-      for (let cx = v0x; cx <= v1x; cx++) {
-        for (const r of this.ruinesDuVillage(cx, cy)) {
-          if (Math.abs(r.x - x) < radius + 240 && Math.abs(r.y - y) < radius + 240) {
-            this.ruineBuf.push(r);
-          }
-        }
-      }
-    }
-    return this.ruineBuf;
+    this.wallBuf.length = 0;
+    this.sites.wallsNear(x, y, radius + 300, this.wallBuf);
+    return this.wallRuine;
   }
 
   private propsAt(cx: number, cy: number): Prop[] {
@@ -1518,12 +960,10 @@ export class Terrain {
     const out: Prop[] = [];
     const n = rng.next() < biome.props ? rng.int(1, 3) : 0;
     for (let i = 0; i < n; i++) {
-      out.push({
-        x: cx * PROP_CELL + rng.range(0, PROP_CELL),
-        y: cy * PROP_CELL + rng.range(0, PROP_CELL),
-        kind: biome.propKind,
-        variant: rng.int(0, 3),
-      });
+      const x = cx * PROP_CELL + rng.range(0, PROP_CELL);
+      const y = cy * PROP_CELL + rng.range(0, PROP_CELL);
+      const variant = rng.int(0, 3);
+      if (!this.sites.isClear(x, y)) out.push({ x, y, kind: biome.propKind, variant });
     }
     this.props.set(key, out);
     return out;
@@ -1533,10 +973,10 @@ export class Terrain {
   private poiBuf: Poi[] = [];
   poisNear(x: number, y: number, radius: number): Poi[] {
     this.poiBuf.length = 0;
-    const c0x = Math.floor((x - radius) / POI_CELL);
-    const c1x = Math.floor((x + radius) / POI_CELL);
-    const c0y = Math.floor((y - radius) / POI_CELL);
-    const c1y = Math.floor((y + radius) / POI_CELL);
+    const c0x = Math.floor((x - radius) / SHRINE_CELL);
+    const c1x = Math.floor((x + radius) / SHRINE_CELL);
+    const c0y = Math.floor((y - radius) / SHRINE_CELL);
+    const c1y = Math.floor((y + radius) / SHRINE_CELL);
     for (let cy = c0y; cy <= c1y; cy++) {
       for (let cx = c0x; cx <= c1x; cx++) {
         const p = this.poiAt(cx, cy);
@@ -1571,6 +1011,7 @@ export class Terrain {
     const biome = biomeAt(px, py);
     const changed = biome.id !== this.currentBiome.id;
     this.currentBiome = biome;
+    this.sites.update(px, py, dt);
 
     let triggered: Poi | null = null;
     for (const poi of this.poisNear(px, py, 420)) {
@@ -1581,6 +1022,7 @@ export class Terrain {
       if (dist2(px, py, poi.x, poi.y) < r * r) {
         poi.used = true;
         poi.flash = 1;
+        extinguish(poi.site);
         this.activated++;
         triggered = poi;
       }
@@ -1609,7 +1051,10 @@ export class Terrain {
     for (const key of keys) {
       const [cx, cy] = key.split(',').map(Number);
       const poi = this.poiAt(cx!, cy!);
-      if (poi) poi.used = true;
+      if (poi) {
+        poi.used = true;
+        extinguish(poi.site);
+      }
     }
   }
 }

@@ -1,3 +1,4 @@
+import type { QuestSave } from '../game/quests';
 import { language } from '../i18n';
 
 /** Persistance principale : un objet JSON versionné (la langue a aussi sa clé d'amorçage). */
@@ -86,6 +87,10 @@ export interface RunSave {
   /** Index des événements de vague déjà déclenchés. */
   events: number[];
   reaper: boolean;
+  /** Absent d'une sauvegarde antérieure aux quêtes : la trame reprend alors du début. */
+  quests?: QuestSave;
+  /** Cimetières déjà réveillés. */
+  risen?: string[];
 }
 
 /** Cosmétiques possédés et équipés. Aucun n'influence le jeu. */

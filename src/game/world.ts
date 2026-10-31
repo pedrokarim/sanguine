@@ -3,24 +3,28 @@ import { SpatialGrid } from '../core/spatial';
 import { clamp, dist2, TAU } from '../core/math';
 import { Camera } from '../gfx/camera';
 import { Particles } from '../gfx/particles';
+import { Vfx } from '../gfx/vfx';
 import { P } from '../gfx/palette';
 import { audio } from '../audio/audio';
 import {
-  makeBody, makeDeath, makeGem, makeCoin, makeHeart, makeChest, makeRelic, makeItem,
+  makeBody, makeDeath, makeGem, makeCoin,
   makeSplat, type SpriteSet,
 } from '../gfx/sprites';
+import { livingSkillSet } from '../gfx/skillicons';
 import { enemyById, type EnemyDef, type BossDef } from '../data/enemies';
-import { RELICS, RARITY_WEIGHT, RARITY_LABEL, type RelicDef } from '../data/relics';
+import { RELICS, RELIC_BY_ID, RARITY_WEIGHT, RARITY_LABEL, type RelicDef } from '../data/relics';
 import {
   DROP_TABLE, DROP_INTERVAL, ELITE_RELIC_INTERVAL, hpScale, damageScale, hordeSpeed, goldRate,
   GOLD_BUDGET_MAX, MURS_MAX_ENNEMIS, type ConsumableDrop, type Rang,
 } from '../data/waves';
 import type { RunSave } from '../core/save';
 import { Player } from './player';
-import { emitTrail, type TrailStyle } from '../gfx/cosmeticfx';
+import type { TrailStyle } from '../gfx/cosmeticfx';
 import { xpForLevel } from '../data/waves';
 import { Terrain, biomeAt, type Poi } from './terrain';
-import { makeFragment } from '../gfx/sprites';
+import { updateGarrisons } from './garrison';
+import { QuestLog } from './quests';
+import { NAV_X, NAV_Y } from './sitenav';
 import { FRAGMENTS, CYCLES, type FragmentDef } from '../data/fragments';
 import {
   makeEnemy, makeProjectile, makeZone, makePickup, resetImmunity, claimHit,
@@ -29,18 +33,26 @@ import {
 import { t } from '../i18n';
 
 /**
- * Résolution logique **de référence**. La résolution réelle s'en écarte légèrement pour
- * remplir exactement la fenêtre : voir `VIEW` et `resize()` dans `main.ts`.
+ * Résolution logique **de référence** : c'est elle qui fixe le recul de la caméra. La résolution
+ * réelle s'en écarte légèrement pour remplir exactement la fenêtre : voir `VIEW` et `resize()`
+ * dans `main.ts`.
+ *
+ * Elle valait 480 × 270 quand le héros mesurait 15 pixels. À 30, il mangeait un dixième de la
+ * hauteur de l'écran, et le terrain manquait pour voir venir la horde.
  */
-export const BASE_W = 480;
-export const BASE_H = 270;
+export const BASE_W = 640;
+export const BASE_H = 360;
+
+/** Téléphone tenu droit : à 640 de large, il tomberait à l'échelle 1 et tout y serait minuscule. */
+export const PORTRAIT_W = 480;
+export const PORTRAIT_H = 270;
 
 /**
  * Résolution logique courante, en pixels de jeu.
  *
  * Elle est **variable** : le facteur d'agrandissement reste entier (indispensable au pixel
  * art), mais la taille du canvas s'ajuste pour couvrir toute la fenêtre. Sans cela, tout
- * écran dont les dimensions ne sont pas un multiple exact de 480 × 270 affiche des bandes
+ * écran dont les dimensions ne sont pas un multiple exact de la référence affiche des bandes
  * noires — ce qui était le cas de la quasi-totalité des écrans.
  *
  * La surface visible est bornée à 1,5× la référence pour qu'un écran très large ne confère
@@ -68,6 +80,42 @@ const GEM_XP = [2, 9, 35, 140] as const;
 const GEM_MERGE_RADIUS = 14;
 /** Distance au-delà de laquelle un ennemi ordinaire est recyclé de l'autre côté. */
 const RECYCLE_DIST = 700;
+/** Écart gardé sous la distance de contact : la créature touche le héros sans le dépasser. */
+const CONTACT_GAP = 3;
+/** Durée pendant laquelle une créature garde sa direction de contournement, en secondes. */
+const NAV_HOLD = 0.25;
+/** Part de marche latérale à partir de laquelle un déplacement oriente le regard. */
+const FACE_DEADBAND = 0.35;
+/** Délai entre deux demi-tours, en secondes. */
+const FACE_LOCK = 0.3;
+/** Cadences extrêmes d'une boucle de marche, en boucles par seconde. */
+const WALK_MIN_RATE = 0.5;
+const WALK_MAX_RATE = 4.5;
+/** Voisins examinés par créature : assez pour que la poussée ne dépende pas de l'ordre de la grille. */
+const SEPARATION_CHECKS = 12;
+/** Fermeté de la séparation, par seconde. */
+const SEPARATION_RATE = 26;
+/** Allure minimale de la poussée, en pixels par seconde, pour les plus lents. */
+const SEPARATION_MIN_SPEED = 30;
+/** Part de la poussée voulue reprise à chaque pas. */
+const SEPARATION_SMOOTHING = 0.2;
+/** Durées de l'élan et de la pause d'un `charger`, en secondes. */
+const CHARGE_RUSH = 0.55;
+const CHARGE_REST = 0.9;
+
+/**
+ * Position dans la boucle d'un bond, calée sur l'élan du `charger`.
+ *
+ * Toute la boucle tient dans un cycle de l'IA : l'élan est le vol, le début de la pause la
+ * retombée, sa fin l'accroupissement. Le crapaud décolle quand il accélère, au lieu de sauter à
+ * une cadence sans rapport avec ce qu'il fait.
+ */
+function leapPhase(state: number, timer: number): number {
+  const landed = 0.72, crouch = 0.35;
+  if (state === 1) return crouch + (landed - crouch) * (1 - timer / CHARGE_RUSH);
+  const rest = 1 - timer / CHARGE_REST;
+  return rest < 0.4 ? landed + (1 - landed) * (rest / 0.4) : (crouch * (rest - 0.4)) / 0.6;
+}
 
 export type RunState = 'playing' | 'levelup' | 'chest' | 'dead' | 'won';
 
@@ -88,6 +136,7 @@ export class World {
   readonly rng: Rng;
   readonly cam = new Camera(VIEW.w, VIEW.h);
   readonly particles = new Particles();
+  readonly vfx = new Vfx();
   readonly player: Player;
   readonly grid = new SpatialGrid(64, 40000, MAX_ENEMIES);
   readonly terrain: Terrain;
@@ -109,6 +158,7 @@ export class World {
   pendingLevelUps = 0;
   /** Coffres ramassés en attente d'ouverture. */
   pendingChests = 0;
+  readonly quests = new QuestLog();
   /** Vrai sur une sauvegarde qui n'a encore jamais ramassé de gemme. Réglé par l'hôte. */
   explainGems = false;
   /** Instant de jeu à partir duquel une élite peut de nouveau lâcher un coffre. */
@@ -176,7 +226,6 @@ export class World {
   /** Couleur de la traînée cosmétique, `null` si aucune n'est équipée. */
   trail: { style: TrailStyle; color: string } | null = null;
   private trailTimer = 0;
-  private trailTick = 0;
 
   // --- réglages d'accessibilité, appliqués depuis les options ---
   /** Chiffres de dégâts flottants. */
@@ -241,21 +290,16 @@ export class World {
     return s;
   }
 
-  private pickupSprite(kind: PickupKind, rank: number): SpriteSet {
-    const key = `${kind}:${rank}`;
+  private pickupSprite(kind: PickupKind, rank: number, relicId = ''): SpriteSet {
+    const key = `${kind}:${rank}:${relicId}`;
     let s = this.pickupSprites.get(key);
     if (s) return s;
     switch (kind) {
+      case 'relic': s = livingSkillSet('relic', relicId, RELIC_BY_ID.get(relicId)?.rarity); break;
       case 'gem': s = makeGem(clamp(rank, 0, 3) as 0 | 1 | 2 | 3); break;
       case 'gold': s = makeCoin(); break;
-      case 'heart': s = makeHeart(); break;
-      case 'chest': s = makeChest(); break;
-      case 'relic': s = makeRelic((['common', 'rare', 'epic', 'cursed'] as const)[clamp(rank, 0, 3)]!); break;
-      case 'magnet': s = makeItem('magnet'); break;
-      case 'bomb': s = makeItem('bomb'); break;
-      case 'hourglass': s = makeItem('hourglass'); break;
-      case 'scroll': s = makeItem('scroll'); break;
-      case 'censer': s = makeItem('censer'); break;
+      case 'heart': case 'chest': s = livingSkillSet('loot', kind); break;
+      case 'magnet': case 'bomb': case 'hourglass': case 'scroll': case 'censer': s = livingSkillSet('loot', kind); break;
     }
     this.pickupSprites.set(key, s);
     return s;
@@ -272,7 +316,6 @@ export class World {
     for (const k of ['gold', 'heart', 'chest', 'magnet', 'bomb', 'hourglass', 'scroll', 'censer'] as PickupKind[]) {
       this.pickupSprite(k, 0);
     }
-    for (let r = 0; r < 4; r++) this.pickupSprite('relic', r);
   }
 
   // --------------------------------------------------------------- allocation
@@ -362,13 +405,20 @@ export class World {
     e.radius = def.radius * (e.rang ? e.rang.taille : (e.elite ? 1.4 : 1));
     e.sprite = this.enemySprite(def);
     e.anim = fxRng.next() * 4;
+    e.walk = fxRng.next();
     e.flash = 0;
     e.facing = 1;
+    e.faceLock = 0;
+    e.sepX = 0;
+    e.sepY = 0;
+    e.navDir = -1;
+    e.navHold = fxRng.next() * NAV_HOLD;
     e.touchCd = 0;
     e.slow = 0;
     e.stun = 0;
     e.poison = 0;
     e.poisonDps = 0;
+    e.rise = 0;
     e.lastPid = -1;
     e.state = 0;
     e.timer = 0;
@@ -391,13 +441,11 @@ export class World {
     const a = angle ?? this.rng.angle();
     // Juste au-delà du coin de l'écran, quelle que soit la taille réelle de la vue.
     const r = Math.hypot(this.cam.viewW, this.cam.viewH) * 0.55 + this.rng.range(0, 60);
-    return this.spawnEnemy(
-      defId,
-      this.player.x + Math.cos(a) * r,
-      this.player.y + Math.sin(a) * r * 0.75,
-      elite,
-      rang,
-    );
+    const x = this.player.x + Math.cos(a) * r;
+    const y = this.player.y + Math.sin(a) * r * 0.75;
+    // Dans un lieu, l'anneau peut tomber dans un mur ou de l'autre côté d'une enceinte.
+    const at = this.terrain.sites.spawnPoint(this.rng, x, y, (px, py) => this.cam.visible(px, py, 24));
+    return this.spawnEnemy(defId, at ? at.x : x, at ? at.y : y, elite, rang);
   }
 
   spawnProjectile(
@@ -488,7 +536,7 @@ export class World {
     p.drawn = false;
     p.armTime = kind === 'gem' ? 0 : 0.35;
     p.relicId = relicId;
-    p.sprite = this.pickupSprite(kind, rank);
+    p.sprite = this.pickupSprite(kind, rank, relicId);
     return p;
   }
 
@@ -567,8 +615,8 @@ export class World {
 
     if (!silent) {
       if (this.showDamage) this.particles.number(e.x, e.y - e.radius - 2, final, crit);
-      this.particles.sparks(e.x, e.y, Math.atan2(kby, kbx), crit ? 6 : 3, crit ? P.gold : P.spark);
-      if (crit) this.particles.flash(e.x, e.y, 13, P.gold, 0.16);
+      if (crit) this.vfx.crit(e.x, e.y, Math.atan2(kby, kbx));
+      else this.vfx.hit(e.x, e.y, Math.atan2(kby, kbx));
       audio.play(crit ? 'crit' : 'hit');
       // Ni secousse ni micro-gel sur un critique : à 5 % de chance et plusieurs dizaines de
       // coups par seconde, l'écran tremblerait sans interruption et le jeu perdrait des
@@ -597,12 +645,11 @@ export class World {
       this.kills++;
       this.player.killStreak++;
     }
+    this.quests.onKill(this, e);
 
     const heavy = e.boss || e.elite || e.radius > 9;
     audio.play(heavy ? 'killHeavy' : 'kill');
-    this.particles.blood(e.x, e.y, e.boss ? 26 : e.elite ? 12 : 5);
-    this.particles.shards(e.x, e.y, e.boss ? 18 : 4, P.bloodDark);
-    if (e.boss || e.elite) this.particles.flash(e.x, e.y, e.boss ? 90 : 34, P.bloodHi, e.boss ? 0.6 : 0.3);
+    this.vfx.death(e.x, e.y, e.radius, e.boss ? 2 : e.elite ? 1 : 0);
     if (heavy) this.cam.shake(e.boss ? 0.3 : 0.05);
 
     this.addSplat(e.x, e.y);
@@ -669,7 +716,10 @@ export class World {
     const key = `${Math.round(this.player.x / 400)},${Math.round(this.player.y / 400)}`;
     if (this.villagesPilles.has(key)) return;
     this.villagesPilles.add(key);
-    this.spawnPickup('chest', this.player.x + this.rng.spread(60), this.player.y + this.rng.spread(60), 0, 0);
+    // Le coffre tombe à portée, jamais dans un mur.
+    const cx = this.player.x + this.rng.spread(60), cy = this.player.y + this.rng.spread(60);
+    const free = !this.terrain.sites.isSolid(cx, cy);
+    this.spawnPickup('chest', free ? cx : this.player.x, free ? cy : this.player.y, 0, 0);
     this.announce(t('Un bourg abandonné', 'An abandoned village'), t('quelque chose y est resté', 'something was left behind'));
   }
 
@@ -887,8 +937,7 @@ export class World {
     // ne connaît que le nom oblige à retourner au codex, c'est-à-dire à quitter la partie.
     this.announce(relic.name, `${RARITY_LABEL[relic.rarity]} · ${relic.desc}`, 5);
     this.slowMo(0.8, 0.35);
-    this.particles.beam(this.player.x, this.player.y, this.relicColor(relic), 1.1);
-    this.particles.ring(this.player.x, this.player.y, 40, this.relicColor(relic), 0.6, 2);
+    this.vfx.beam(0, 0, this.relicColor(relic), this.player);
     this.cam.shake(0.15, true);
   }
 
@@ -901,8 +950,7 @@ export class World {
     const pl = this.player;
     const { x, y } = poi;
 
-    this.particles.beam(x, y, poi.def.color, 1.1);
-    this.particles.ring(x, y, poi.def.radius * 2.4, poi.def.color, 0.6, 2);
+    this.vfx.beam(x, y, poi.def.color);
     this.cam.shake(0.12);
 
     switch (poi.type) {
@@ -1005,12 +1053,10 @@ export class World {
     }
   }
 
-  explodeAt(x: number, y: number, radius: number, damage: number): void {
+  explodeAt(x: number, y: number, radius: number, damage: number, blood = false): void {
     audio.play('explode');
     this.cam.shake(0.18);
-    this.particles.ring(x, y, radius, P.fire, 0.45, 3);
-    this.particles.flash(x, y, radius * 0.9, P.fire, 0.35);
-    for (let i = 0; i < 18; i++) this.particles.ember(x, y, P.fire, 1);
+    this.vfx.blast(x, y, radius, blood);
     const n = this.grid.query(x, y, radius);
     for (let i = 0; i < n; i++) {
       const e = this.enemies[this.grid.result[i]!];
@@ -1084,6 +1130,8 @@ export class World {
     this.updateMurs(sdt);
     this.updateDecor(sdt);
     this.updateVillage();
+    updateGarrisons(this, sdt);
+    this.quests.update(this, sdt);
     // Le joueur est repoussé après son déplacement, jamais avant : sinon il traverserait
     // d'une image sur l'autre à grande vitesse.
     /*
@@ -1108,6 +1156,7 @@ export class World {
     this.updateCaches(sdt);
     this.updateCacheContact(sdt);
     this.particles.update(sdt);
+    this.vfx.update(sdt);
     this.cam.update(dt);
 
     audio.intensity = this.intensity;
@@ -1135,8 +1184,8 @@ export class World {
     if (!this.trail || !this.player.moving) return;
     this.trailTimer -= dt;
     if (this.trailTimer > 0) return;
-    this.trailTimer = 0.05;
-    emitTrail(this.particles, this.trail.style, this.trail.color, this.player.x, this.player.y + 6, this.trailTick++);
+    this.trailTimer = 0.14;
+    this.vfx.trail(this.trail.style, this.trail.color, this.player.x, this.player.y + 6);
   }
 
   /** Déclare les fragments déjà possédés, pour qu'ils ne réapparaissent jamais. */
@@ -1224,8 +1273,7 @@ export class World {
         this.pendingFragment = k.def;
         audio.play('relic');
         this.slowMo(0.35, 0.6);
-        this.particles.beam(k.x, k.y, P.spark, 1.3);
-        this.particles.ring(k.x, k.y, 50, P.spark, 0.7, 2);
+        this.vfx.beam(k.x, k.y, P.spark);
       }
     }
   }
@@ -1235,7 +1283,7 @@ export class World {
 
   /** Sprite d'une cache, mis en cache par type. */
   cacheSprite(def: FragmentDef): SpriteSet {
-    return makeFragment(def.type);
+    return livingSkillSet('loot', def.type);
   }
 
   private rebuildGrid(): void {
@@ -1269,6 +1317,8 @@ export class World {
       if (e.touchCd > 0) e.touchCd -= dt;
       if (e.slow > 0) e.slow -= dt;
       if (e.stun > 0) e.stun -= dt;
+      if (e.rise > 0) e.rise = Math.max(0, e.rise - dt);
+      if (e.faceLock > 0) e.faceLock -= dt;
 
       if (e.poison > 0) {
         e.poison -= dt;
@@ -1298,17 +1348,21 @@ export class World {
       const d = Math.hypot(dx, dy) || 1;
       const speed = e.speed * (e.slow > 0 ? 0.45 : 1);
 
-      this.runAI(e, dx / d, dy / d, d, speed, dt);
+      // Un mur entre la créature et sa proie : elle le contourne au lieu de s'y écraser.
+      const nav = e.def.art.flies === true || e.def.ai === 'phase' ? -1 : this.steering(e, dt);
+      this.runAI(e, nav < 0 ? dx / d : NAV_X[nav]!, nav < 0 ? dy / d : NAV_Y[nav]!, d, speed, dt);
+      if (e.def.ai !== 'dasher') this.holdContact(e, dx / d, dy / d, d, dt);
 
       e.x += e.vx * dt;
       e.y += e.vy * dt;
-      e.facing = e.vx < -1 ? -1 : e.vx > 1 ? 1 : e.facing;
+      this.updateFacing(e);
+      this.advanceWalk(e, dt);
 
       // Le décor ne bouge pas, ne pousse personne et ne blesse pas. On le sort avant la
       // séparation : un brasero repoussé par la horde traverserait la carte.
       if (e.def.ai === 'static') { e.vx = 0; e.vy = 0; continue; }
 
-      const vole = e.def.art.plan === 'flying' || e.def.ai === 'phase';
+      const vole = e.def.art.flies === true || e.def.ai === 'phase';
 
       if (e.def.ai !== 'phase' && !e.boss) this.separate(e, dt);
 
@@ -1383,7 +1437,7 @@ export class World {
         e.timer -= dt;
         if (e.timer <= 0) {
           e.state = e.state === 0 ? 1 : 0;
-          e.timer = e.state === 1 ? 0.55 : 0.9;
+          e.timer = e.state === 1 ? CHARGE_RUSH : CHARGE_REST;
         }
         const mul = e.state === 1 ? 2.1 : 0.35;
         e.vx = nx * speed * mul;
@@ -1431,6 +1485,69 @@ export class World {
     }
   }
 
+  /**
+   * Direction de contournement, tenue un instant.
+   *
+   * Lue à chaque pas, elle se contredit à la frontière de deux cases : d'un côté la voie est libre
+   * et la créature repart vers le héros, de l'autre il faut contourner et elle revient. Mesuré
+   * dans un lieu, soixante allers-retours par seconde pour une goule le long d'un mur.
+   */
+  private steering(e: Enemy, dt: number): number {
+    e.navHold -= dt;
+    if (e.navHold <= 0) {
+      e.navHold = NAV_HOLD;
+      e.navDir = this.terrain.sites.steer(e.x, e.y);
+    }
+    return e.navDir;
+  }
+
+  /**
+   * Retient la créature à sa distance de contact.
+   *
+   * Sans cela, elle vise le centre du héros, le dépasse d'un pas, repart en sens inverse, et
+   * recommence : soixante allers-retours par seconde, et autant de demi-tours pour celles qui se
+   * retournent. La distance reste en deçà de celle du contact, qui blesse comme avant.
+   */
+  private holdContact(e: Enemy, nx: number, ny: number, d: number, dt: number): void {
+    const inward = e.vx * nx + e.vy * ny;
+    const room = d - (e.radius + CONTACT_GAP);
+    if (inward <= 0 || inward * dt <= room) return;
+    const excess = inward - Math.max(0, room) / dt;
+    e.vx -= nx * excess;
+    e.vy -= ny * excess;
+  }
+
+  /** Se retourne franchement ou pas du tout : à la verticale du héros, le signe de `vx` est du bruit. */
+  private updateFacing(e: Enemy): void {
+    const side = Math.abs(e.vx);
+    if (side < 2 || side < Math.abs(e.vy) * FACE_DEADBAND) return;
+    const want = e.vx < 0 ? -1 : 1;
+    if (want === e.facing || e.faceLock > 0) return;
+    e.facing = want;
+    e.faceLock = FACE_LOCK;
+  }
+
+  /**
+   * Avance la boucle de marche.
+   *
+   * Elle suit le chemin parcouru, comme un vrai pas : une boucle pour une foulée de sol. Une
+   * horloge fixe faisait patiner un loup à l'arrêt comme à la charge, et marcher sur place tout
+   * ce qui était étourdi. Une créature bloquée piétine, à une cadence plancher. Celle qui est
+   * immobilisée ne passe pas par ici : ses jambes s'arrêtent avec elle.
+   */
+  private advanceWalk(e: Enemy, dt: number): void {
+    const gait = e.sprite.gait;
+    if (!gait) return;
+    if (gait.leap) {
+      e.walk = leapPhase(e.state, e.timer);
+      return;
+    }
+    const step = gait.stride > 0
+      ? clamp((Math.hypot(e.vx, e.vy) / gait.stride) * dt, WALK_MIN_RATE * dt, WALK_MAX_RATE * dt)
+      : dt / gait.period;
+    e.walk = (e.walk + step) % 1;
+  }
+
   private spawnEnemyShot(e: Enemy, nx: number, ny: number): void {
     const sprite = this.pickupSprite('gem', 1); // réutilise un petit sprite existant
     const p = this.spawnProjectile(
@@ -1446,7 +1563,9 @@ export class World {
     // Une séparation exacte serait en O(n²) et le résultat visuel est indiscernable.
     let other = this.grid.cellHead(e.x, e.y);
     let checked = 0;
-    while (other !== -1 && checked < 4) {
+    let pushX = 0;
+    let pushY = 0;
+    while (other !== -1 && checked < SEPARATION_CHECKS) {
       if (other !== e.id) {
         const o = this.enemies[other]!;
         if (o.active && o.dying <= 0) {
@@ -1456,15 +1575,32 @@ export class World {
           const d2 = dx * dx + dy * dy;
           if (d2 < minD * minD && d2 > 0.01) {
             const d = Math.sqrt(d2);
-            const push = ((minD - d) / d) * 26 * dt;
-            e.x += dx * push;
-            e.y += dy * push;
+            pushX += (dx / d) * (minD - d);
+            pushY += (dy / d) * (minD - d);
           }
         }
         checked++;
       }
       other = this.grid.nextIn(other);
     }
+    /*
+     * Une horde se desserre, elle ne tressaille pas. La poussée brute, appliquée telle quelle,
+     * dépassait quatre pixels par pas et changeait à chaque voisin croisé : mesuré, trente-quatre
+     * allers-retours par seconde pour un squelette dans la mêlée. Elle reste bornée par l'allure
+     * de la créature et lissée d'un pas à l'autre : on s'écarte en marchant.
+     */
+    pushX *= SEPARATION_RATE * dt;
+    pushY *= SEPARATION_RATE * dt;
+    const size = Math.hypot(pushX, pushY);
+    const cap = Math.max(SEPARATION_MIN_SPEED, e.speed) * dt;
+    if (size > cap) {
+      pushX *= cap / size;
+      pushY *= cap / size;
+    }
+    e.sepX += (pushX - e.sepX) * SEPARATION_SMOOTHING;
+    e.sepY += (pushY - e.sepY) * SEPARATION_SMOOTHING;
+    e.x += e.sepX;
+    e.y += e.sepY;
   }
 
   private onPlayerHit(e: Enemy): void {
@@ -1487,7 +1623,7 @@ export class World {
       const w = tainted.def;
       const radius = w.area * pl.stats.area;
       const dmg = w.damage * (1 + (tainted.level - 1) * w.dmgPerLevel) * pl.stats.might;
-      this.explodeAt(pl.x, pl.y, radius, dmg);
+      this.explodeAt(pl.x, pl.y, radius, dmg, true);
     }
   }
 
@@ -1501,7 +1637,7 @@ export class World {
           e.mechTimer = 4;
           for (let i = 0; i < 6; i++) {
             const a = (i / 6) * TAU + now;
-            this.spawnEnemy('spider', e.x + Math.cos(a) * 30, e.y + Math.sin(a) * 30);
+            this.spawnEnemy(def.minion ?? 'spider', e.x + Math.cos(a) * 30, e.y + Math.sin(a) * 30);
           }
           this.particles.ring(e.x, e.y, 40, P.poison, 0.5, 2);
         }
@@ -1605,7 +1741,7 @@ export class World {
         // Une fiole qui retombe se transforme en flaque persistante.
         if (p.zoneLife > 0) {
           this.spawnZone(p.x, p.y, p.zoneRadius, p.zoneDamage, p.zoneLife, p.color, p.srcId, 0.35, p.tags.includes('grow'));
-          this.particles.ring(p.x, p.y, p.zoneRadius, p.color, 0.35, 2);
+          this.vfx.landing(p.x, p.y);
           audio.play('fire');
         }
         continue;
@@ -1751,7 +1887,7 @@ export class World {
         p.pierce--;
         if (p.pierce <= 0) {
           p.active = false;
-          this.particles.sparks(p.x, p.y, p.angle + Math.PI, 3, p.color);
+          this.vfx.hit(p.x, p.y, p.angle + Math.PI);
           return;
         }
       }
@@ -1806,7 +1942,7 @@ export class World {
       const next = this.nearestEnemy(src.x, src.y, 90, src.id);
       if (!next) break;
       this.damageEnemy(next, p.damage * 0.7, 0, 0, 0, true);
-      this.particles.sparks(next.x, next.y, 0, 4, P.spark, 3);
+      this.vfx.zap(next.x, next.y);
       src = next;
     }
   }
@@ -2053,6 +2189,8 @@ export class World {
       gold: this.gold,
       kills: this.kills,
       gems: this.gemsCollected,
+      quests: this.quests.serialize(),
+      risen: [...this.terrain.sites.risen],
       damage: pl.damageDealt,
       poisUsed: this.terrain.usedKeys(),
       events: dir.events,
@@ -2088,6 +2226,8 @@ export class World {
     this.time = d.time;
     this.gold = d.gold;
     this.kills = d.kills;
+    if (d.quests) this.quests.restore(d.quests);
+    for (const id of d.risen ?? []) this.terrain.sites.risen.add(id);
     this.gemsCollected = d.gems;
     this.terrain.restoreUsed(d.poisUsed);
     this.terrain.update(pl.x, pl.y, 0);
@@ -2098,8 +2238,6 @@ export class World {
   private onLevelUp(): void {
     audio.play('levelup');
     this.slowMo(0.3, 0.45);
-    this.particles.ring(this.player.x, this.player.y, 46, P.gold, 0.6, 2);
-    this.particles.beam(this.player.x, this.player.y, P.gold, 0.7);
-    for (let i = 0; i < 10; i++) this.particles.ember(this.player.x, this.player.y, P.gold, 1);
+    this.vfx.beam(0, 0, P.gold, this.player);
   }
 }

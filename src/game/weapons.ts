@@ -79,6 +79,9 @@ export function updateWeapons(w: World, dt: number): void {
   const pl = w.player;
 
   for (const inst of pl.weapons) {
+    w.vfx.prepareWeapon(inst.def.id, inst.def.behavior);
+    if (inst.def.behavior === 'melee') prepareMelee(w, inst);
+
     // Les rafales en cours ont priorité sur la recharge principale.
     if (inst.burstLeft > 0) {
       inst.burst -= dt;
@@ -112,7 +115,7 @@ function freeNova(w: World): void {
   const dmg = 30 * pl.stats.might;
   const radius = 70 * pl.stats.area;
   audio.play('nova');
-  w.particles.ring(pl.x, pl.y, radius, '#a855f7', 0.5, 2);
+  w.vfx.freeNova(pl);
   const n = w.grid.query(pl.x, pl.y, radius);
   for (let i = 0; i < n; i++) {
     const e = w.enemies[w.grid.result[i]!];
@@ -251,7 +254,7 @@ function fireNova(w: World, inst: WeaponInstance): void {
     }
   }
   audio.play(d.sfx);
-  w.particles.ring(pl.x, pl.y, 20, d.color, 0.25, 1);
+  w.vfx.mirrorBurst(pl);
 }
 
 function fireBounce(w: World, inst: WeaponInstance): void {
@@ -436,6 +439,17 @@ function maintainPets(w: World, inst: WeaponInstance): void {
 
 // ------------------------------------------------------------------ mêlée
 
+/** Portée visuelle reprise de l'ancien croissant : l'arc doit couvrir ce qu'il touche. */
+function meleeReach(inst: WeaponInstance, pl: Player): number {
+  const radius = areaOf(inst, pl);
+  return inst.def.tags?.includes('full360') ? radius : radius * 1.31;
+}
+
+/** Une portée nouvelle part au pré-rendu dès qu'elle existe, pas au premier coup. */
+function prepareMelee(w: World, inst: WeaponInstance): void {
+  w.vfx.prepareScythe(meleeReach(inst, w.player), inst.def.tags?.includes('full360') ?? false, inst.def.id);
+}
+
 function fireMelee(w: World, inst: WeaponInstance): void {
   const pl = w.player;
   const d = inst.def;
@@ -455,6 +469,7 @@ function fireMelee(w: World, inst: WeaponInstance): void {
     p.b = Math.sin(angle) * off * 0.8;
     p.angle = angle;
     p.tick = 0.2;
+    w.vfx.scythe(pl, angle, meleeReach(inst, pl), full, d.id);
   };
 
   const n = countOf(inst, pl, false);
@@ -466,7 +481,6 @@ function fireMelee(w: World, inst: WeaponInstance): void {
   }
 
   audio.play(d.sfx);
-  w.particles.ring(pl.x, pl.y, radius * 0.8, d.color, 0.2, 1);
 
   // Moisson : soigne tous les 15 ennemis abattus.
   if (d.tags?.includes('lifeOnKill') && pl.killStreak >= 15) {
@@ -509,7 +523,7 @@ function fireShockwave(w: World, inst: WeaponInstance): void {
     );
     if (p) p.tick = 0.25;
   }
-  w.particles.ring(pl.x, pl.y, radius, d.color, 0.4, 2);
+  w.vfx.shockRing(pl, radius);
   audio.play(d.sfx);
 
   // Appel de la Meute : trois loups spectraux qui chassent pour vous.
@@ -548,7 +562,10 @@ function fireSpikes(w: World, inst: WeaponInstance): void {
         durationOf(inst, pl) + wv * 0.12, 99,
         sprite(d), d.color, d.id, d.tags ?? [], d.knockback, inst.srcId,
       );
-      if (p) p.tick = 0.3;
+      if (p) {
+        p.tick = 0.3;
+        w.vfx.spike(p.x, p.y, d.id);
+      }
     }
   }
   audio.play(d.sfx);
@@ -571,9 +588,7 @@ function fireStrike(w: World, inst: WeaponInstance): void {
       sprite(d), d.color, d.id, d.tags ?? [], d.knockback, inst.srcId,
     );
     if (p) p.tick = 0.5;
-    w.particles.sparks(x, y, -Math.PI / 2, 5, P.spark, 0.6);
-    // L'éclair lui-même est dessiné par le rendu ; ici, seulement l'éblouissement de l'impact.
-    w.particles.flash(x, y, radius * 1.1, d.color, 0.2);
+    w.vfx.strike(x, y, d.id);
     struck++;
   }
   if (struck > 0) audio.play(d.sfx);

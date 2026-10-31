@@ -153,10 +153,12 @@ export const LEVEL_EMBALLE = 30;
  * Au-delà de ce nombre d'ennemis vivants, les murs cessent de bloquer les terrestres.
  *
  * Garde-fou de performance, réglé par la mesure. Le jeu tient 60 images par seconde avec 750
- * ennemis ; il faut que la collision ne puisse jamais être la cause d'une chute, même dans
- * le pire cas d'une Déferlante contre une nef à huit colonnes.
+ * ennemis ; il faut que la collision ne puisse jamais être la cause d'une chute.
+ *
+ * Relevé de 420 à 900 avec les châteaux : une horde qui traverse une enceinte se voit, et
+ * cent murs proches contre neuf cents corps restent un test de quelques dixièmes de milliseconde.
  */
-export const MURS_MAX_ENNEMIS = 420;
+export const MURS_MAX_ENNEMIS = 900;
 
 /**
  * Multiplicateur de dégâts appliqué aux ennemis à la minute `m`.
@@ -272,6 +274,10 @@ export const RODEURS: Rodeur[] = [
   // Matrones, et le joueur concluait qu'il n'existait qu'un seul boss.
   { enemy: 'exsanguine', label: 'Un Chevalier Exsangue', from: 10 },
   { enemy: 'ashchoir', label: 'Un Chœur de Cendres', from: 14 },
+  { enemy: 'colossus', label: 'Un Colosse d’Os', from: 7 },
+  { enemy: 'gazer', label: 'Un Œil du Caveau', from: 12 },
+  { enemy: 'bogmother', label: 'Une Mère-Sangsue', from: 16 },
+  { enemy: 'bellman', label: 'Un Sonneur', from: 20 },
 ];
 
 /**
@@ -328,14 +334,18 @@ export const WAVE_EVENTS: WaveEvent[] = [
   // événements joués par leur indice, et une insertion décalerait tous les suivants.
   // L'ordre n'a pas d'importance, chaque événement guette seulement sa minute.
   { at: 13, kind: 'boss', enemy: 'exsanguine', count: 1, label: 'Le Chevalier Exsangue' },
+  { at: 5, kind: 'boss', enemy: 'colossus', count: 1, label: 'Le Colosse d’Os' },
+  { at: 12, kind: 'boss', enemy: 'gazer', count: 1, label: 'L’Œil du Caveau' },
+  { at: 20, kind: 'boss', enemy: 'bogmother', count: 1, label: 'La Mère-Sangsue' },
+  { at: 26, kind: 'boss', enemy: 'bellman', count: 1, label: 'Le Sonneur' },
 ];
 
 if (language() === 'en') {
   const ranks: Record<string, string> = { endurci: 'Hardened', elite: 'Elite', colosse: 'Colossus' };
   for (const rank of RANGS) rank.nom = ranks[rank.id] ?? rank.nom;
-  const roamers = ['A Matron', 'A Bloodless Knight', 'A Choir of Ashes'];
+  const roamers = ['A Matron', 'A Bloodless Knight', 'A Choir of Ashes', 'A Bone Colossus', 'A Crypt Eye', 'A Leech Mother', 'A Bellman'];
   RODEURS.forEach((roamer, i) => { if (roamers[i]) roamer.label = roamers[i]!; });
-  const events = ['Swarm', 'Pack', 'Tide', 'The Matron', 'Nest', 'Column', 'The Matrons', 'The Bloodless Knights', 'Charge', 'The Bloodless Guard', 'Choir of Ashes', 'Crushing Force', 'The Choirs', 'Onslaught', 'The Sanguinary', 'The Bloodless Knight'];
+  const events = ['Swarm', 'Pack', 'Tide', 'The Matron', 'Nest', 'Column', 'The Matrons', 'The Bloodless Knights', 'Charge', 'The Bloodless Guard', 'Choir of Ashes', 'Crushing Force', 'The Choirs', 'Onslaught', 'The Sanguinary', 'The Bloodless Knight', 'The Bone Colossus', 'The Crypt Eye', 'The Leech Mother', 'The Bellman'];
   WAVE_EVENTS.forEach((event, i) => { if (events[i]) event.label = events[i]!; });
 }
 
