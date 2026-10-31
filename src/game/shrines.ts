@@ -5,7 +5,7 @@ import {
 import {
   menhir, paintAltarFloor, paintBloodAltar, paintBonePile, paintCairnFloor, paintCairnHeap, paintCandles, paintFloodwater,
   paintGreatWell, paintObelisk, paintOssuaryFront, paintPyreFloor, paintPyreLogs, paintPyreStake, paintRitualColumn,
-  paintSunkenPew, paintWaterline, paintWellFloor,
+  paintFrozenColossus, paintHangingTree, paintLavaForge, paintSunkenPew, paintWaterline, paintWellFloor, paintWindmill, paintWitchHut,
 } from '../gfx/shrines';
 import { Plan, settlePoints, type Site, type ShrineState, type ShrineType } from './siteplan';
 
@@ -157,8 +157,40 @@ function buildChapel(p: Plan, site: Site): void {
   p.clear(-240, north - 70, 480, depth + 230);
 }
 
+function buildWindmill(p: Plan, site: Site): void {
+  frame(site, 'windmill', [0, 66], [0, -256], 200, -440, 130);
+  p.prop(0, 22, 150, 340, (b) => b.at(0, 22, paintWindmill), { block: [176, 44], fades: true });
+  p.clear(-170, -60, 340, 170);
+}
+
+function buildWitchHut(p: Plan, site: Site): void {
+  const s = frame(site, 'hut', [-10, 78], [84, 18], 190, -340, 150);
+  p.decal(-170, -70, 340, 170, (b) => paintFloodwater(b, 0, 10, 164, 74));
+  p.prop(0, 20, 150, 340, (b) => b.at(0, 20, (f) => paintWitchHut(f, s.lit)), { block: [220, 26], fades: true });
+  p.clear(-190, -90, 380, 220);
+}
+
+function buildHangingTree(p: Plan, site: Site): void {
+  const s = frame(site, 'hangtree', [0, 70], [0, -40], 220, -460, 130);
+  p.prop(0, 20, 215, 460, (b) => b.at(0, 20, (f) => paintHangingTree(f, s.lit)), { block: [130, 40], fades: true });
+  p.clear(-200, -60, 400, 180);
+}
+
+function buildLavaForge(p: Plan, site: Site): void {
+  const s = frame(site, 'forge', [40, 76], [0, -14], 170, -420, 130);
+  p.prop(0, 24, 160, 430, (b) => b.at(0, 24, (f) => paintLavaForge(f, s.lit)), { block: [290, 40], fades: true });
+  p.clear(-170, -80, 340, 200);
+}
+
+function buildColossus(p: Plan, site: Site): void {
+  const s = frame(site, 'colossus', [0, 70], [-10, -320], 190, -390, 130);
+  p.prop(0, 20, 170, 380, (b) => b.at(0, 20, (f) => paintFrozenColossus(f, s.lit)), { block: [230, 40], fades: true });
+  p.clear(-180, -60, 360, 180);
+}
+
 const BUILDERS: Readonly<Record<ShrineType, (p: Plan, site: Site) => void>> = {
   altar: buildAltar, pyre: buildPyre, obelisk: buildObelisk, well: buildWell, ossuary: buildOssuary, chapel: buildChapel, cairn: buildCairn,
+  windmill: buildWindmill, hut: buildWitchHut, hangtree: buildHangingTree, forge: buildLavaForge, colossus: buildColossus,
 };
 
 export function buildShrine(site: Site, type: ShrineType): void {

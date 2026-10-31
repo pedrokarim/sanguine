@@ -93,7 +93,9 @@ export interface Garrison {
 
 export type SiteKind = 'castle' | 'village' | 'vestige' | 'shrine' | 'cemetery' | 'priory';
 
-export type ShrineType = 'altar' | 'pyre' | 'obelisk' | 'well' | 'ossuary' | 'chapel' | 'cairn';
+export type ShrineType =
+  | 'altar' | 'pyre' | 'obelisk' | 'well' | 'ossuary' | 'chapel' | 'cairn'
+  | 'windmill' | 'hut' | 'hangtree' | 'forge' | 'colossus';
 
 /** Ce qui fait d'un lieu une structure à activer. */
 export interface ShrineState {

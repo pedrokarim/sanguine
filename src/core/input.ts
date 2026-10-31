@@ -20,6 +20,9 @@ const MOVE_CODES = {
   right: ['KeyD', 'ArrowRight', 'Numpad6'],
 } as const;
 
+/** Inclinaison du stick qui compte pour un appui, dans un menu. */
+const PAD_MENU_TILT = 0.5;
+
 export class Input {
   private held = new Set<string>();
   /** Codes pressés pendant la frame courante (consommés par `consumePressed`). */
@@ -31,6 +34,9 @@ export class Input {
   private nubEl: HTMLDivElement | null = null;
 
   readonly move: Stick = { x: 0, y: 0 };
+  /** Vrai hors partie : le stick y déplace la sélection au lieu du héros. */
+  padInMenu = false;
+  private readonly padHeld = new Set<string>();
   /** `true` tant qu'aucune interaction n'a eu lieu (bloque le démarrage de l'audio). */
   interacted = false;
 
@@ -140,6 +146,7 @@ export class Input {
       if (pad.buttons[14]?.pressed) x -= 1;
       if (pad.buttons[15]?.pressed) x += 1;
       if (pad.buttons[0]?.pressed || pad.buttons[9]?.pressed) this.interacted = true;
+      this.pressPadKeys(pad);
       break;
     }
 
@@ -171,6 +178,29 @@ export class Input {
     }
     this.move.x = clamp(x, -1, 1);
     this.move.y = clamp(y, -1, 1);
+  }
+
+  /**
+   * Les menus se pilotent au clavier : la manette leur envoie donc de vraies touches, une par appui.
+   * Sans cela, on marche au stick mais on reste bloqué sur la première carte de niveau.
+   */
+  private pressPadKeys(pad: Gamepad): void {
+    const ax = pad.axes[0] ?? 0;
+    const ay = pad.axes[1] ?? 0;
+    const down = (i: number): boolean => pad.buttons[i]?.pressed === true;
+    const keys: readonly (readonly [string, boolean])[] = this.padInMenu
+      ? [
+          ['ArrowRight', ax > PAD_MENU_TILT || down(15)], ['ArrowLeft', ax < -PAD_MENU_TILT || down(14)],
+          ['ArrowDown', ay > PAD_MENU_TILT || down(13)], ['ArrowUp', ay < -PAD_MENU_TILT || down(12)],
+          ['Enter', down(0)], ['Escape', down(9)],
+        ]
+      : [['Escape', down(9)]];
+    for (const [code, held] of keys) {
+      if (held === this.padHeld.has(code)) continue;
+      if (held) this.padHeld.add(code);
+      else this.padHeld.delete(code);
+      window.dispatchEvent(new KeyboardEvent(held ? 'keydown' : 'keyup', { code, bubbles: true }));
+    }
   }
 
   /** À appeler en toute fin de frame : vide le tampon des appuis ponctuels. */

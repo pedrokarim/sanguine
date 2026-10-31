@@ -64,7 +64,10 @@ export class QuestLog {
       if (info) return info;
     }
     const { x, y } = w.player;
-    const found = w.terrain.sites.list(x, y, SEARCH).find((s) => s.kind === place && !this.visited.has(s.id));
+    const free = (s: SiteInfo): boolean => s.kind === place && !this.visited.has(s.id);
+    // Autour du héros d'abord, puis autour du départ : c'est là que la trame pose ses premiers lieux,
+    // et le héros a pu s'en éloigner de bien plus que ce rayon.
+    const found = w.terrain.sites.list(x, y, SEARCH).find(free) ?? w.terrain.sites.list(0, 0, SEARCH * 2).find(free);
     if (found) this.sites[place] = found.id;
     return found ?? null;
   }
@@ -87,7 +90,7 @@ export class QuestLog {
     }
     if (!this.started) {
       this.started = true;
-      w.announce(this.quest.title(site.name), this.quest.intro, 4);
+      w.announce(this.quest.title(site.name), this.quest.intro, 4, true);
     }
     const step = this.current;
     const point = this.pointOf(site);
@@ -141,7 +144,7 @@ export class QuestLog {
     }
 
     const done = this.quest;
-    w.announce(t('Quête accomplie', 'Quest complete'), done.title(site.name), 4);
+    w.announce(t('Quête accomplie', 'Quest complete'), done.title(site.name), 3, true);
     audio.play('relic');
     w.vfx.beam(0, 0, P.gold, w.player);
     for (const reward of done.rewards) this.grant(w, reward);

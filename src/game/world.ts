@@ -22,7 +22,7 @@ import { Player } from './player';
 import type { TrailStyle } from '../gfx/cosmeticfx';
 import { xpForLevel } from '../data/waves';
 import { Terrain, biomeAt, type Poi } from './terrain';
-import { updateGarrisons } from './garrison';
+import { RISE_TIME, updateGarrisons } from './garrison';
 import { QuestLog } from './quests';
 import { NAV_X, NAV_Y } from './sitenav';
 import { FRAGMENTS, CYCLES, type FragmentDef } from '../data/fragments';
@@ -185,6 +185,8 @@ export class World {
   bossGroup: Enemy[] = [];
   bossName = '';
   announcement: Announcement | null = null;
+  private urgentUntil = 0;
+  private nextAnnouncement: Announcement | null = null;
 
   /** Fige tous les ennemis (objet Sablier). */
   freezeTimer = 0;
@@ -997,6 +999,68 @@ export class World {
         break;
       }
 
+      case 'windmill': {
+        // Le vent couche tout ce qui approche : un répit, pas une victoire.
+        this.announce(poi.def.name, t('le vent ralentit la horde', 'the wind slows the horde'));
+        audio.play('nova');
+        for (const e of this.enemies) if (e.active && Math.hypot(e.x - x, e.y - y) < 900) e.slow = Math.max(e.slow, 7);
+        this.explodeAt(x, y, 170, 90 * pl.stats.might);
+        break;
+      }
+
+      case 'hut': {
+        pl.heal(pl.stats.maxHp * 0.5);
+        this.announce(poi.def.name, t('une potion pour vous, du poison pour eux', 'a potion for you, poison for them'));
+        audio.play('heal');
+        for (const e of this.enemies) {
+          if (!e.active || Math.hypot(e.x - x, e.y - y) > 700) continue;
+          e.poison = Math.max(e.poison, 9);
+          e.poisonDps = Math.max(e.poisonDps, 18 * pl.stats.might);
+        }
+        break;
+      }
+
+      case 'hangtree': {
+        // Il pleut des pendus : huit corps tombent, et ce qu'ils gardaient avec eux.
+        this.announce(poi.def.name, t('ils tombent', 'they fall'));
+        audio.play('boss');
+        for (let i = 0; i < 8; i++) {
+          const a = (i / 8) * TAU, ex = x + Math.cos(a) * 90, ey = y + 30 + Math.sin(a) * 60;
+          this.vfx.graveBurst(ex, ey);
+          const e = this.spawnEnemy('skeleton', ex, ey);
+          if (e) {
+            e.rise = RISE_TIME;
+            e.stun = RISE_TIME;
+          }
+        }
+        this.spawnPickup('chest', x, y + 6, 0, 0);
+        break;
+      }
+
+      case 'forge': {
+        const upgradable = pl.weapons.filter((w) => w.level < w.def.maxLevel);
+        const pick = upgradable.length > 0 ? upgradable[this.rng.int(0, upgradable.length - 1)]! : null;
+        if (pick) {
+          pl.levelUpWeapon(pick.def.id);
+          this.announce(poi.def.name, t(`${pick.def.name} se retrempe : niveau ${pick.level}`, `${pick.def.name} is tempered: level ${pick.level}`));
+        } else {
+          pl.addBuff('might', 0.3, 45);
+          this.announce(poi.def.name, t('+30 % de dégâts pendant 45 s', '+30% damage for 45 s'));
+        }
+        audio.play('unlock');
+        this.explodeAt(x, y, 150, 120 * pl.stats.might);
+        break;
+      }
+
+      case 'colossus': {
+        this.announce(poi.def.name, t('tout gèle, cinq secondes', 'all freezes, five seconds'));
+        audio.play('nova');
+        for (const e of this.enemies) {
+          if (e.active && !e.boss && Math.hypot(e.x - x, e.y - y) < 900) e.stun = Math.max(e.stun, 5);
+        }
+        break;
+      }
+
       case 'chapel':
         pl.heal(pl.stats.maxHp);
         pl.rerolls++;
@@ -1020,7 +1084,13 @@ export class World {
 
   // ---------------------------------------------------------------- effets UX
 
-  announce(text: string, sub = '', time = 2.2): void {
+  announce(text: string, sub = '', time = 2.2, urgent = false): void {
+    // Un bandeau urgent garde l'écran : ce qui arrive pendant ce temps attend son tour.
+    if (!urgent && this.time < this.urgentUntil) {
+      this.nextAnnouncement = { text, sub, time };
+      return;
+    }
+    if (urgent) this.urgentUntil = this.time + time;
     this.announcement = { text, sub, time };
   }
 
@@ -1131,7 +1201,12 @@ export class World {
     this.updateDecor(sdt);
     this.updateVillage();
     updateGarrisons(this, sdt);
+    this.terrain.hazards.update(this, sdt);
     this.quests.update(this, sdt);
+    if (this.nextAnnouncement && this.time >= this.urgentUntil) {
+      this.announcement = this.nextAnnouncement;
+      this.nextAnnouncement = null;
+    }
     // Le joueur est repoussé après son déplacement, jamais avant : sinon il traverserait
     // d'une image sur l'autre à grande vitesse.
     /*
@@ -2105,7 +2180,7 @@ export class World {
         if (this.gemsCollected === p.count && this.explainGems) {
           this.announce(t('Gemme', 'Gem'), t('de l’expérience : remplissez la barre du haut pour monter de niveau', 'experience: fill the top bar to level up'), 4.5);
         }
-        const bonus = 1 + pl.flag('gemBonus');
+        const bonus = (1 + pl.flag('gemBonus')) * (this.terrain.currentBiome.xpMul ?? 1);
         const levels = pl.addXp(p.value * bonus);
         audio.play('gem', 1 + Math.min(this.gemsCollected % 12, 12) * 0.04);
         this.particles.sparks(p.x, p.y, 0, 2, P.xp1, 3);

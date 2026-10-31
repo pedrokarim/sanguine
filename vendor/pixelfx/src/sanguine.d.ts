@@ -34,6 +34,6 @@ export const effects: Readonly<Record<
   | 'hit' | 'crit' | 'bloodBurst' | 'scytheArc' | 'mirrorBurst' | 'mirrorShard' | 'emberPatch' | 'saltCrust'
   | 'spinningCross' | 'thrownDagger' | 'flailHead' | 'thornSpike' | 'shockRing' | 'shockFront' | 'arrow' | 'fireball'
   | 'sunburst' | 'holyPillar' | 'arcaneOrb' | 'ghost' | 'waterOrb' | 'whirlpool' | 'splash' | 'lightningStrike' | 'zapHit' | 'smite' | 'darkExplosion'
-  | 'heroAura' | 'trailStep' | 'skillLife' | 'judgementBolt' | 'paintedFlight' | 'incenseCloud' | 'graveBurst' | 'campfire' | 'spiritFlame' | 'smallExplosion' | 'manaBurst' | 'runeCircle' | 'frostBreath' | CritterId,
+  | 'heroAura' | 'trailStep' | 'skillLife' | 'judgementBolt' | 'paintedFlight' | 'incenseCloud' | 'graveBurst' | 'millSails' | 'campfire' | 'spiritFlame' | 'smallExplosion' | 'manaBurst' | 'runeCircle' | 'frostBreath' | CritterId,
   FxModule
 >>;

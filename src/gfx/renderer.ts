@@ -1,3 +1,4 @@
+import { poolFrames } from './pools';
 import { skillIcon } from './skillicons';
 import { clamp, lerp, TAU } from '../core/math';
 import * as font from './font';
@@ -26,6 +27,24 @@ import type { Enemy, Projectile } from '../game/types';
  *   3. **Tri par seau** plutôt qu'un `sort()` complet : trier 1200 ennemis chaque frame
  *      coûterait plus cher que tout le reste du rendu réuni.
  */
+
+let gloomCanvas: HTMLCanvasElement | null = null;
+
+/** Un disque clair au centre, la nuit autour. Un petit masque suffit : il s'étire à l'écran. */
+function gloomMask(): HTMLCanvasElement {
+  if (gloomCanvas) return gloomCanvas;
+  const c = document.createElement('canvas');
+  c.width = 160;
+  c.height = 90;
+  const g = c.getContext('2d')!;
+  const fill = g.createRadialGradient(80, 45, 26, 80, 45, 92);
+  fill.addColorStop(0, 'rgba(4, 6, 10, 0)');
+  fill.addColorStop(1, 'rgba(4, 6, 10, 1)');
+  g.fillStyle = fill;
+  g.fillRect(0, 0, 160, 90);
+  gloomCanvas = c;
+  return c;
+}
 
 /** Hauteur réservée au chronomètre en haut de l'écran, en pixels de monde. */
 const TIMER_CLEARANCE = 22;
@@ -67,6 +86,7 @@ export class Renderer {
     this.drawGround(ox, oy, VW, VH);
     this.sites.begin(w, ox, oy, VW, VH);
     this.sites.drawFloors(ctx, VW, VH);
+    this.drawPools(w, ox, oy);
     this.drawSplats(w, ox, oy);
     this.drawProps(w, ox, oy);
     this.drawTrees(w, ox, oy);
@@ -84,6 +104,7 @@ export class Renderer {
     w.particles.render(ctx, cam, this.fx.ctx);
     this.drawShrineFoci(w, ox, oy);
     w.vfx.renderFront(ctx, this.fx.ctx, cam, alpha, this.fx.comfort);
+    this.drawGloom(w, VW, VH);
     this.drawOverlays(w, VW, VH);
   }
 
@@ -137,6 +158,34 @@ export class Renderer {
         }
       }
     }
+  }
+
+  /** Les Bois Morts : la nuit y tombe, et le héros n'éclaire que ce qui l'entoure. */
+  private drawGloom(w: World, VW: number, VH: number): void {
+    const target = w.terrain.currentBiome.gloom ?? 0;
+    this.gloom += (target - this.gloom) * 0.03;
+    if (this.gloom < 0.01) return;
+    const ctx = this.ctx;
+    ctx.globalAlpha = this.gloom;
+    ctx.drawImage(gloomMask(), 0, 0, VW, VH);
+    ctx.globalAlpha = 1;
+  }
+
+  /** Lave, glace, tourbière et ronces : ce qui se peint sur le sol, sous tout le reste. */
+  private gloom = 0;
+
+  private drawPools(w: World, ox: number, oy: number): void {
+    const ctx = this.ctx;
+    const cam = w.cam;
+    const hazards = w.terrain.hazards;
+    for (const p of hazards.near(cam.x, cam.y, Math.max(cam.viewW, cam.viewH))) {
+      const frames = poolFrames(p);
+      ctx.drawImage(frames[Math.floor(w.time * 4) % frames.length]!, Math.round(p.x0 - 16 + ox), Math.round(p.y0 - 16 + oy));
+      if (p.kind !== 'lava') continue;
+      const pulse = 0.2 + Math.sin(w.time * 2.4 + p.seed) * 0.05;
+      for (const l of p.lobes) drawGlow(this.fx.ctx, l.x + ox, l.y + oy, l.rx * 1.15, l.ry * 1.15, '#ff6a1e', pulse);
+    }
+    if (Math.floor(w.time) % 8 === 0) hazards.release(cam.x, cam.y);
   }
 
   private drawProps(w: World, ox: number, oy: number): void {
@@ -213,9 +262,10 @@ export class Renderer {
     const cam = w.cam;
     for (const poi of w.terrain.poisNear(cam.x, cam.y, 520)) {
       const shrine = poi.site.shrine;
-      if (poi.used || !shrine || poi.type === 'obelisk') continue;
+      if ((poi.used && poi.type !== 'windmill') || !shrine || poi.type === 'obelisk') continue;
       if (shrine.group >= 0 && (poi.site.groups[shrine.group]?.open ?? 0) < 0.5) continue;
-      w.vfx.drawShrineFocus(this.ctx, this.fx.ctx, poi.type, shrine.focusX + ox, shrine.focusY + oy, poi.anim);
+      // Une fois le vent tombé, les ailes du moulin s'arrêtent là où elles sont.
+      w.vfx.drawShrineFocus(this.ctx, this.fx.ctx, poi.type, shrine.focusX + ox, shrine.focusY + oy, poi.used ? 0 : poi.anim);
     }
   }
 

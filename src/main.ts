@@ -22,7 +22,7 @@ import { RELICS } from './data/relics';
 import { skillIconSet } from './gfx/skillicons';
 import { ENEMIES, BOSSES } from './data/enemies';
 import { PASSIVES } from './data/passives';
-import { POI_DEFS, poiIcon } from './game/terrain';
+import { biomeAt, POI_DEFS, poiIcon } from './game/terrain';
 import { World, VIEW, BASE_W, BASE_H, PORTRAIT_W, PORTRAIT_H } from './game/world';
 import { Director } from './game/director';
 import { updateWeapons } from './game/weapons';
@@ -652,12 +652,13 @@ function endRun(victory: boolean): void {
 
 const loop = new Loop({
   update(dt: number): void {
+    input.padInMenu = state !== 'playing';
     input.update();
     handleGlobalKeys();
 
     if (state === 'playing' && world) {
       const w = world;
-      w.player.update(dt * w.timeScale, input.move.x, input.move.y, w.terrain.currentBiome.moveMul);
+      w.player.update(dt * w.timeScale, input.move.x, input.move.y, w.terrain.currentBiome.moveMul * w.terrain.hazards.speed);
       w.cam.follow(w.player.x, w.player.y, dt);
       updateWeapons(w, dt * w.timeScale);
       if (!(fxLab.isOpen && fxLab.holdSpawns)) director.update(w, dt * w.timeScale);
@@ -893,6 +894,7 @@ Object.defineProperty(window, 'sanguine', {
     /** Motif de sol d'une tuile — sert à vérifier la répartition sans jouer des heures. */
     motifAt,
     routeAt,
+    biomeAt,
     /** Planche d'un ennemi ou d'un décor, par identifiant. Sert aux vérifications. */
     spriteOf: (id: string) => makeBody(`chk:${id}`, enemyById(id).art),
     get blit(): { scale: number; x: number; y: number } {
@@ -920,7 +922,7 @@ Object.defineProperty(window, 'sanguine', {
         // Le pilote est fourni par l'appelant : l'intelligence du bot de mesure n'a rien
         // à faire dans le code du jeu, seul le point d'entrée y est.
         const cmd = pilote ? pilote(w) : { x: 0, y: 0 };
-        w.player.update(dt * w.timeScale, cmd.x, cmd.y, w.terrain.currentBiome.moveMul);
+        w.player.update(dt * w.timeScale, cmd.x, cmd.y, w.terrain.currentBiome.moveMul * w.terrain.hazards.speed);
         w.cam.follow(w.player.x, w.player.y, dt);
         updateWeapons(w, dt * w.timeScale);
         director.update(w, dt * w.timeScale);
