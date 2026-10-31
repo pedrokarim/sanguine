@@ -1,3 +1,4 @@
+import { gridScale, snap } from './grid';
 import { poolFrames } from './pools';
 import { skillIcon } from './skillicons';
 import { clamp, lerp, TAU } from '../core/math';
@@ -79,7 +80,8 @@ export class Renderer {
     const VW = cam.viewW;
     const VH = cam.viewH;
 
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    const S = gridScale();
+    ctx.setTransform(S, 0, 0, S, 0, 0);
     ctx.imageSmoothingEnabled = false;
     this.fx.begin(VW, VH);
 
@@ -180,7 +182,7 @@ export class Renderer {
     const hazards = w.terrain.hazards;
     for (const p of hazards.near(cam.x, cam.y, Math.max(cam.viewW, cam.viewH))) {
       const frames = poolFrames(p);
-      ctx.drawImage(frames[Math.floor(w.time * 4) % frames.length]!, Math.round(p.x0 - 16 + ox), Math.round(p.y0 - 16 + oy));
+      ctx.drawImage(frames[Math.floor(w.time * 4) % frames.length]!, snap(p.x0 - 16 + ox), snap(p.y0 - 16 + oy));
       if (p.kind !== 'lava') continue;
       const pulse = 0.2 + Math.sin(w.time * 2.4 + p.seed) * 0.05;
       for (const l of p.lobes) drawGlow(this.fx.ctx, l.x + ox, l.y + oy, l.rx * 1.15, l.ry * 1.15, '#ff6a1e', pulse);
@@ -197,7 +199,7 @@ export class Renderer {
       if (!this.onScreen(x, y, 24, w)) continue;
       const biome = biomeAt(prop.x, prop.y);
       const s = propSprite(prop.kind, prop.variant, biome);
-      ctx.drawImage(s, Math.round(x - s.width / 2), Math.round(y - s.height + 4));
+      ctx.drawImage(s, snap(x - s.width / 2), snap(y - s.height + 4));
     }
   }
 
@@ -221,7 +223,7 @@ export class Renderer {
       if (!this.onScreen(x, y, 90, w)) continue;
       if (this.sites.takeTree(t)) continue;
       const s = treeSprite(t.kind, t.variant, t.grand, biomeAt(t.x, t.y));
-      ctx.drawImage(s, Math.round(x - s.width / 2), Math.round(y - s.height + 3));
+      ctx.drawImage(s, snap(x - s.width / 2), snap(y - s.height + 3));
     }
   }
 
@@ -250,7 +252,7 @@ export class Renderer {
         ctx.strokeStyle = poi.def.color;
         ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.arc(Math.round(x), Math.round(y), (1 - poi.flash) * 70, 0, TAU);
+        ctx.arc(snap(x), snap(y), (1 - poi.flash) * 70, 0, TAU);
         ctx.stroke();
         ctx.globalAlpha = 1;
       }
@@ -282,16 +284,16 @@ export class Renderer {
       ctx.globalAlpha = pulse;
       ctx.fillStyle = P.spark;
       ctx.beginPath();
-      ctx.ellipse(Math.round(x), Math.round(y), 15, 8, 0, 0, TAU);
+      ctx.ellipse(snap(x), snap(y), 15, 8, 0, 0, TAU);
       ctx.fill();
       // Colonne de lumière : c'est elle qui rend la pièce repérable dans la horde.
       ctx.globalAlpha = pulse * 0.5;
-      ctx.fillRect(Math.round(x - 1), Math.round(y - 46), 3, 46);
+      ctx.fillRect(snap(x - 1), snap(y - 46), 3, 46);
       ctx.globalAlpha = 1;
 
       const set = w.cacheSprite(k.def);
       const f = set.frames[Math.floor(k.anim * 5) % set.frames.length]!;
-      ctx.drawImage(f, Math.round(x - f.width / 2), Math.round(y - f.height + 4));
+      ctx.drawImage(f, snap(x - f.width / 2), snap(y - f.height + 4));
     }
   }
 
@@ -302,7 +304,7 @@ export class Renderer {
       const x = s.x + ox;
       const y = s.y + oy;
       if (x < -16 || y < -16 || x > w.cam.viewW + 16 || y > w.cam.viewH + 16) continue;
-      ctx.drawImage(s.sprite, Math.round(x - 7), Math.round(y - 7));
+      ctx.drawImage(s.sprite, snap(x - 7), snap(y - 7));
     }
     ctx.globalAlpha = 1;
   }
@@ -368,7 +370,7 @@ export class Renderer {
       }
 
       const bob = p.kind === 'gem' || p.kind === 'gold' ? 0 : Math.sin(p.anim) * 1.2;
-      ctx.drawImage(f, Math.round(x - f.width / 2), Math.round(y - f.height / 2 + bob));
+      ctx.drawImage(f, snap(x - f.width / 2), snap(y - f.height / 2 + bob));
     }
   }
 
@@ -406,8 +408,8 @@ export class Renderer {
          * `Math.round(x - largeur / 2)` par élément les faisait glisser les uns sur les autres
          * selon la parité de leur largeur.
          */
-        const x = Math.round(lerp(e.px, e.x, alpha) + ox + subX + e.vx * surge);
-        const y = Math.round(lerp(e.py, e.y, alpha) + oy + subY + e.vy * surge);
+        const x = snap(lerp(e.px, e.x, alpha) + ox + subX + e.vx * surge);
+        const y = snap(lerp(e.py, e.y, alpha) + oy + subY + e.vy * surge);
 
         // Ombre portée : ancre le sprite au sol, sans quoi tout paraît flotter. Sous les pieds
         // d'un corps qui marche, et à sa largeur : sous un boss, elle disparaissait derrière lui.
@@ -434,7 +436,7 @@ export class Renderer {
           const rr = e.radius * 1.8;
           ctx.fillStyle = `rgba(${cr},${cg},${cb},${(pulse * 0.7).toFixed(3)})`;
           ctx.beginPath();
-          ctx.ellipse(x, Math.round(y + e.radius - 1), rr, rr * 0.42, 0, 0, TAU);
+          ctx.ellipse(x, snap(y + e.radius - 1), rr, rr * 0.42, 0, 0, TAU);
           ctx.fill();
         }
 
@@ -451,9 +453,10 @@ export class Renderer {
 
         if (e.stun > 0 || e.slow > 0) ctx.globalAlpha = 0.75;
         if (e.facing < 0 && this.flippable(e)) {
-          ctx.setTransform(-1, 0, 0, 1, 0, 0);
+          const S = gridScale();
+          ctx.setTransform(-S, 0, 0, S, 0, 0);
           ctx.drawImage(f, -dx - f.width, dy);
-          ctx.setTransform(1, 0, 0, 1, 0, 0);
+          ctx.setTransform(S, 0, 0, S, 0, 0);
         } else {
           // Sortie de terre : seul ce qui a dépassé du sol se voit, pieds toujours au même endroit.
           const shown = e.rise > 0 ? Math.ceil(f.height * (1 - e.rise / RISE_TIME)) : f.height;
@@ -552,14 +555,15 @@ export class Renderer {
 
       const angle = p.rot + (this.oriented(p.behavior) ? p.angle : 0);
       if (Math.abs(angle) < 0.01) {
-        ctx.drawImage(f, Math.round(x - hw), Math.round(y - hh));
+        ctx.drawImage(f, snap(x - hw), snap(y - hh));
       } else {
+        const S = gridScale();
         ctx.setTransform(
-          Math.cos(angle), Math.sin(angle), -Math.sin(angle), Math.cos(angle),
-          Math.round(x), Math.round(y),
+          Math.cos(angle) * S, Math.sin(angle) * S, -Math.sin(angle) * S, Math.cos(angle) * S,
+          snap(x) * S, snap(y) * S,
         );
         ctx.drawImage(f, -hw, -hh);
-        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.setTransform(S, 0, 0, S, 0, 0);
       }
     }
   }
@@ -571,7 +575,7 @@ export class Renderer {
     for (let i = 1; i < links; i++) {
       const u = i / links;
       ctx.fillStyle = i % 2 ? P.stoneHi : P.mist;
-      ctx.fillRect(Math.round(lerp(x0, x1, u)), Math.round(lerp(y0, y1, u)), 2, 2);
+      ctx.fillRect(snap(lerp(x0, x1, u)), snap(lerp(y0, y1, u)), 2, 2);
     }
   }
 
@@ -599,8 +603,8 @@ export class Renderer {
      * avant selon le signe de cette fraction, mesuré à 130 allers-retours par seconde, sur un
      * personnage que l'œil suit en permanence. Arrondi d'abord, il ne bouge plus d'un pixel.
      */
-    const sx = Math.round(x);
-    const sy = Math.round(y);
+    const sx = snap(x);
+    const sy = snap(y);
 
     const sh = shadowSprite();
     ctx.globalAlpha = 0.55;
@@ -631,9 +635,10 @@ export class Renderer {
     const dy = sy + 10 - f.height;
 
     if (pl.facingX < 0) {
-      ctx.setTransform(-1, 0, 0, 1, 0, 0);
+      const S = gridScale();
+      ctx.setTransform(-S, 0, 0, S, 0, 0);
       ctx.drawImage(f, -dx - f.width, dy);
-      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.setTransform(S, 0, 0, S, 0, 0);
     } else {
       ctx.drawImage(f, dx, dy);
     }

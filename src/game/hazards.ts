@@ -42,6 +42,8 @@ const ENEMY_STRIDE = 3;
 
 /** Part de la commande transmise à chaque image : environ 60 px d'élan à la vitesse de base. */
 const ICE_GRIP = 0.025;
+/** Sur la terre ferme, le héros atteint sa vitesse en un dixième de seconde : vif, mais sans à-coup. */
+export const GROUND_GRIP = 0.35;
 const BURN_TICK = 0.45;
 const BURN_SHARE = 0.05;
 /** Dégâts par seconde infligés à ce qui marche dans la lave, avant l'échelle de la partie. */
@@ -201,6 +203,6 @@ export class HazardField {
   }
 
   get grip(): number {
-    return this.under?.kind === 'ice' ? ICE_GRIP : 1;
+    return this.under?.kind === 'ice' ? ICE_GRIP : GROUND_GRIP;
   }
 }

@@ -1,6 +1,7 @@
 import { clamp } from '../core/math';
 import { floorTile, type FloorKind } from './castle';
 import { drawGlow } from './fx';
+import { gridScale, snap } from './grid';
 import type { World } from '../game/world';
 import { buildDecal, buildPiece, SKYLINE_STEP, type Piece, type Site } from '../game/siteplan';
 import { biomeAt, treeSprite, type Tree } from '../game/terrain';
@@ -167,7 +168,8 @@ export class SiteLayer {
   /** Sols et tapis : sous tout le reste. */
   drawFloors(ctx: CanvasRenderingContext2D, VW: number, VH: number): void {
     const { ox, oy } = this;
-    ctx.setTransform(1, 0, 0, 1, ox, oy);
+    const S = gridScale();
+    ctx.setTransform(S, 0, 0, S, ox * S, oy * S);
     for (const s of this.visible) {
       for (const f of s.floors) {
         if (f.x + f.w + ox < 0 || f.y + f.h + oy < 0 || f.x + ox > VW || f.y + oy > VH) continue;
@@ -175,7 +177,7 @@ export class SiteLayer {
         ctx.fillRect(f.x, f.y, f.w, f.h);
       }
     }
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.setTransform(S, 0, 0, S, 0, 0);
     for (const s of this.visible) {
       for (const p of s.decals) {
         if (p.x + p.w + ox < 0 || p.y + p.h + oy < 0 || p.x + ox > VW || p.y + oy > VH) continue;
@@ -211,7 +213,7 @@ export class SiteLayer {
 
   private blitTree(ctx: CanvasRenderingContext2D, t: Tree, ox: number, oy: number): void {
     const s = treeSprite(t.kind, t.variant, t.grand, biomeAt(t.x, t.y));
-    ctx.drawImage(s, Math.round(t.x + ox - s.width / 2), Math.round(t.y + oy - s.height + 3));
+    ctx.drawImage(s, snap(t.x + ox - s.width / 2), snap(t.y + oy - s.height + 3));
   }
 
   private blit(ctx: CanvasRenderingContext2D, p: Piece, ox: number, oy: number): void {
@@ -230,7 +232,7 @@ export class SiteLayer {
    */
   coverHero(ctx: CanvasRenderingContext2D, hx: number, hy: number, heroY: number): void {
     const { items, ox, oy } = this;
-    const L = Math.round(hx) - 22, T = Math.round(hy) - 34, W = 44, H = 48;
+    const L = snap(hx) - 22, T = snap(hy) - 34, W = 44, H = 48;
     for (const it of items) {
       const p = it.piece;
       if (!p || p.key <= heroY) continue;

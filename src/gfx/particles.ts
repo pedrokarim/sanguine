@@ -1,3 +1,4 @@
+import { snap } from './grid';
 import { fxRng } from '../core/rng';
 import { TAU, clamp01, easeOutCubic } from '../core/math';
 import { P } from './palette';
@@ -351,7 +352,7 @@ export class Particles {
         case PKind.Number: {
           const rise = (1 - t) * 3;
           ctx.globalAlpha = t > 0.35 ? 1 : t / 0.35;
-          font.drawCentered(ctx, p.text, Math.round(sx), Math.round(sy - rise), p.color, p.scale);
+          font.drawCentered(ctx, p.text, snap(sx), snap(sy - rise), p.color, p.scale);
           ctx.globalAlpha = 1;
           break;
         }
@@ -380,7 +381,7 @@ export class Particles {
           fx.fillRect(sx - w / 2, sy - 62, w, 64);
           fx.fillStyle = '#ffffff';
           fx.globalAlpha = t;
-          fx.fillRect(Math.round(sx) - 0.5, sy - 62, 1, 64);
+          fx.fillRect(snap(sx) - 0.5, sy - 62, 1, 64);
           drawGlow(fx, sx, sy, 14 + w * 2, 8 + w, p.color, t * 0.8);
           break;
         }
@@ -402,7 +403,7 @@ export class Particles {
           const s = Math.max(1, p.size * t);
           fx.globalAlpha = t;
           fx.fillStyle = p.color;
-          fx.fillRect(Math.round(sx - s / 2), Math.round(sy - s / 2), Math.ceil(s), Math.ceil(s));
+          fx.fillRect(snap(sx - s / 2), snap(sy - s / 2), Math.ceil(s), Math.ceil(s));
           drawGlow(fx, sx, sy, 2 + s * 1.4, 2 + s * 1.4, p.color, t * 0.2);
           break;
         }
@@ -410,7 +411,7 @@ export class Particles {
           ctx.globalAlpha = t;
           ctx.fillStyle = p.color;
           const s = p.size;
-          ctx.fillRect(Math.round(sx), Math.round(sy), s, s);
+          ctx.fillRect(snap(sx), snap(sy), s, s);
           ctx.globalAlpha = 1;
           break;
         }
@@ -419,7 +420,7 @@ export class Particles {
           const s = Math.max(1, p.size * (p.kind === PKind.Blood ? 1 : t));
           ctx.globalAlpha = p.kind === PKind.Dust ? t * 0.6 : t;
           ctx.fillStyle = p.color;
-          ctx.fillRect(Math.round(sx - s / 2), Math.round(sy - s / 2), Math.ceil(s), Math.ceil(s));
+          ctx.fillRect(snap(sx - s / 2), snap(sy - s / 2), Math.ceil(s), Math.ceil(s));
           ctx.globalAlpha = 1;
         }
       }
