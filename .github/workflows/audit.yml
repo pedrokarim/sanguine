@@ -123,6 +123,17 @@ jobs:
           fi
           echo "OK — aucune URL externe hors métadonnées."
 
+      - name: Les outils de développement restent hors du bundle
+        run: |
+          # Laboratoire d'effets, triches et poignée `window.sanguine` sont réservés au
+          # développement (`src/core/devtools.ts`). Ils ont été publiés par erreur faute de
+          # garde : on le vérifie donc sur le fichier livré, pas sur les sources.
+          if grep -lE "Laboratoire d|Effects lab|Copier le JSON|fastForward" dist/*.js; then
+            echo "::error::Un outil de développement est présent dans le build public."
+            exit 1
+          fi
+          echo "OK — aucun outil de développement dans le bundle."
+
       - name: "Ni eval, ni Function, ni javascript:"
         run: |
           fail=0

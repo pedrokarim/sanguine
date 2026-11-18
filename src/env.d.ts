@@ -11,6 +11,7 @@ interface ImportMetaEnv {
   /** Instance de collecte, si elle n'est pas celle par défaut. */
   readonly VITE_SARUTOBI_HOST?: string;
   readonly DEV: boolean;
+  readonly MODE: string;
 }
 
 interface ImportMeta {

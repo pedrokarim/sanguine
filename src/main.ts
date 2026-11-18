@@ -30,6 +30,7 @@ import { updateWeapons } from './game/weapons';
 import { rollOffers, openChest, applyChest, type Offer, type ChestResult } from './game/upgrades';
 import { characterById, CHARACTERS } from './data/characters';
 import { Hud } from './ui/hud';
+import { DEV_TOOLS } from './core/devtools';
 import { FxLab, loadFxSettings } from './ui/fxlab';
 import { Screens, type RunSummary } from './ui/screens';
 import { Backdrop } from './ui/backdrop';
@@ -110,13 +111,13 @@ installDecor();
 
 let hud: Hud | null = null;
 let world: World | null = null;
-const fxLab = new FxLab(uiLayer, () => world);
+const fxLab = DEV_TOOLS ? new FxLab(uiLayer, () => world) : null;
 /**
  * La partie en cours est un bac à sable : le laboratoire d'effets y a été ouvert.
  *
  * Il rend le joueur intouchable et distribue armes et ennemis à la demande. Une telle
- * partie ne doit donc ni se sauvegarder, ni rapporter d'or, ni compter dans les records :
- * maintenant que le laboratoire est à portée de bouton, ce serait une triche involontaire.
+ * partie ne doit donc ni se sauvegarder, ni rapporter d'or, ni compter dans les records.
+ * Le laboratoire n'existe pas dans le build public : voir `core/devtools.ts`.
  */
 let sandbox = false;
 
@@ -127,7 +128,7 @@ function openLab(): void {
     clearRun();
     world.announce(t('Bac à sable', 'Sandbox'), t('cette partie ne compte pas', 'this run does not count'), 3.5);
   }
-  fxLab.toggle(true);
+  fxLab?.toggle(true);
 }
 let state: State = 'title';
 let lastCharId = 'ysolde';
@@ -367,7 +368,7 @@ function equippedTrail(sv: ReturnType<typeof load>): World['trail'] {
 
 function goTitle(): void {
   state = 'title';
-  fxLab.toggle(false);
+  fxLab?.toggle(false);
   world = null;
   // La scène de menu n'obéit plus au plafond de surface : il faut la redimensionner.
   resize();
@@ -593,12 +594,14 @@ function togglePause(): void {
         endRun(false);
       },
       world?.player,
-      () => {
-        screens.close();
-        state = 'playing';
-        audio.resume();
-        openLab();
-      },
+      DEV_TOOLS
+        ? () => {
+            screens.close();
+            state = 'playing';
+            audio.resume();
+            openLab();
+          }
+        : undefined,
     );
   } else if (state === 'paused') {
     screens.close();
@@ -617,7 +620,7 @@ function endRun(victory: boolean): void {
     return;
   }
   state = victory ? 'victory' : 'gameover';
-  fxLab.toggle(false);
+  fxLab?.toggle(false);
   mobile.partieEnCours(false);
   audio.stopMusic();
   audio.setBossMode(false);
@@ -684,11 +687,11 @@ const loop = new Loop({
       w.player.update(dt * w.timeScale, input.move.x, input.move.y, w.terrain.currentBiome.moveMul * w.terrain.hazards.speed);
       w.cam.follow(w.player.x, w.player.y, dt);
       updateWeapons(w, dt * w.timeScale);
-      if (!(fxLab.isOpen && fxLab.holdSpawns)) director.update(w, dt * w.timeScale);
+      if (!(fxLab?.isOpen && fxLab.holdSpawns)) director.update(w, dt * w.timeScale);
       w.update(dt);
 
       // Laboratoire ouvert, la partie est un bac à sable : aucun menu ne doit l'interrompre.
-      if (fxLab.isOpen) {
+      if (fxLab?.isOpen) {
         w.pendingLevelUps = 0;
         w.pendingChests = 0;
         w.pendingFragment = null;
@@ -732,7 +735,7 @@ const loop = new Loop({
     if (world) {
       renderer.render(world, state === 'playing' ? alpha : 0);
       if (hud && state !== 'title') hud.update(world, rdt);
-      if (fxLab.isOpen) fxLab.update(loop);
+      if (fxLab?.isOpen) fxLab.update(loop);
     } else {
       // Hors partie, le canvas affiche la scène illustrée des menus.
       backdrop.render(menuCtx, rdt, menuScene.width, menuScene.height);
@@ -741,7 +744,7 @@ const loop = new Loop({
       ctx.drawImage(menuScene, 0, 0, scene.width, scene.height);
     }
     present();
-    if (debug) updateDebug();
+    if (DEV_TOOLS && debug) updateDebug();
     updatePerf(rdt);
   },
 });
@@ -764,6 +767,18 @@ function handleGlobalKeys(): void {
     hud.minimap.toggle();
   }
 
+  if (input.wasPressed('KeyF')) {
+    if (!document.fullscreenElement) void document.documentElement.requestFullscreen?.();
+    else void document.exitFullscreen?.();
+  }
+
+  if (state === 'title' && input.wasPressed('Enter', 'Space')) goCharSelect();
+
+  if (DEV_TOOLS) handleDevKeys();
+}
+
+/** Debug, triches et laboratoire : absents du build public, voir `core/devtools.ts`. */
+function handleDevKeys(): void {
   // Bascule entre le héros détaillé et le classique, pour trancher en comparant.
   if (input.wasPressed('F8')) {
     setHeroDetaille(!getHeroDetaille());
@@ -775,11 +790,6 @@ function handleGlobalKeys(): void {
     audio.play('select');
   }
 
-  if (input.wasPressed('KeyF')) {
-    if (!document.fullscreenElement) void document.documentElement.requestFullscreen?.();
-    else void document.exitFullscreen?.();
-  }
-
   if (input.wasPressed('Backquote')) {
     debug = !debug;
     if (!debug && debugEl) {
@@ -788,14 +798,12 @@ function handleGlobalKeys(): void {
     }
   }
 
-  if (state === 'title' && input.wasPressed('Enter', 'Space')) goCharSelect();
-
   // Triches de développement – pratiques pour tester l'équilibrage tardif.
   if (!world || state !== 'playing') return;
   const w = world;
   // Laboratoire d'effets : voir `ui/fxlab.ts`.
   if (input.wasPressed('F9')) {
-    if (fxLab.isOpen) fxLab.toggle(false);
+    if (fxLab?.isOpen) fxLab.toggle(false);
     else openLab();
   }
   if (input.wasPressed('F1')) {
@@ -904,146 +912,149 @@ document.addEventListener('visibilitychange', () => {
   }
 });
 
-/**
- * Poignée de développement. Sert au mode debug (`~`), aux tests automatisés en navigateur
- * headless, et à inspecter un build depuis la console sans instrumenter le code.
- */
-Object.defineProperty(window, 'sanguine', {
-  value: {
-    get world(): World | null { return world; },
-    get state(): State { return state; },
-    get loop(): Loop { return loop; },
-    /** Le bot de mesure s'en sert pour démarrer une partie en cours de route. */
-    get director(): Director { return director; },
-    /** Vue logique et cadrage physique — ce qu'il faut pour vérifier la netteté et les bandes. */
-    get view(): { w: number; h: number } { return { w: VIEW.w, h: VIEW.h }; },
-    /** Motif de sol d'une tuile — sert à vérifier la répartition sans jouer des heures. */
-    motifAt,
-    routeAt,
-    biomeAt,
-    /** Planche d'un ennemi ou d'un décor, par identifiant. Sert aux vérifications. */
-    spriteOf: (id: string) => makeBody(`chk:${id}`, enemyById(id).art),
-    get blit(): { scale: number; x: number; y: number } {
-      return { scale: blitScale, x: blitX, y: blitY };
-    },
-    /**
-     * Avance la simulation de `seconds` en exécutant de **vrais pas fixes**.
-     *
-     * Sert à mesurer l'équilibrage sans jouer trente minutes en temps réel. Multiplier
-     * `speedScale` aurait été plus court à écrire, mais allongerait chaque pas et ferait
-     * traverser les collisions : on mesurerait alors une autre physique que celle du jeu.
-     * Ici, seul le nombre de pas par image change.
-     */
-    fastForward(
-      seconds: number,
-      pilote?: (w: World) => { x: number; y: number },
-      /** Choix de carte du bot. Sans lui, la première offre est prise. */
-      pick?: (offers: Offer[], w: World) => Offer | undefined,
-    ): void {
-      if (state !== 'playing' || !world) return;
-      const w = world;
-      const dt = 1 / 60;
-      const pas = Math.round(seconds * 60);
-      for (let i = 0; i < pas; i++) {
-        // Le pilote est fourni par l'appelant : l'intelligence du bot de mesure n'a rien
-        // à faire dans le code du jeu, seul le point d'entrée y est.
-        const cmd = pilote ? pilote(w) : { x: 0, y: 0 };
-        w.player.update(dt * w.timeScale, cmd.x, cmd.y, w.terrain.currentBiome.moveMul * w.terrain.hazards.speed);
-        w.cam.follow(w.player.x, w.player.y, dt);
-        updateWeapons(w, dt * w.timeScale);
-        director.update(w, dt * w.timeScale);
-        w.update(dt);
+if (DEV_TOOLS) {
+  /**
+   * Poignée de développement. Sert au mode debug (`~`), aux tests automatisés en navigateur
+   * headless, et à inspecter un build depuis la console sans instrumenter le code.
+   */
+  Object.defineProperty(window, 'sanguine', {
+    value: {
+      get world(): World | null { return world; },
+      get state(): State { return state; },
+      get loop(): Loop { return loop; },
+      /** Le bot de mesure s'en sert pour démarrer une partie en cours de route. */
+      get director(): Director { return director; },
+      /** Vue logique et cadrage physique — ce qu'il faut pour vérifier la netteté et les bandes. */
+      get view(): { w: number; h: number } { return { w: VIEW.w, h: VIEW.h }; },
+      /** Motif de sol d'une tuile — sert à vérifier la répartition sans jouer des heures. */
+      motifAt,
+      routeAt,
+      biomeAt,
+      /** Planche d'un ennemi ou d'un décor, par identifiant. Sert aux vérifications. */
+      spriteOf: (id: string) => makeBody(`chk:${id}`, enemyById(id).art),
+      get blit(): { scale: number; x: number; y: number } {
+        return { scale: blitScale, x: blitX, y: blitY };
+      },
+      /**
+       * Avance la simulation de `seconds` en exécutant de **vrais pas fixes**.
+       *
+       * Sert à mesurer l'équilibrage sans jouer trente minutes en temps réel. Multiplier
+       * `speedScale` aurait été plus court à écrire, mais allongerait chaque pas et ferait
+       * traverser les collisions : on mesurerait alors une autre physique que celle du jeu.
+       * Ici, seul le nombre de pas par image change.
+       */
+      fastForward(
+        seconds: number,
+        pilote?: (w: World) => { x: number; y: number },
+        /** Choix de carte du bot. Sans lui, la première offre est prise. */
+        pick?: (offers: Offer[], w: World) => Offer | undefined,
+      ): void {
+        if (state !== 'playing' || !world) return;
+        const w = world;
+        const dt = 1 / 60;
+        const pas = Math.round(seconds * 60);
+        for (let i = 0; i < pas; i++) {
+          // Le pilote est fourni par l'appelant : l'intelligence du bot de mesure n'a rien
+          // à faire dans le code du jeu, seul le point d'entrée y est.
+          const cmd = pilote ? pilote(w) : { x: 0, y: 0 };
+          w.player.update(dt * w.timeScale, cmd.x, cmd.y, w.terrain.currentBiome.moveMul * w.terrain.hazards.speed);
+          w.cam.follow(w.player.x, w.player.y, dt);
+          updateWeapons(w, dt * w.timeScale);
+          director.update(w, dt * w.timeScale);
+          w.update(dt);
 
-        /*
-         * Les montées de niveau et les coffres sont résolus ici, en appelant les mêmes
-         * fonctions que l'interface. Sans cela, l'avance rapide produirait un joueur resté
-         * au niveau 3 sans passif ni relique — on mesurerait alors l'équilibrage d'une
-         * partie que personne ne joue.
-         */
-        while (w.pendingLevelUps > 0) {
-          const offres = rollOffers(w);
-          const choix = pick ? pick(offres, w) : offres[0];
-          if (choix) choix.apply(w);
-          w.pendingLevelUps--;
+          /*
+           * Les montées de niveau et les coffres sont résolus ici, en appelant les mêmes
+           * fonctions que l'interface. Sans cela, l'avance rapide produirait un joueur resté
+           * au niveau 3 sans passif ni relique — on mesurerait alors l'équilibrage d'une
+           * partie que personne ne joue.
+           */
+          while (w.pendingLevelUps > 0) {
+            const offres = rollOffers(w);
+            const choix = pick ? pick(offres, w) : offres[0];
+            if (choix) choix.apply(w);
+            w.pendingLevelUps--;
+          }
+          while (w.pendingChests > 0) {
+            const c = openChest(w);
+            applyChest(w, c);
+            w.pendingChests--;
+          }
+          if (w.pendingFragment) w.pendingFragment = null;
+
+          if (w.state === 'dead' || w.state === 'won') break;
         }
-        while (w.pendingChests > 0) {
-          const c = openChest(w);
-          applyChest(w, c);
-          w.pendingChests--;
+      },
+      startRun,
+      /** Table des rangs — sert aux mesures de charge, qui doivent pouvoir forcer la proportion. */
+      RANGS_TEST: RANGS,
+      countActiveProjectiles(): number {
+        let n = 0;
+        if (world) for (const p of world.projectiles) if (p.active) n++;
+        return n;
+      },
+      /**
+       * Exporte toutes les planches de sprites du jeu en `data:` URI.
+       *
+       * Sert à alimenter le manuel en ligne : les visuels de la documentation sont ainsi
+       * produits par **les générateurs du jeu eux-mêmes**, et ne peuvent donc jamais diverger
+       * de ce que le joueur voit réellement à l'écran.
+       */
+      exportSprites(): Record<string, { url: string; frames: number; w: number; h: number }> {
+        const out: Record<string, { url: string; frames: number; w: number; h: number }> = {};
+        const put = (key: string, set: SpriteSet, scale: number): void => {
+          const s = spriteSheet(`export:${key}`, set, scale);
+          out[key] = { url: s.url, frames: s.frames, w: s.w, h: s.h };
+        };
+        const fit = (set: SpriteSet, max: number): number =>
+          Math.max(1, Math.min(6, Math.floor(max / Math.max(set.w, set.h))));
+
+        for (const def of WEAPONS) put(`weapon-${def.id}`, skillIconSet('weapon', def.id), 2);
+        for (const def of [...ENEMIES, ...BOSSES]) {
+          const set = makeBody(`enemy:${def.id}`, def.art);
+          put(`enemy-${def.id}`, set, fit(set, 48));
         }
-        if (w.pendingFragment) w.pendingFragment = null;
+        for (const r of RELICS) put(`relic-${r.id}`, skillIconSet('relic', r.id), 2);
+        for (const c of CHARACTERS) {
+          const set = makeHero(`hero:${c.id}`, c.art, false);
+          put(`hero-${c.id}`, set, fit(set, 44));
+        }
+        for (const p of PASSIVES) put(`passive-${p.id}`, skillIconSet('passive', p.id), 2);
+        for (const t of Object.keys(POI_DEFS) as (keyof typeof POI_DEFS)[]) {
+          const frame = poiIcon(t);
+          put(`poi-${t}`, { frames: [frame], flash: [frame], elite: [frame], w: frame.width, h: frame.height }, 2);
+        }
+        for (let r = 0; r < 4; r++) put(`gem-${r}`, makeGem(r as 0 | 1 | 2 | 3), 4);
+        put('coin', makeCoin(), 4);
+        put('heart', makeHeart(), 4);
+        put('chest', makeChest(), 3);
+        return out;
+      },
 
-        if (w.state === 'dead' || w.state === 'won') break;
-      }
+      /** Instantané complet du build courant, pour vérifier l'équilibrage. */
+      snapshot(): unknown {
+        if (!world) return null;
+        const w = world;
+        return {
+          time: w.time,
+          state,
+          level: w.player.level,
+          hp: w.player.hp,
+          kills: w.kills,
+          gold: w.gold,
+          enemies: w.aliveEnemies,
+          weapons: w.player.weapons.map((x) => ({ id: x.def.id, lvl: x.level, cd: x.cd })),
+          passives: [...w.player.passives],
+          relics: w.player.relics,
+          stats: { ...w.player.stats },
+        };
+      },
     },
-    startRun,
-    /** Table des rangs — sert aux mesures de charge, qui doivent pouvoir forcer la proportion. */
-    RANGS_TEST: RANGS,
-    countActiveProjectiles(): number {
-      let n = 0;
-      if (world) for (const p of world.projectiles) if (p.active) n++;
-      return n;
-    },
-    /**
-     * Exporte toutes les planches de sprites du jeu en `data:` URI.
-     *
-     * Sert à alimenter le manuel en ligne : les visuels de la documentation sont ainsi
-     * produits par **les générateurs du jeu eux-mêmes**, et ne peuvent donc jamais diverger
-     * de ce que le joueur voit réellement à l'écran.
-     */
-    exportSprites(): Record<string, { url: string; frames: number; w: number; h: number }> {
-      const out: Record<string, { url: string; frames: number; w: number; h: number }> = {};
-      const put = (key: string, set: SpriteSet, scale: number): void => {
-        const s = spriteSheet(`export:${key}`, set, scale);
-        out[key] = { url: s.url, frames: s.frames, w: s.w, h: s.h };
-      };
-      const fit = (set: SpriteSet, max: number): number =>
-        Math.max(1, Math.min(6, Math.floor(max / Math.max(set.w, set.h))));
+  });
+}
 
-      for (const def of WEAPONS) put(`weapon-${def.id}`, skillIconSet('weapon', def.id), 2);
-      for (const def of [...ENEMIES, ...BOSSES]) {
-        const set = makeBody(`enemy:${def.id}`, def.art);
-        put(`enemy-${def.id}`, set, fit(set, 48));
-      }
-      for (const r of RELICS) put(`relic-${r.id}`, skillIconSet('relic', r.id), 2);
-      for (const c of CHARACTERS) {
-        const set = makeHero(`hero:${c.id}`, c.art, false);
-        put(`hero-${c.id}`, set, fit(set, 44));
-      }
-      for (const p of PASSIVES) put(`passive-${p.id}`, skillIconSet('passive', p.id), 2);
-      for (const t of Object.keys(POI_DEFS) as (keyof typeof POI_DEFS)[]) {
-        const frame = poiIcon(t);
-        put(`poi-${t}`, { frames: [frame], flash: [frame], elite: [frame], w: frame.width, h: frame.height }, 2);
-      }
-      for (let r = 0; r < 4; r++) put(`gem-${r}`, makeGem(r as 0 | 1 | 2 | 3), 4);
-      put('coin', makeCoin(), 4);
-      put('heart', makeHeart(), 4);
-      put('chest', makeChest(), 3);
-      return out;
-    },
-
-    /** Instantané complet du build courant, pour vérifier l'équilibrage. */
-    snapshot(): unknown {
-      if (!world) return null;
-      const w = world;
-      return {
-        time: w.time,
-        state,
-        level: w.player.level,
-        hp: w.player.hp,
-        kills: w.kills,
-        gold: w.gold,
-        enemies: w.aliveEnemies,
-        weapons: w.player.weapons.map((x) => ({ id: x.def.id, lvl: x.level, cd: x.cd })),
-        passives: [...w.player.passives],
-        relics: w.player.relics,
-        stats: { ...w.player.stats },
-      };
-    },
-  },
-});
-
-loadFxSettings();
+// Les réglages du laboratoire ne valent que là où il existe : le public a ceux du jeu.
+if (DEV_TOOLS) loadFxSettings();
 applyOptions();
 goTitle();
 loop.start();
@@ -1056,7 +1067,7 @@ whenIdle(
 );
 
 // `?fx` dans l'adresse ouvre directement le laboratoire d'effets, sans passer par les menus.
-if (new URLSearchParams(location.search).has('fx')) {
+if (DEV_TOOLS && new URLSearchParams(location.search).has('fx')) {
   startRun(CHARACTERS[0]!.id);
   openLab();
 }
