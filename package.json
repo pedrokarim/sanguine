@@ -8,6 +8,8 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
+    "build:devtools": "vite build --mode devtools --outDir dist-devtools",
+    "preview:devtools": "vite preview --outDir dist-devtools",
     "typecheck": "tsc --noEmit",
     "planche": "vite build --config vite.planche.config.ts"
   },

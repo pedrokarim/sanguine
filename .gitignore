@@ -24,6 +24,7 @@ id_rsa*
 
 # Construction annexe de la planche des sprites.
 dist-planche/
+dist-devtools/
 
 # Planches de contrôle produites par les outils de pixelfx.
 vendor/pixelfx/records/

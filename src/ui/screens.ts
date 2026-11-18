@@ -1,3 +1,4 @@
+import { DEV_TOOLS } from '../core/devtools';
 import { formatTime, abbrev } from '../core/math';
 import { locale, setLanguage, t } from '../i18n';
 import { load, save, update, wipe, type SaveData, type RunSave } from '../core/save';
@@ -1625,8 +1626,8 @@ export class Screens {
     list.append(resume, quit);
     el.appendChild(list);
     const items: HTMLElement[] = [resume, quit];
-    if (onLab) {
-      // Outil de curiosité, pas une option de jeu : un bouton discret, sous le menu.
+    if (DEV_TOOLS && onLab) {
+      // Outil de développement : le build public ne passe pas `onLab`, le bouton n'y existe pas.
       const lab = this.button(t('Laboratoire d’effets', 'Effects lab'), 'small');
       lab.title = t('Bac à sable pour voir et régler les effets. La partie ne comptera plus.', 'A sandbox to preview and tune effects. The run will no longer count.');
       lab.addEventListener('click', onLab);

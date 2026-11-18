@@ -19,8 +19,8 @@ import { t } from '../i18n';
  *
  * Un effet se règle à l'œil, pas dans un fichier : changer une constante, recompiler,
  * rejouer jusqu'à retrouver l'arme concernée, c'est dix minutes pour juger un halo. Ce
- * panneau ramène la boucle à une seconde. Il s'ouvre en partie (`F9`, ou `?fx` dans
- * l'adresse), transforme la partie en bac à sable – horde suspendue, joueur intouchable,
+ * panneau ramène la boucle à une seconde. Réservé au développement (`core/devtools.ts`), il
+ * s'ouvre en partie (`F9`, ou `?fx` dans l'adresse), transforme la partie en bac à sable – horde suspendue, joueur intouchable,
  * montées de niveau ignorées – et donne trois choses :
  *
  *   – **voir** : n'importe quelle arme équipée seule, chaque effet déclenché à la demande,
@@ -41,7 +41,9 @@ interface SliderDef {
   max: number;
 }
 
-const SLIDERS: SliderDef[] = [
+// En fonctions, pas en constantes : un appel à `t` au niveau du module resterait dans le build
+// public, qui ne contient pas le laboratoire.
+const sliders = (): SliderDef[] => [
   { key: 'bloom', label: t('Halo', 'Bloom'), hint: t('Débordement de la lumière autour de sa forme.', 'How far light spills past its shape.'), max: 2.5 },
   { key: 'light', label: t('Lumière', 'Light'), hint: t('Opacité de toute la couche lumineuse.', 'Opacity of the whole light layer.'), max: 2 },
   { key: 'particles', label: t('Particules', 'Particles'), hint: t('Nombre de particules émises.', 'Number of particles emitted.'), max: 3 },
@@ -51,7 +53,7 @@ const SLIDERS: SliderDef[] = [
   { key: 'ceiling', label: t('Plafond', 'Ceiling'), hint: t('Atténue les zones où la lumière s’empile, sans toucher aux lueurs isolées.', 'Tames areas where light piles up, leaving lone glows untouched.'), max: 0.5 },
 ];
 
-const VIEWS: [FxView, string][] = [
+const fxViews = (): [FxView, string][] => [
   ['normal', t('Normal', 'Normal')],
   ['light', t('Lumière seule', 'Light only')],
   ['flat', t('Sans lumière', 'No light')],
@@ -63,7 +65,7 @@ export function loadFxSettings(): void {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return;
     const saved = JSON.parse(raw) as Partial<FxSettings>;
-    for (const s of SLIDERS) {
+    for (const s of sliders()) {
       const v = saved[s.key];
       if (typeof v === 'number' && Number.isFinite(v)) fxSettings[s.key] = Math.min(s.max, Math.max(0, v));
     }
@@ -237,7 +239,7 @@ export class FxLab {
   // ----------------------------------------------------------------- réglages
 
   private buildSettings(box: HTMLElement): void {
-    for (const s of SLIDERS) {
+    for (const s of sliders()) {
       this.slider(box, s.label, s.hint, s.max, 0.05, () => fxSettings[s.key], (v) => {
         fxSettings[s.key] = v;
         saveFxSettings();
@@ -253,13 +255,14 @@ export class FxLab {
       },
     );
 
+    const list = fxViews();
     const views = document.createElement('div');
     views.className = 'fxlab-buttons';
     const buttons: HTMLButtonElement[] = [];
     const mark = (): void => {
-      buttons.forEach((b, i) => b.classList.toggle('on', VIEWS[i]![0] === fxSettings.view));
+      buttons.forEach((b, i) => b.classList.toggle('on', list[i]![0] === fxSettings.view));
     };
-    for (const [view, label] of VIEWS) {
+    for (const [view, label] of list) {
       buttons.push(this.smallButton(label, () => {
         fxSettings.view = view;
         mark();
